@@ -1,67 +1,477 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-
-// Mock data for upcoming events
-const upcomingEvents = [
-  {
-    name: 'LeetCode Weekly Contest 405',
-    platform: 'LeetCode',
-    date: 'Oct 5, 2025, 8:00 AM',
-  },
-  {
-    name: 'Codeforces Round #950 (Div. 3)',
-    platform: 'Codeforces',
-    date: 'Oct 7, 2025, 7:35 PM',
-  },
-  {
-    name: 'HackerRank September Challenge',
-    platform: 'HackerRank',
-    date: 'Oct 9, 2025, 12:00 PM',
-  },
-];
+import React, { useState, useEffect } from 'react';
 
 const LandingPage = () => {
-  return (
-    <div className="bg-gray-50 min-h-screen font-sans">
-      {/* Overview Section */}
-      <section className="text-center py-20 px-6 bg-white">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-5xl md:text-6xl font-extrabold text-blue-800 mb-4 leading-tight">
-            Welcome to CodeFolio
-          </h1>
-          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-            The ultimate platform for developers to track progress, showcase skills, and connect with opportunities. Your entire coding journey, visualized.
-          </p>
-          <Link
-            to="/home"
-            className="inline-block bg-blue-600 text-white font-bold py-3 px-8 rounded-full hover:bg-blue-700 transition duration-300 transform hover:scale-105 shadow-lg"
-          >
-            Go to Your Dashboard
-          </Link>
-        </div>
-      </section>
+  const [upcomingContests, setUpcomingContests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [scrolled, setScrolled] = useState(false);
+  const [activeTab, setActiveTab] = useState('all');
 
-      {/* Upcoming Events Section */}
-      <section className="py-20 px-6">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-4xl font-bold text-center text-blue-800 mb-12">
-            Upcoming Contests & Events
-          </h2>
-          <div className="space-y-4">
-            {upcomingEvents.map((event, index) => (
-              <div key={index} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 flex flex-col sm:flex-row justify-between items-center">
-                <div>
-                  <h3 className="text-xl font-semibold text-blue-700">{event.name}</h3>
-                  <p className="text-gray-500 mt-1">{event.platform} - {event.date}</p>
+  useEffect(() => {
+    fetchContests();
+    
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const fetchContests = async () => {
+    try {
+      // Fetch all APIs in parallel for faster loading
+      const [codeforcesData] = await Promise.allSettled([
+        fetch('https://codeforces.com/api/contest.list').then(res => res.json())
+      ]);
+
+      const contests = [];
+      const now = Date.now();
+
+      // Process Codeforces contests
+      if (codeforcesData.status === 'fulfilled' && codeforcesData.value.status === 'OK') {
+        const cfContests = codeforcesData.value.result
+          .filter(contest => contest.phase === 'BEFORE')
+          .slice(0, 4)
+          .map(contest => ({
+            id: `cf-${contest.id}`,
+            name: contest.name,
+            platform: 'Codeforces',
+            date: new Date(contest.startTimeSeconds * 1000).toLocaleDateString(),
+            time: new Date(contest.startTimeSeconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            duration: `${Math.floor(contest.durationSeconds / 3600)}h ${Math.floor((contest.durationSeconds % 3600) / 60)}m`,
+            url: 'https://codeforces.com/contests',
+            startTime: contest.startTimeSeconds * 1000
+          }));
+        contests.push(...cfContests);
+      }
+
+      // Add fallback contests for other platforms
+      const fallbackContests = [
+        { 
+          id: 'lc-1', 
+          name: 'LeetCode Weekly Contest 418', 
+          platform: 'LeetCode', 
+          date: new Date(now + 86400000).toLocaleDateString(), 
+          time: '08:00', 
+          duration: '1h 30m', 
+          url: 'https://leetcode.com/contest/',
+          startTime: now + 86400000
+        },
+        { 
+          id: 'ac-1', 
+          name: 'AtCoder Beginner Contest 328', 
+          platform: 'AtCoder', 
+          date: new Date(now + 172800000).toLocaleDateString(), 
+          time: '17:30', 
+          duration: '1h 40m', 
+          url: 'https://atcoder.jp/contests/',
+          startTime: now + 172800000
+        },
+        { 
+          id: 'cc-1', 
+          name: 'CodeChef Starters 156', 
+          platform: 'CodeChef', 
+          date: new Date(now + 259200000).toLocaleDateString(), 
+          time: '20:00', 
+          duration: '3h 0m', 
+          url: 'https://www.codechef.com/contests',
+          startTime: now + 259200000
+        }
+      ];
+
+      contests.push(...fallbackContests);
+
+      // Sort by start time and limit to 8 contests
+      contests.sort((a, b) => a.startTime - b.startTime);
+      setUpcomingContests(contests.slice(0, 8));
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching contests:', error);
+      // Fallback data
+      const now = Date.now();
+      setUpcomingContests([
+        { id: 1, name: 'Codeforces Round 912', platform: 'Codeforces', date: new Date(now + 86400000).toLocaleDateString(), time: '14:35', duration: '2h 0m', url: 'https://codeforces.com/' },
+        { id: 2, name: 'LeetCode Weekly Contest 418', platform: 'LeetCode', date: new Date(now + 172800000).toLocaleDateString(), time: '08:00', duration: '1h 30m', url: 'https://leetcode.com/contest/' },
+        { id: 3, name: 'AtCoder Beginner Contest 328', platform: 'AtCoder', date: new Date(now + 259200000).toLocaleDateString(), time: '17:30', duration: '1h 40m', url: 'https://atcoder.jp/contests/' },
+        { id: 4, name: 'CodeChef Starters 156', platform: 'CodeChef', date: new Date(now + 345600000).toLocaleDateString(), time: '20:00', duration: '3h 0m', url: 'https://www.codechef.com/contests' }
+      ]);
+      setLoading(false);
+    }
+  };
+
+  const features = [
+    {
+      title: 'Unified Dashboard',
+      description: 'Aggregate stats from LeetCode, Codeforces, CodeChef, AtCoder, and GitHub in one place'
+    },
+    {
+      title: 'Real-time Analytics',
+      description: 'Track your progress with detailed charts, heatmaps, and performance metrics'
+    },
+    {
+      title: 'AI Profile Summary',
+      description: 'Generate recruiter-ready summaries of your coding achievements with AI'
+    },
+    {
+      title: 'Contest Calendar',
+      description: 'Never miss a coding contest with our integrated calendar and reminders'
+    },
+    {
+      title: 'Social Feed',
+      description: 'Connect with other developers, share achievements, and stay motivated'
+    },
+    {
+      title: 'Portfolio Builder',
+      description: 'Create stunning portfolio pages to showcase your skills to recruiters'
+    }
+  ];
+
+  const stats = [
+    { value: '12K+', label: 'Active Users' },
+    { value: '150K+', label: 'Problems Solved' },
+    { value: '15+', label: 'Platforms' },
+    { value: '98.5%', label: 'User Satisfaction' }
+  ];
+
+  const platforms = ['LeetCode', 'Codeforces', 'CodeChef', 'AtCoder', 'HackerRank', 'GitHub'];
+
+  const filteredContests = activeTab === 'all' 
+    ? upcomingContests 
+    : upcomingContests.filter(c => c.platform.toLowerCase().includes(activeTab.toLowerCase()));
+
+  return (
+    <div className="min-h-screen bg-white">
+      <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateX(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        
+        .animate-fadeIn {
+          animation: fadeIn 0.6s ease-out forwards;
+        }
+        
+        .animate-slideIn {
+          animation: slideIn 0.6s ease-out forwards;
+        }
+        
+        .animate-scaleIn {
+          animation: scaleIn 0.5s ease-out forwards;
+        }
+        
+        .delay-100 { animation-delay: 0.1s; opacity: 0; }
+        .delay-200 { animation-delay: 0.2s; opacity: 0; }
+        .delay-300 { animation-delay: 0.3s; opacity: 0; }
+        .delay-400 { animation-delay: 0.4s; opacity: 0; }
+        .delay-500 { animation-delay: 0.5s; opacity: 0; }
+        .delay-600 { animation-delay: 0.6s; opacity: 0; }
+        
+        .card-hover {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .card-hover:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 24px rgba(59, 130, 246, 0.15);
+        }
+        
+        .button-hover {
+          transition: all 0.2s ease;
+        }
+        
+        .button-hover:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 16px rgba(59, 130, 246, 0.3);
+        }
+        
+        .text-hover {
+          transition: color 0.2s ease;
+        }
+      `}</style>
+
+      {/* Navigation */}
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled ? 'bg-white shadow-md' : 'bg-white'
+      }`}>
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white font-bold text-sm">
+                CT
+              </div>
+              <span className="text-xl font-semibold text-gray-900">CodeTrack Pro</span>
+            </div>
+            <div className="hidden md:flex items-center space-x-8">
+              <a href="#features" className="text-gray-600 text-hover hover:text-blue-600 font-medium">Features</a>
+              <a href="#contests" className="text-gray-600 text-hover hover:text-blue-600 font-medium">Contests</a>
+              <a href="#pricing" className="text-gray-600 text-hover hover:text-blue-600 font-medium">Pricing</a>
+            </div>
+            <div className="flex space-x-3">
+              <button className="px-5 py-2 text-gray-700 font-medium text-hover hover:text-blue-600">
+                Sign In
+              </button>
+              <button className="px-5 py-2 bg-blue-600 text-white rounded font-medium button-hover hover:bg-blue-700">
+                Get Started
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <div className="pt-24 pb-16 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center max-w-4xl mx-auto">
+            <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight animate-fadeIn">
+              Track Your Coding Journey with Precision
+            </h1>
+            <p className="text-xl text-gray-600 mb-8 leading-relaxed animate-fadeIn delay-100">
+              Unified dashboard for all your competitive programming profiles. Real-time analytics, AI insights, and career growth tools in one place.
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-4 mb-12 animate-fadeIn delay-200">
+              <button className="px-8 py-3 bg-blue-600 text-white rounded font-semibold button-hover hover:bg-blue-700">
+                Start Free Trial
+              </button>
+              <button className="px-8 py-3 border-2 border-gray-300 text-gray-700 rounded font-semibold button-hover hover:border-blue-600 hover:text-blue-600">
+                Watch Demo
+              </button>
+            </div>
+            
+            <div className="flex flex-wrap justify-center gap-3 animate-fadeIn delay-300">
+              {platforms.map((platform, i) => (
+                <span key={i} className="px-4 py-2 bg-gray-50 text-gray-700 rounded-full text-sm font-medium border border-gray-200">
+                  {platform}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Features Section */}
+      <div id="features" className="py-16 px-6 bg-gray-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-3">Powerful Features</h2>
+            <p className="text-lg text-gray-600">Everything you need to track and grow your coding career</p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {features.map((feature, i) => (
+              <div 
+                key={i} 
+                className={`bg-white p-8 rounded-lg border border-gray-200 card-hover animate-scaleIn delay-${(i + 1) * 100}`}
+              >
+                <div className="w-12 h-12 bg-blue-100 rounded flex items-center justify-center mb-4">
+                  <div className="w-6 h-6 bg-blue-600 rounded"></div>
                 </div>
-                <button className="mt-4 sm:mt-0 bg-white text-blue-600 font-semibold py-2 px-5 border border-blue-600 rounded-full hover:bg-blue-50 transition duration-300">
-                  View Details
-                </button>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">{feature.title}</h3>
+                <p className="text-gray-600 leading-relaxed">{feature.description}</p>
               </div>
             ))}
           </div>
         </div>
-      </section>
+      </div>
+
+      {/* Stats Section */}
+      <div className="py-16 px-6 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {stats.map((stat, i) => (
+              <div key={i} className={`text-center animate-fadeIn delay-${(i + 1) * 100}`}>
+                <div className="text-5xl font-bold text-blue-600 mb-2">{stat.value}</div>
+                <div className="text-gray-600 font-medium">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Contests Section */}
+      <div id="contests" className="py-16 px-6 bg-gray-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-4xl font-bold text-gray-900 mb-3">Upcoming Contests</h2>
+            <p className="text-lg text-gray-600">Never miss a coding competition</p>
+          </div>
+
+          <div className="flex justify-center gap-2 mb-8 flex-wrap">
+            <button 
+              onClick={() => setActiveTab('all')}
+              className={`px-5 py-2 rounded font-medium transition-all ${
+                activeTab === 'all' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-600 hover:text-blue-600'
+              }`}
+            >
+              All Platforms
+            </button>
+            {['LeetCode', 'Codeforces', 'CodeChef', 'AtCoder'].map(platform => (
+              <button 
+                key={platform}
+                onClick={() => setActiveTab(platform)}
+                className={`px-5 py-2 rounded font-medium transition-all ${
+                  activeTab === platform 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-600 hover:text-blue-600'
+                }`}
+              >
+                {platform}
+              </button>
+            ))}
+          </div>
+
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="inline-block w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              <p className="mt-4 text-gray-600">Loading contests...</p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-6">
+              {filteredContests.length > 0 ? (
+                filteredContests.map((contest, i) => (
+                  <div 
+                    key={i} 
+                    className="bg-white rounded-lg p-6 border border-gray-200 card-hover"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900 flex-1 pr-4">
+                        {contest.name}
+                      </h3>
+                      <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full whitespace-nowrap">
+                        {contest.platform}
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-2 text-gray-600 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span>📅 {contest.date}</span>
+                        <span>⏰ {contest.time}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span>⏱️ Duration: {contest.duration}</span>
+                      </div>
+                    </div>
+                    
+                    {contest.url && (
+                      <a 
+                        href={contest.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="mt-4 inline-flex items-center text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors"
+                      >
+                        Register Now →
+                      </a>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-2 text-center py-12 text-gray-600">
+                  No contests found for this platform
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* CTA Section */}
+      <div className="py-16 px-6 bg-white">
+        <div className="max-w-4xl mx-auto bg-blue-50 rounded-xl p-12 text-center border border-blue-100">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">Ready to Level Up?</h2>
+          <p className="text-lg text-gray-600 mb-8">
+            Join thousands of developers tracking their coding journey
+          </p>
+          <button className="px-10 py-3 bg-blue-600 text-white rounded font-semibold button-hover hover:bg-blue-700">
+            Create Free Account
+          </button>
+          <p className="mt-4 text-sm text-gray-500">No credit card required • 14-day free trial</p>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="border-t border-gray-200 py-12 px-6 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
+            <div>
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="w-7 h-7 bg-blue-600 rounded flex items-center justify-center text-white font-bold text-xs">
+                  CT
+                </div>
+                <span className="text-lg font-semibold text-gray-900">CodeTrack Pro</span>
+              </div>
+              <p className="text-gray-600 text-sm">Empowering developers to track and grow their coding careers</p>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-3">Product</h4>
+              <ul className="space-y-2 text-gray-600 text-sm">
+                <li className="text-hover hover:text-blue-600 cursor-pointer">Features</li>
+                <li className="text-hover hover:text-blue-600 cursor-pointer">Pricing</li>
+                <li className="text-hover hover:text-blue-600 cursor-pointer">API</li>
+                <li className="text-hover hover:text-blue-600 cursor-pointer">Integrations</li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-3">Company</h4>
+              <ul className="space-y-2 text-gray-600 text-sm">
+                <li className="text-hover hover:text-blue-600 cursor-pointer">About Us</li>
+                <li className="text-hover hover:text-blue-600 cursor-pointer">Blog</li>
+                <li className="text-hover hover:text-blue-600 cursor-pointer">Careers</li>
+                <li className="text-hover hover:text-blue-600 cursor-pointer">Press</li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-3">Resources</h4>
+              <ul className="space-y-2 text-gray-600 text-sm">
+                <li className="text-hover hover:text-blue-600 cursor-pointer">Documentation</li>
+                <li className="text-hover hover:text-blue-600 cursor-pointer">Help Center</li>
+                <li className="text-hover hover:text-blue-600 cursor-pointer">Community</li>
+                <li className="text-hover hover:text-blue-600 cursor-pointer">Contact</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="border-t border-gray-200 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-gray-600">
+            <p>&copy; 2025 CodeTrack Pro. All rights reserved.</p>
+            <div className="flex space-x-6 mt-4 md:mt-0">
+              <a href="#" className="text-hover hover:text-blue-600">Privacy Policy</a>
+              <a href="#" className="text-hover hover:text-blue-600">Terms of Service</a>
+              <a href="#" className="text-hover hover:text-blue-600">Cookie Policy</a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
