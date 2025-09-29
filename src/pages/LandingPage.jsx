@@ -141,32 +141,32 @@ const LandingPage = () => {
     { 
       title: 'Unified Dashboard', 
       description: 'Aggregate stats from LeetCode, Codeforces, CodeChef, AtCoder, and GitHub in one place',
-      icon: '📊'
+    //   icon: '📊'
     },
     { 
       title: 'Real-time Analytics', 
       description: 'Track your progress with detailed charts, heatmaps, and performance metrics',
-      icon: '📈'
+    //   icon: '📈'
     },
     { 
       title: 'AI Profile Summary', 
       description: 'Generate recruiter-ready summaries of your coding achievements with AI',
-      icon: '🤖'
+    //   icon: '🤖'
     },
     { 
       title: 'Contest Calendar', 
       description: 'Never miss a coding contest with our integrated calendar and reminders',
-      icon: '🗓️'
+    //   icon: '🗓️'
     },
     { 
       title: 'Social Feed', 
       description: 'Connect with other developers, share achievements, and stay motivated',
-      icon: '🌐'
+    //   icon: '🌐'
     },
     { 
       title: 'Portfolio Builder', 
       description: 'Create stunning portfolio pages to showcase your skills to recruiters',
-      icon: '💼'
+    //   icon: '💼'
     }
   ];
 
@@ -314,7 +314,7 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             <div className="flex items-center space-x-2">
-              <div className="w-10 h-10 gradient-bg rounded-lg flex items-center justify-center text-white font-bold text-base shadow-md">CT</div>
+              <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold text-base shadow-md">CT</div>
               <span className="text-xl font-bold text-gray-900">CodeTrack<span className="text-blue-600">Pro</span></span>
             </div>
             <div className="hidden md:flex items-center space-x-10">
@@ -331,7 +331,7 @@ const LandingPage = () => {
                 Sign In
               </motion.button>
               <motion.button 
-                className="px-6 py-2.5 gradient-bg text-white rounded-lg font-medium shadow-md"
+                className="px-6 py-2.5 bg-blue-500 text-white rounded-lg font-medium shadow-md"
                 variants={buttonVariants}
                 whileHover="hover"
                 whileTap="tap"
@@ -379,7 +379,7 @@ const LandingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7 }}
             >
-              Track Your Coding Journey With <span className="gradient-text">Precision</span>
+              Track Your Coding Journey With <span className="text-blue-500">Precision</span>
             </motion.h1>
             <motion.p 
               className="text-xl text-gray-600 mb-8 leading-relaxed"
@@ -396,7 +396,7 @@ const LandingPage = () => {
               transition={{ duration: 0.7, delay: 0.4 }}
             >
               <motion.button 
-                className="px-8 py-4 gradient-bg text-white rounded-lg font-semibold shadow-lg"
+                className="px-8 py-4 bg-blue-500 text-white rounded-lg font-semibold shadow-lg"
                 variants={buttonVariants}
                 whileHover="hover"
                 whileTap="tap"
@@ -436,102 +436,7 @@ const LandingPage = () => {
             </motion.div>
           </div>
           
-          {/* Hero Dashboard Preview */}
-          <motion.div 
-            className="relative max-w-6xl mx-auto mt-16"
-            initial={{ opacity: 0, y: 80 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ 
-              duration: 0.8, 
-              delay: 0.7,
-              type: "spring",
-              stiffness: 50
-            }}
-          >
-            <div className="relative mx-auto">
-              <div className="p-2 bg-white rounded-xl shadow-2xl border border-gray-200">
-                <div className="p-1 bg-gray-100 rounded-lg">
-                  <div className="h-8 bg-gray-200 rounded-t-lg flex items-center px-4 space-x-2">
-                    <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-                    <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-                    <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                  </div>
-                  <div className="h-[300px] bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center overflow-hidden">
-                    <div className="text-center animate-pulse-slow">
-                      <div className="w-24 h-24 bg-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="white">
-                          <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9zm0 16c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7zm1-11h-2v3H8v2h3v3h2v-3h3v-2h-3z"/>
-                        </svg>
-                      </div>
-                      <p className="text-xl font-semibold text-gray-800">Dashboard Preview</p>
-                      <p className="text-gray-600 mt-2">Interactive preview available in the demo</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Floating Badges/Stats */}
-              <motion.div 
-                className="absolute -top-6 -left-10 bg-white p-3 rounded-lg shadow-lg animate-float"
-                initial={{ scale: 0, rotate: -10 }}
-                animate={{ scale: 1, rotate: -10 }}
-                transition={{ delay: 1.2, type: "spring" }}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">Problems Solved</div>
-                    <div className="font-bold text-gray-800">350+</div>
-                  </div>
-                </div>
-              </motion.div>
-              
-              <motion.div 
-                className="absolute top-20 -right-8 bg-white p-3 rounded-lg shadow-lg animate-float"
-                style={{ animationDelay: "1s" }}
-                initial={{ scale: 0, rotate: 5 }}
-                animate={{ scale: 1, rotate: 5 }}
-                transition={{ delay: 1.4, type: "spring" }}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M7 14l5-5 5 5z"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">LeetCode Rank</div>
-                    <div className="font-bold text-gray-800">Top 5%</div>
-                  </div>
-                </div>
-              </motion.div>
-              
-              <motion.div 
-                className="absolute bottom-10 -left-14 bg-white p-3 rounded-lg shadow-lg animate-float"
-                style={{ animationDelay: "2s" }}
-                initial={{ scale: 0, rotate: -8 }}
-                animate={{ scale: 1, rotate: -8 }}
-                transition={{ delay: 1.6, type: "spring" }}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M15 4c-4.42 0-8 3.58-8 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/>
-                      <path d="M3 12c0-2.61 1.67-4.83 4-5.65V4.26C3.55 5.15 1 8.27 1 12s2.55 6.85 6 7.74v-2.09c-2.33-.82-4-3.04-4-5.65z"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">Weekly Streak</div>
-                    <div className="font-bold text-gray-800">27 days</div>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          </motion.div>
+         
         </div>
 
         {/* Features Section */}
@@ -549,7 +454,7 @@ const LandingPage = () => {
                 className="text-4xl font-bold text-gray-900 mb-4"
                 variants={fadeInUpVariants}
               >
-                Powerful Features for <span className="gradient-text">Coding Professionals</span>
+                Powerful Features for <span className="text-blue-600">Coding Professionals</span>
               </motion.h2>
               <motion.p 
                 className="text-xl text-gray-600 max-w-3xl mx-auto"
@@ -572,9 +477,9 @@ const LandingPage = () => {
                   variants={itemVariants}
                   whileHover={cardVariants.hover}
                 >
-                  <div className="w-16 h-16 mb-6 rounded-2xl gradient-bg flex items-center justify-center text-white text-2xl font-bold shadow-md">
+                  {/* <div className="w-16 h-16 mb-6 rounded-2xl gradient-bg flex items-center justify-center text-white text-2xl font-bold shadow-md">
                     {feature.icon}
-                  </div>
+                  </div> */}
                   <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
                   <p className="text-gray-600 leading-relaxed">{feature.description}</p>
                 </motion.div>
@@ -666,7 +571,7 @@ const LandingPage = () => {
                 onClick={() => setActiveTab('all')} 
                 className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
                   activeTab === 'all' 
-                    ? 'gradient-bg text-white shadow-md' 
+                    ? 'bg-blue-500 text-white shadow-md' 
                     : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-600 hover:text-blue-600'
                 }`}
                 whileHover={{ y: -3 }}
@@ -680,7 +585,7 @@ const LandingPage = () => {
                   onClick={() => setActiveTab(platform)} 
                   className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
                     activeTab.toLowerCase() === platform.toLowerCase() 
-                      ? 'gradient-bg text-white shadow-md' 
+                      ? 'bg-blue-500 text-white shadow-md' 
                       : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-600 hover:text-blue-600'
                   }`}
                   whileHover={{ y: -3 }}
@@ -905,15 +810,15 @@ const LandingPage = () => {
         >
           <div className="max-w-5xl mx-auto">
             <motion.div 
-              className="relative gradient-bg rounded-2xl p-12 text-center overflow-hidden shadow-xl"
+              className="relative bg-blue-500 rounded-2xl p-12 text-center overflow-hidden shadow-xl"
               variants={itemVariants}
             >
               {/* Abstract shapes */}
-              <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-20">
+              {/* <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-20">
                 <div className="absolute top-10 left-10 w-40 h-40 bg-white rounded-full"></div>
                 <div className="absolute bottom-10 right-10 w-60 h-60 bg-white rounded-full"></div>
                 <div className="absolute top-40 right-20 w-20 h-20 bg-white rounded-full"></div>
-              </div>
+              </div> */}
               
               <div className="relative z-10">
                 <motion.h2 
@@ -935,7 +840,7 @@ const LandingPage = () => {
                   Join thousands of developers who have transformed their coding journey with our all-in-one platform.
                 </motion.p>
                 <motion.button 
-                  className="px-10 py-4 bg-white text-blue-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-2xl"
+                  className="px-10 py-4 bg-white text-white-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-2xl"
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.6 }}
