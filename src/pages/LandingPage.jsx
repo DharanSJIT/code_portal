@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const LandingPage = () => {
   const [upcomingContests, setUpcomingContests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [scrolled, setScrolled] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
+  const [currentContestIndex, setCurrentContestIndex] = useState(0);
+  const [direction, setDirection] = useState(1); // 1 for right, -1 for left
+  const autoRotateTimerRef = useRef(null);
 
   useEffect(() => {
     fetchContests();
@@ -15,158 +18,275 @@ const LandingPage = () => {
     };
     
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (autoRotateTimerRef.current) {
+        clearTimeout(autoRotateTimerRef.current);
+      }
+    };
   }, []);
+
+  // Auto-rotate contests
+  useEffect(() => {
+    if (upcomingContests.length > 1 && !loading) {
+      startAutoRotate();
+    }
+    
+    return () => {
+      if (autoRotateTimerRef.current) {
+        clearTimeout(autoRotateTimerRef.current);
+      }
+    };
+  }, [upcomingContests, currentContestIndex, loading, activeTab]);
+
+  // When activeTab changes, reset the carousel index
+  useEffect(() => {
+    setCurrentContestIndex(0);
+  }, [activeTab]);
+
+  const startAutoRotate = () => {
+    if (autoRotateTimerRef.current) {
+      clearTimeout(autoRotateTimerRef.current);
+    }
+    
+    autoRotateTimerRef.current = setTimeout(() => {
+      const filteredContests = activeTab === 'all' 
+        ? upcomingContests 
+        : upcomingContests.filter(c => c.platform.toLowerCase() === activeTab.toLowerCase());
+      
+      if (filteredContests.length > 1) {
+        setDirection(1);
+        setCurrentContestIndex((prevIndex) => 
+          prevIndex === filteredContests.length - 1 ? 0 : prevIndex + 1
+        );
+      }
+    }, 3000);
+  };
+
+  const handlePrevContest = () => {
+    if (autoRotateTimerRef.current) {
+      clearTimeout(autoRotateTimerRef.current);
+    }
+    
+    const filteredContests = activeTab === 'all' 
+      ? upcomingContests 
+      : upcomingContests.filter(c => c.platform.toLowerCase() === activeTab.toLowerCase());
+    
+    if (filteredContests.length > 1) {
+      setDirection(-1);
+      setCurrentContestIndex((prevIndex) => 
+        prevIndex === 0 ? filteredContests.length - 1 : prevIndex - 1
+      );
+    }
+  };
+
+  const handleNextContest = () => {
+    if (autoRotateTimerRef.current) {
+      clearTimeout(autoRotateTimerRef.current);
+    }
+    
+    const filteredContests = activeTab === 'all' 
+      ? upcomingContests 
+      : upcomingContests.filter(c => c.platform.toLowerCase() === activeTab.toLowerCase());
+    
+    if (filteredContests.length > 1) {
+      setDirection(1);
+      setCurrentContestIndex((prevIndex) => 
+        prevIndex === filteredContests.length - 1 ? 0 : prevIndex + 1
+      );
+    }
+  };
 
   // Helper function to find the next occurrence of a specific day of the week
   const getNextDayOfWeek = (dayOfWeek, hour, minute) => { // 0=Sun, 1=Mon, ..., 6=Sat
     const now = new Date();
-    // Your current timezone is IST (UTC+5:30)
-    // To make calculations robust, we'll work with UTC dates and times
-    const resultDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    resultDate.setUTCDate(now.getUTCDate() + (dayOfWeek + 7 - now.getUTCDay()) % 7);
-    resultDate.setUTCHours(hour, minute, 0, 0);
-
-    // If the calculated date is in the past (in UTC), move to the next week
-    if (resultDate < now) {
-      resultDate.setUTCDate(resultDate.getUTCDate() + 7);
+    const resultDate = new Date();
+    
+    // Calculate days until target day
+    const currentDay = now.getDay();
+    let daysUntilTarget = (dayOfWeek - currentDay + 7) % 7;
+    
+    // If it's the target day, check if the time has passed
+    if (daysUntilTarget === 0) {
+      const targetTime = new Date();
+      targetTime.setUTCHours(hour, minute, 0, 0);
+      
+      // If time has passed today, schedule for next week
+      if (now >= targetTime) {
+        daysUntilTarget = 7;
+      }
     }
+    
+    resultDate.setDate(now.getDate() + daysUntilTarget);
+    resultDate.setUTCHours(hour, minute, 0, 0);
+    
     return resultDate;
+  };
+
+  const generatePlaceholderContests = () => {
+    const now = new Date();
+    
+    // LeetCode Weekly: Every Sunday at 08:00 AM IST (02:30 UTC)
+    const leetcodeDate = getNextDayOfWeek(0, 2, 30);
+    
+    // AtCoder Beginner: Every Saturday at 05:30 PM IST (12:00 UTC)
+    const atcoderDate = getNextDayOfWeek(6, 12, 0);
+    
+    // CodeChef Starters: Every Wednesday at 08:00 PM IST (14:30 UTC)
+    const codechefDate = getNextDayOfWeek(3, 14, 30);
+    
+    // HackerRank Challenge: Every Friday at 07:00 PM IST (13:30 UTC)
+    const hackerrankDate = getNextDayOfWeek(5, 13, 30);
+    
+    // Add some future Codeforces contests (placeholder)
+    const cfDate1 = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000); // 2 days from now
+    cfDate1.setHours(20, 35, 0, 0); // 8:35 PM local time
+    
+    const cfDate2 = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000); // 5 days from now
+    cfDate2.setHours(17, 35, 0, 0); // 5:35 PM local time
+    
+    return [
+      { 
+        id: 'cf-placeholder-1', 
+        name: 'Codeforces Round #835 (Div. 2)', 
+        platform: 'Codeforces', 
+        date: new Intl.DateTimeFormat('en-GB').format(cfDate1),
+        time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).format(cfDate1),
+        duration: '2h 15m', 
+        url: 'https://codeforces.com/contests',
+        startTime: cfDate1.getTime()
+      },
+      { 
+        id: 'cf-placeholder-2', 
+        name: 'Codeforces Educational Round #146', 
+        platform: 'Codeforces', 
+        date: new Intl.DateTimeFormat('en-GB').format(cfDate2),
+        time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).format(cfDate2),
+        duration: '2h 0m', 
+        url: 'https://codeforces.com/contests',
+        startTime: cfDate2.getTime()
+      },
+      { 
+        id: 'lc-placeholder', 
+        name: 'LeetCode Weekly Contest', 
+        platform: 'LeetCode', 
+        date: new Intl.DateTimeFormat('en-GB').format(leetcodeDate),
+        time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).format(leetcodeDate),
+        duration: '1h 30m', 
+        url: 'https://leetcode.com/contest/',
+        startTime: leetcodeDate.getTime()
+      },
+      { 
+        id: 'ac-placeholder', 
+        name: 'AtCoder Beginner Contest', 
+        platform: 'AtCoder', 
+        date: new Intl.DateTimeFormat('en-GB').format(atcoderDate),
+        time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).format(atcoderDate),
+        duration: '1h 40m', 
+        url: 'https://atcoder.jp/contests/',
+        startTime: atcoderDate.getTime()
+      },
+      { 
+        id: 'cc-placeholder', 
+        name: 'CodeChef Starters', 
+        platform: 'CodeChef', 
+        date: new Intl.DateTimeFormat('en-GB').format(codechefDate),
+        time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).format(codechefDate),
+        duration: '3h 0m', 
+        url: 'https://www.codechef.com/contests',
+        startTime: codechefDate.getTime()
+      },
+      { 
+        id: 'hr-placeholder', 
+        name: 'HackerRank Weekly Challenge', 
+        platform: 'HackerRank', 
+        date: new Intl.DateTimeFormat('en-GB').format(hackerrankDate),
+        time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).format(hackerrankDate),
+        duration: '48h 0m', 
+        url: 'https://www.hackerrank.com/contests',
+        startTime: hackerrankDate.getTime()
+      }
+    ];
   };
 
   const fetchContests = async () => {
     try {
-      const [codeforcesData] = await Promise.allSettled([
-        fetch('https://codeforces.com/api/contest.list').then(res => {
-            if (!res.ok) throw new Error('Codeforces API request failed');
-            return res.json();
-        })
-      ]);
-
-      const contests = [];
-
-      // 1. Process live data from Codeforces API
-      if (codeforcesData.status === 'fulfilled' && codeforcesData.value.status === 'OK') {
-        const cfContests = codeforcesData.value.result
-          .filter(contest => contest.phase === 'BEFORE')
-          .slice(0, 4) // Get top 4 upcoming from CF
-          .map(contest => {
-              const startTime = new Date(contest.startTimeSeconds * 1000);
-              return {
-                id: `cf-${contest.id}`,
-                name: contest.name,
-                platform: 'Codeforces',
-                date: new Intl.DateTimeFormat('en-GB').format(startTime),
-                time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).format(startTime),
-                duration: `${Math.floor(contest.durationSeconds / 3600)}h ${Math.floor((contest.durationSeconds % 3600) / 60)}m`,
-                url: `https://codeforces.com/contests/${contest.id}`,
-                startTime: contest.startTimeSeconds * 1000
-              };
-          });
-        contests.push(...cfContests);
-      } else {
-        console.error("Failed to fetch Codeforces contests:", codeforcesData.reason);
-      }
-
-      // 2. Generate dynamic placeholder contests for other platforms
-      // Note: Times are in UTC and will be formatted to the user's local time by the browser.
-      const leetcodeDate = getNextDayOfWeek(0, 2, 30);      // LeetCode Weekly: Sunday 02:30 UTC (8:00 AM IST)
-      const atcoderDate = getNextDayOfWeek(6, 12, 0);       // AtCoder Beginner: Saturday 12:00 UTC (5:30 PM IST)
-      const codechefDate = getNextDayOfWeek(3, 14, 30);     // CodeChef Starters: Wednesday 14:30 UTC (8:00 PM IST)
-      const hackerrankDate = getNextDayOfWeek(5, 13, 30);   // HackerRank Challenge: Friday 13:30 UTC (7:00 PM IST)
+      // Always start with placeholder contests to ensure something shows
+      const placeholderContests = generatePlaceholderContests();
+      setUpcomingContests(placeholderContests.slice(0, 8));
+      setLoading(false);
       
-      const placeholderContests = [
-        { 
-          id: 'lc-placeholder', 
-          name: 'LeetCode Weekly Contest', 
-          platform: 'LeetCode', 
-          date: new Intl.DateTimeFormat('en-GB').format(leetcodeDate),
-          time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).format(leetcodeDate),
-          duration: '1h 30m', 
-          url: 'https://leetcode.com/contest/',
-          startTime: leetcodeDate.getTime()
-        },
-        { 
-          id: 'ac-placeholder', 
-          name: 'AtCoder Beginner Contest', 
-          platform: 'AtCoder', 
-          date: new Intl.DateTimeFormat('en-GB').format(atcoderDate),
-          time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).format(atcoderDate),
-          duration: '1h 40m', 
-          url: 'https://atcoder.jp/contests/',
-          startTime: atcoderDate.getTime()
-        },
-        { 
-          id: 'cc-placeholder', 
-          name: 'CodeChef Starters', 
-          platform: 'CodeChef', 
-          date: new Intl.DateTimeFormat('en-GB').format(codechefDate),
-          time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).format(codechefDate),
-          duration: '3h 0m', 
-          url: 'https://www.codechef.com/contests',
-          startTime: codechefDate.getTime()
-        },
-        { 
-          id: 'hr-placeholder', 
-          name: 'HackerRank Weekly Challenge', 
-          platform: 'HackerRank', 
-          date: new Intl.DateTimeFormat('en-GB').format(hackerrankDate),
-          time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).format(hackerrankDate),
-          duration: '48h 0m', 
-          url: 'https://www.hackerrank.com/contests',
-          startTime: hackerrankDate.getTime()
+      // Try to fetch from Codeforces API in the background
+      try {
+        const codeforcesResponse = await fetch('https://codeforces.com/api/contest.list');
+        
+        if (codeforcesResponse.ok) {
+          const data = await codeforcesResponse.json();
+          if (data.status === 'OK') {
+            const now = Date.now();
+            const cfContests = data.result
+              .filter(contest => contest.phase === 'BEFORE' && (contest.startTimeSeconds * 1000) > now)
+              .slice(0, 4)
+              .map(contest => {
+                const startTime = new Date(contest.startTimeSeconds * 1000);
+                return {
+                  id: `cf-${contest.id}`,
+                  name: contest.name,
+                  platform: 'Codeforces',
+                  date: new Intl.DateTimeFormat('en-GB').format(startTime),
+                  time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).format(startTime),
+                  duration: `${Math.floor(contest.durationSeconds / 3600)}h ${Math.floor((contest.durationSeconds % 3600) / 60)}m`,
+                  url: `https://codeforces.com/contests/${contest.id}`,
+                  startTime: contest.startTimeSeconds * 1000
+                };
+              });
+            
+            if (cfContests.length > 0) {
+              const nonCfPlaceholders = placeholderContests.filter(c => c.platform !== 'Codeforces');
+              let contests = [...cfContests, ...nonCfPlaceholders];
+              contests.sort((a, b) => a.startTime - b.startTime);
+              setUpcomingContests(contests.slice(0, 8));
+            }
+          }
         }
-      ];
-
-      contests.push(...placeholderContests);
-
-      // 3. Sort all contests by start time and limit the total
-      contests.sort((a, b) => a.startTime - b.startTime);
-      setUpcomingContests(contests.slice(0, 8));
+      } catch (apiError) {
+        console.log('Could not fetch from Codeforces API, using placeholder data:', apiError);
+        // Placeholders are already set, no action needed
+      }
       
     } catch (error) {
-      console.error('Error fetching contests:', error);
-      // Final fallback with static data if everything else fails
-      const now = Date.now();
-      setUpcomingContests([
-        { id: 'fallback-1', name: 'Codeforces Round (Fallback)', platform: 'Codeforces', date: new Date(now + 86400000).toLocaleDateString(), time: '14:35', duration: '2h 0m', url: 'https://codeforces.com/' },
-        { id: 'fallback-2', name: 'LeetCode Contest (Fallback)', platform: 'LeetCode', date: new Date(now + 172800000).toLocaleDateString(), time: '08:00', duration: '1h 30m', url: 'https://leetcode.com/contest/' },
-      ]);
-    } finally {
-        setLoading(false);
+      console.error('Error in contests logic:', error);
+      // Ensure we always show something
+      const fallbackContests = generatePlaceholderContests();
+      setUpcomingContests(fallbackContests.slice(0, 6));
+      setLoading(false);
     }
   };
 
   const features = [
     { 
       title: 'Unified Dashboard', 
-      description: 'Aggregate stats from LeetCode, Codeforces, CodeChef, AtCoder, and GitHub in one place',
-    //   icon: '📊'
+      description: 'Aggregate stats from LeetCode, Codeforces, CodeChef, AtCoder, and GitHub in one place'
     },
     { 
       title: 'Real-time Analytics', 
-      description: 'Track your progress with detailed charts, heatmaps, and performance metrics',
-    //   icon: '📈'
+      description: 'Track your progress with detailed charts, heatmaps, and performance metrics'
     },
     { 
       title: 'AI Profile Summary', 
-      description: 'Generate recruiter-ready summaries of your coding achievements with AI',
-    //   icon: '🤖'
+      description: 'Generate recruiter-ready summaries of your coding achievements with AI'
     },
     { 
       title: 'Contest Calendar', 
-      description: 'Never miss a coding contest with our integrated calendar and reminders',
-    //   icon: '🗓️'
+      description: 'Never miss a coding contest with our integrated calendar and reminders'
     },
     { 
       title: 'Social Feed', 
-      description: 'Connect with other developers, share achievements, and stay motivated',
-    //   icon: '🌐'
+      description: 'Connect with other developers, share achievements, and stay motivated'
     },
     { 
       title: 'Portfolio Builder', 
-      description: 'Create stunning portfolio pages to showcase your skills to recruiters',
-    //   icon: '💼'
+      description: 'Create stunning portfolio pages to showcase your skills to recruiters'
     }
   ];
 
@@ -248,6 +368,49 @@ const LandingPage = () => {
     }
   };
 
+  const slideVariants = {
+    enter: (direction) => {
+      return {
+        x: direction > 0 ? 1000 : -1000,
+        opacity: 0,
+        scale: 0.8,
+      };
+    },
+    center: {
+      x: 0,
+      opacity: 1,
+      scale: 1,
+      transition: {
+        x: { type: "spring", stiffness: 300, damping: 30 },
+        opacity: { duration: 0.5 },
+        scale: { type: "spring", stiffness: 300, damping: 30 }
+      }
+    },
+    exit: (direction) => {
+      return {
+        x: direction > 0 ? -1000 : 1000,
+        opacity: 0,
+        scale: 0.8,
+        transition: {
+          x: { type: "spring", stiffness: 300, damping: 30 },
+          opacity: { duration: 0.5 },
+          scale: { duration: 0.5 }
+        }
+      };
+    }
+  };
+
+  const getPlatformColor = (platform) => {
+    switch (platform.toLowerCase()) {
+      case 'codeforces': return 'bg-red-500';
+      case 'leetcode': return 'bg-yellow-500';
+      case 'codechef': return 'bg-green-500';
+      case 'atcoder': return 'bg-blue-500';
+      case 'hackerrank': return 'bg-purple-500';
+      default: return 'bg-blue-500';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white overflow-hidden">
       <style jsx global>{`
@@ -295,6 +458,10 @@ const LandingPage = () => {
         .backdrop-blur {
           backdrop-filter: blur(8px);
           -webkit-backdrop-filter: blur(8px);
+        }
+        
+        .carousel-container {
+          perspective: 1000px;
         }
       `}</style>
 
@@ -435,8 +602,6 @@ const LandingPage = () => {
               ))}
             </motion.div>
           </div>
-          
-         
         </div>
 
         {/* Features Section */}
@@ -477,9 +642,6 @@ const LandingPage = () => {
                   variants={itemVariants}
                   whileHover={cardVariants.hover}
                 >
-                  {/* <div className="w-16 h-16 mb-6 rounded-2xl gradient-bg flex items-center justify-center text-white text-2xl font-bold shadow-md">
-                    {feature.icon}
-                  </div> */}
                   <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
                   <p className="text-gray-600 leading-relaxed">{feature.description}</p>
                 </motion.div>
@@ -538,7 +700,7 @@ const LandingPage = () => {
           </div>
         </motion.div>
 
-        {/* Contests Section */}
+        {/* Contests Section - Circular Carousel */}
         <motion.div 
           id="contests" 
           className="py-24 px-6 bg-gray-50"
@@ -610,77 +772,157 @@ const LandingPage = () => {
                 <p className="mt-6 text-lg text-gray-600">Loading upcoming contests...</p>
               </div>
             ) : (
-              <motion.div 
-                className="grid md:grid-cols-2 gap-6"
-                variants={containerVariants}
-              >
+              <div className="carousel-container relative max-w-5xl mx-auto">
                 {filteredContests.length > 0 ? (
-                  filteredContests.map((contest, index) => (
-                    <motion.div 
-                      key={contest.id} 
-                      className="bg-white rounded-xl p-6 border border-gray-200 hover:border-blue-300 shadow-sm hover:shadow-xl transition-all duration-300"
-                      variants={itemVariants}
-                      whileHover={cardVariants.hover}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <h3 className="text-lg font-bold text-gray-900 flex-1 pr-4">{contest.name}</h3>
-                        <span className={`px-4 py-1.5 text-white text-xs font-bold rounded-full whitespace-nowrap ${
-                          contest.platform === 'Codeforces' ? 'bg-red-500' :
-                          contest.platform === 'LeetCode' ? 'bg-yellow-500' :
-                          contest.platform === 'CodeChef' ? 'bg-green-500' :
-                          contest.platform === 'AtCoder' ? 'bg-blue-500' :
-                          'bg-purple-500'
-                        }`}>
-                          {contest.platform}
-                        </span>
-                      </div>
-                      <div className="space-y-3 text-gray-600">
-                        <div className="flex items-center justify-between">
-                          <span className="flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-blue-500">
-                              <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V9h14v10zM5 7V5h14v2H5zm2 4h10v2H7zm0 4h7v2H7z"/>
-                            </svg>
-                            {contest.date}
-                          </span>
-                          <span className="flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-blue-500">
-                              <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
-                            </svg>
-                            {contest.time}
-                          </span>
+                  <div className="relative h-[420px] flex justify-center items-center">
+                    {/* Contest Carousel */}
+                    <AnimatePresence initial={false} custom={direction} mode="wait">
+                      <motion.div 
+                        key={currentContestIndex}
+                        custom={direction}
+                        variants={slideVariants}
+                        initial="enter"
+                        animate="center"
+                        exit="exit"
+                        className="absolute w-full max-w-3xl mx-auto"
+                      >
+                        {/* Contest Card */}
+                        <div className="flex justify-center">
+                          <div className="bg-white rounded-2xl shadow-xl p-10 border-2 border-gray-200 w-full max-w-3xl relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-2 gradient-bg"></div>
+                            
+                            <div className="flex justify-between items-start mb-6">
+                              <h3 className="text-2xl font-bold text-gray-900 pr-4">{filteredContests[currentContestIndex].name}</h3>
+                              <span className={`px-5 py-2 text-white text-sm font-bold rounded-full whitespace-nowrap ${
+                                getPlatformColor(filteredContests[currentContestIndex].platform)
+                              }`}>
+                                {filteredContests[currentContestIndex].platform}
+                              </span>
+                            </div>
+                            
+                            <div className="grid md:grid-cols-2 gap-6 mb-8">
+                              <div className="space-y-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="text-blue-600">
+                                      <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V9h14v10zM5 7V5h14v2H5z"/>
+                                    </svg>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm text-gray-500">Date</p>
+                                    <p className="font-semibold text-gray-800">{filteredContests[currentContestIndex].date}</p>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="text-blue-600">
+                                      <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+                                    </svg>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm text-gray-500">Time</p>
+                                    <p className="font-semibold text-gray-800">{filteredContests[currentContestIndex].time}</p>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="space-y-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="text-blue-600">
+                                                                            <path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.07 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+                                    </svg>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm text-gray-500">Duration</p>
+                                    <p className="font-semibold text-gray-800">{filteredContests[currentContestIndex].duration}</p>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="text-blue-600">
+                                      <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
+                                    </svg>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm text-gray-500">Status</p>
+                                    <div className="flex items-center">
+                                      <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                                      <p className="font-semibold text-gray-800">Upcoming</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {filteredContests[currentContestIndex].url && (
+                              <div className="flex justify-center">
+                                <motion.a 
+                                  href={filteredContests[currentContestIndex].url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-lg shadow-md transition-colors flex items-center gap-2"
+                                  whileHover={{ scale: 1.05, boxShadow: "0px 8px 15px rgba(59, 130, 246, 0.3)" }}
+                                  whileTap={{ scale: 0.97 }}
+                                >
+                                  Register Now
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8-8-8z"/>
+                                  </svg>
+                                </motion.a>
+                              </div>
+                            )}
+                            
+                            {/* Contest Counter */}
+                            <div className="flex justify-center mt-8">
+                              <div className="flex gap-1.5">
+                                {filteredContests.map((_, i) => (
+                                  <motion.div 
+                                    key={i}
+                                    className={`w-2.5 h-2.5 rounded-full ${i === currentContestIndex ? 'bg-blue-600' : 'bg-gray-300'}`}
+                                    whileHover={{ scale: 1.5 }}
+                                    animate={{ scale: i === currentContestIndex ? 1.2 : 1 }}
+                                  ></motion.div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center">
-                         <span className="flex items-center gap-2">
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-blue-500">
-    <path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.07 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
-  </svg>
-  Duration: {contest.duration}
-</span>
-
-                        </div>
-                      </div>
-                      {contest.url && (
-                        <motion.a 
-                          href={contest.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg font-medium text-sm transition-colors"
-                          whileHover={{ scale: 1.03, x: 5 }}
+                      </motion.div>
+                    </AnimatePresence>
+                    
+                    {/* Navigation buttons */}
+                    {filteredContests.length > 1 && (
+                      <>
+                        <motion.button 
+                          className="absolute left-0 md:left-8 transform -translate-y-1/2 top-1/2 w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center border border-gray-200 z-10"
+                          onClick={handlePrevContest}
+                          whileHover={{ scale: 1.1, boxShadow: "0px 8px 15px rgba(0, 0, 0, 0.1)" }}
+                          whileTap={{ scale: 0.9 }}
                         >
-                          Register Now
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8-8-8z"/>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="text-gray-700">
+                            <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
                           </svg>
-                        </motion.a>
-                      )}
-                    </motion.div>
-                  ))
+                        </motion.button>
+                        
+                        <motion.button 
+                          className="absolute right-0 md:right-8 transform -translate-y-1/2 top-1/2 w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center border border-gray-200 z-10"
+                          onClick={handleNextContest}
+                          whileHover={{ scale: 1.1, boxShadow: "0px 8px 15px rgba(0, 0, 0, 0.1)" }}
+                          whileTap={{ scale: 0.9 }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="text-gray-700">
+                            <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                          </svg>
+                        </motion.button>
+                      </>
+                    )}
+                  </div>
                 ) : (
                   <motion.div 
-                    className="col-span-2 text-center py-16 text-gray-600 bg-white rounded-xl border border-gray-200"
+                    className="text-center py-16 text-gray-600 bg-white rounded-xl border border-gray-200"
                     variants={fadeInUpVariants}
                   >
                     <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
@@ -691,6 +933,26 @@ const LandingPage = () => {
                     <p>Please check back later or select another platform.</p>
                   </motion.div>
                 )}
+              </div>
+            )}
+            
+            {/* Additional info about contests */}
+            {filteredContests.length > 0 && (
+              <motion.div 
+                className="text-center mt-12"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                <p className="text-gray-600">
+                  Stay ahead of the competition by setting up personalized reminders for your favorite platforms.
+                </p>
+                <motion.button
+                  className="mt-4 px-6 py-2.5 bg-blue-50 text-blue-600 rounded-lg font-medium hover:bg-blue-100 transition-colors"
+                  whileHover={{ y: -3 }}
+                >
+                  View All Contests
+                </motion.button>
               </motion.div>
             )}
           </div>
@@ -813,13 +1075,6 @@ const LandingPage = () => {
               className="relative bg-blue-500 rounded-2xl p-12 text-center overflow-hidden shadow-xl"
               variants={itemVariants}
             >
-              {/* Abstract shapes */}
-              {/* <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-20">
-                <div className="absolute top-10 left-10 w-40 h-40 bg-white rounded-full"></div>
-                <div className="absolute bottom-10 right-10 w-60 h-60 bg-white rounded-full"></div>
-                <div className="absolute top-40 right-20 w-20 h-20 bg-white rounded-full"></div>
-              </div> */}
-              
               <div className="relative z-10">
                 <motion.h2 
                   className="text-4xl font-bold text-white mb-6"
@@ -840,7 +1095,7 @@ const LandingPage = () => {
                   Join thousands of developers who have transformed their coding journey with our all-in-one platform.
                 </motion.p>
                 <motion.button 
-                  className="px-10 py-4 bg-white text-white-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-2xl"
+                  className="px-10 py-4 bg-white text-blue-600 rounded-xl font-bold text-lg shadow-lg hover:shadow-2xl"
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.6 }}
