@@ -46,8 +46,7 @@ const Header = () => {
             uid: currentUser.uid,
             name: currentUser.displayName || 'User',
             email: currentUser.email,
-            photoURL: currentUser.photoURL,
-            // We'll default to 0 for streak since it's not stored in Firebase Auth
+            // photoURL: currentUser.photoURL,
             streak: 0 
           });
         } else {
@@ -145,31 +144,36 @@ const Header = () => {
             {user && (
               <div className="relative" ref={dropdownRef}>
                 <motion.div 
-                  className="flex items-center space-x-2 cursor-pointer"
+                  className="flex items-center space-x-2 cursor-pointer rounded-full hover:bg-gray-100 p-1.5 pr-3 transition-colors duration-200"
                   onClick={toggleDropdown}
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ type: 'spring' }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
                   {user.photoURL ? (
                     <img 
                       src={user.photoURL} 
                       alt={user.name} 
-                      className="h-8 w-8 rounded-full object-cover"
+                      className="h-8 w-8 rounded-full object-cover ring-2 ring-white shadow-sm"
                     />
                   ) : (
-                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-medium">
+                    <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-medium shadow-sm">
                       {getInitials(user.name)}
                     </div>
                   )}
                   <div className="hidden sm:block">
-                    <p className="text-sm font-medium text-gray-700">{user.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {user.streak} day streak
-                    </p>
+                    <p className="text-sm font-semibold text-gray-700 line-clamp-1">{user.name}</p>
+                    <div className="flex items-center">
+                      <span className="h-2 w-2 rounded-full bg-green-500 mr-1.5"></span>
+                      <p className="text-xs text-gray-500">
+                        {user.streak} day streak
+                      </p>
+                    </div>
                   </div>
                   <svg 
-                    className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} 
+                    className={`h-5 w-5 text-gray-400 transition-transform duration-200 ease-in-out ${isDropdownOpen ? 'rotate-180' : ''}`} 
                     fill="none" 
                     viewBox="0 0 24 24" 
                     stroke="currentColor"
@@ -178,37 +182,76 @@ const Header = () => {
                   </svg>
                 </motion.div>
                 
-                {/* Dropdown Menu */}
+                {/* Enhanced Dropdown Menu */}
                 <AnimatePresence>
                   {isDropdownOpen && (
                     <motion.div 
-                      className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200"
-                      initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                      className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg overflow-hidden z-10 border border-gray-100"
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      style={{ 
+                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+                      }}
                     >
-                      <div className="px-4 py-2 border-b border-gray-100">
-                        <p className="text-sm font-medium text-gray-900">Signed in as</p>
-                        <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                      {/* User info section */}
+                      <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50">
+                        <div className="flex items-center">
+                          {user.photoURL ? (
+                            <img 
+                              src={user.photoURL} 
+                              alt={user.name} 
+                              className="h-10 w-10 rounded-full object-cover border-2 border-white shadow"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-medium text-sm shadow">
+                              {getInitials(user.name)}
+                            </div>
+                          )}
+                          <div className="ml-3 overflow-hidden">
+                            <p className="text-sm font-bold text-gray-800 truncate">{user.name}</p>
+                            <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                          </div>
+                        </div>
                       </div>
                       
-                      <a href="#profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        Profile
-                      </a>
+                      {/* Menu items */}
+                      <div className="py-1">
+                        <a 
+                          href="#profile" 
+                          className="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 transition-colors"
+                        >
+                        
+                          Profile
+                        </a>
+                        
+                        <a 
+                          href="#settings" 
+                          className="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 transition-colors"
+                        >
+                          
+                          Settings
+                        </a>
+
+                       
+                      </div>
                       
-                      <a href="#settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        Settings
-                      </a>
+                      {/* Divider */}
+                      <div className="h-px bg-gray-200 mx-2"></div>
                       
-                      <div className="border-t border-gray-100 mt-1"></div>
-                      
-                      <button 
-                        onClick={handleSignOut} 
-                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                      >
-                        Sign Out
-                      </button>
+                      {/* Sign out button */}
+                      <div className="py-1 px-2">
+                        <motion.button 
+                          onClick={handleSignOut} 
+                          className="flex w-full items-center justify-center px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-red-500 to-red-600 rounded-lg hover:from-red-600 hover:to-red-700 transition-colors"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          
+                          Sign Out
+                        </motion.button>
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>

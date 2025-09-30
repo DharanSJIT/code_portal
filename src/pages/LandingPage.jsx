@@ -659,14 +659,7 @@ const LandingPage = () => {
               </div>
 
               <div className="hidden md:flex space-x-4">
-                <motion.button
-                  className="px-4 py-2 text-gray-700 font-medium hover:text-blue-600 transition-colors duration-300"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={openSignInModal}
-                >
-                  Sign In
-                </motion.button>
+               
                 <motion.button
                   className="px-5 py-2 bg-blue-500 text-white rounded-lg font-medium shadow-md text-sm sm:text-base"
                   variants={buttonVariants}
@@ -943,56 +936,8 @@ const LandingPage = () => {
           </motion.div>
 
           {/* Stats Section */}
-          <motion.div
-            className="py-14 sm:py-16 md:py-20 px-4 sm:px-6 bg-white"
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.1 }}
-          >
-            <div className="max-w-7xl mx-auto">
-              <div className="mb-8 sm:mb-12 text-center">
-                <motion.h2
-                  className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4"
-                  variants={fadeInUpVariants}
-                >
-                  Trusted by Developers Worldwide
-                </motion.h2>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
-                {stats.map((stat, i) => (
-                  <motion.div
-                    key={i}
-                    className="text-center p-4 sm:p-6 md:p-8 bg-gray-50 rounded-xl border border-gray-100"
-                    variants={itemVariants}
-                    whileHover={{
-                      y: -5,
-                      boxShadow: "0px 10px 25px rgba(59, 130, 246, 0.1)",
-                    }}
-                  >
-                    <motion.div
-                      className="text-3xl sm:text-4xl md:text-5xl font-bold gradient-text mb-1 sm:mb-2"
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      whileInView={{
-                        scale: 1,
-                        opacity: 1,
-                        transition: {
-                          type: "spring",
-                          stiffness: 100,
-                        },
-                      }}
-                      viewport={{ once: true }}
-                    >
-                      {stat.value}
-                    </motion.div>
-                    <div className="text-xs sm:text-sm md:text-base text-gray-600 font-medium">
-                      {stat.label}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
+          
+           
 
           {/* Contests Section - Circular Carousel */}
           <motion.div
