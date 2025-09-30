@@ -823,41 +823,7 @@ const LandingPage = () => {
                 Real-time analytics, AI insights, and career growth tools in one
                 place.
               </motion.p>
-              <motion.div
-                className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-5 mb-8 sm:mb-12 px-6"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.4 }}
-              >
-                <motion.button
-                  className="px-6 sm:px-8 py-3 sm:py-4 bg-blue-500 text-white rounded-lg font-semibold shadow-lg text-sm sm:text-base"
-                  variants={buttonVariants}
-                  whileHover="hover"
-                  whileTap="tap"
-                  onClick={openSignInModal}
-                >
-                  Start Free Trial
-                </motion.button>
-                <motion.button
-                  className="px-6 sm:px-8 py-3 sm:py-4 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:border-blue-600 hover:text-blue-600 transition-colors text-sm sm:text-base mt-3 sm:mt-0"
-                  variants={buttonVariants}
-                  whileHover="hover"
-                  whileTap="tap"
-                >
-                  <span className="flex items-center justify-center gap-2">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                    >
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                    Watch Demo
-                  </span>
-                </motion.button>
-              </motion.div>
+              
               <motion.div
                 className="flex flex-wrap justify-center gap-2 sm:gap-3 px-2 sm:px-0"
                 initial={{ opacity: 0, y: 20 }}
