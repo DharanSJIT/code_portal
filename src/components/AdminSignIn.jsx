@@ -81,7 +81,7 @@ const AdminSignIn = ({ isOpen = true, onClose = () => {} }) => {
       localStorage.setItem('userId', user.uid);
       
       // Step 6: Show success message
-      toast.success('Welcome back, Admin!');
+    //   toast.success('Welcome back, Admin!');
       
       // Step 7: Close modal and navigate
       handleClose();
@@ -147,12 +147,12 @@ const AdminSignIn = ({ isOpen = true, onClose = () => {} }) => {
   const inputVariants = {
     focused: {
       scale: 1.02,
-      boxShadow: "0 10px 25px -5px rgba(59, 130, 246, 0.4), 0 5px 10px -5px rgba(59, 130, 246, 0.2)",
+    //   boxShadow: "0 10px 25px -5px rgba(59, 130, 246, 0.4), 0 5px 10px -5px rgba(59, 130, 246, 0.2)",
       transition: { duration: 0.2 }
     },
     unfocused: {
       scale: 1,
-      boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
+    //   boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
       transition: { duration: 0.2 }
     }
   };
