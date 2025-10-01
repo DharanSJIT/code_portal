@@ -569,6 +569,22 @@ const AdminDashboard = () => {
         </svg>
       )
     },
+    
+    { 
+      name: 'HackerRank', 
+      value: stats.platformStats.hackerrank,
+      maxValue: stats.totalStudents,
+      percentage: stats.totalStudents > 0 ? Math.round((stats.platformStats.hackerrank / stats.totalStudents) * 100) : 0,
+      color: 'text-green-600',
+      bgColor: 'bg-green-50',
+      borderColor: 'border-green-200',
+      icon: (
+        <svg className="w-8 h-8" fill="#00EA64" viewBox="0 0 24 24">
+          <path d="M12 0c1.285 0 9.75 4.886 10.392 6 .645 1.115.645 10.885 0 12S13.287 24 12 24s-9.75-4.885-10.395-6c-.641-1.115-.641-10.885 0-12C2.25 4.886 10.715 0 12 0zm2.295 6.799c-.141 0-.258.115-.258.258v3.875H9.963V6.908c0-.141-.116-.258-.258-.258H8.279c-.141 0-.258.115-.258.258v10.018c0 .143.117.258.258.258h1.426c.142 0 .258-.115.258-.258v-4.09h4.074v4.09c0 .143.116.258.258.258h1.426c.141 0 .258-.115.258-.258V6.908c0-.141-.117-.258-.258-.258h-1.426z"/>
+        </svg>
+      ),
+      
+    },
     { 
       name: 'GitHub',
       value: stats.platformStats.github,
@@ -583,20 +599,6 @@ const AdminDashboard = () => {
         </svg>
       )
     },
-    { 
-      name: 'HackerRank', 
-      value: stats.platformStats.hackerrank,
-      maxValue: stats.totalStudents,
-      percentage: stats.totalStudents > 0 ? Math.round((stats.platformStats.hackerrank / stats.totalStudents) * 100) : 0,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200',
-      icon: (
-        <svg className="w-8 h-8" fill="#00EA64" viewBox="0 0 24 24">
-          <path d="M12 0c1.285 0 9.75 4.886 10.392 6 .645 1.115.645 10.885 0 12S13.287 24 12 24s-9.75-4.885-10.395-6c-.641-1.115-.641-10.885 0-12C2.25 4.886 10.715 0 12 0zm2.295 6.799c-.141 0-.258.115-.258.258v3.875H9.963V6.908c0-.141-.116-.258-.258-.258H8.279c-.141 0-.258.115-.258.258v10.018c0 .143.117.258.258.258h1.426c.142 0 .258-.115.258-.258v-4.09h4.074v4.09c0 .143.116.258.258.258h1.426c.141 0 .258-.115.258-.258V6.908c0-.141-.117-.258-.258-.258h-1.426z"/>
-        </svg>
-      )
-    }
   ];
 
   const fadeInUp = {
