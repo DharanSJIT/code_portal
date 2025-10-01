@@ -23,9 +23,11 @@ import StudentList from './components/StudentList';
 import StudentDetails from './components/StudentDetails';
 import ScrapingStatus from './components/ScrapingStatus';
 import AdminLeaderboard from './components/AdminLeaderboard';
+// import AdminLayout from './components/AdminLayout';
 
 // Debug utilities (remove after fixing the issue)
 import { debugUserProfile, createMissingUserProfile } from './utils/debugAuth';
+import { createAdminAccount, verifyAdminAccount, checkAllUsers } from './utils/adminSetup';
 
 function App() {
   // Make debug tools available globally for testing
@@ -33,9 +35,15 @@ function App() {
     if (process.env.NODE_ENV === 'development') {
       window.debugUserProfile = debugUserProfile;
       window.createMissingUserProfile = createMissingUserProfile;
+      window.createAdminAccount = createAdminAccount;
+      window.verifyAdminAccount = verifyAdminAccount;
+      window.checkAllUsers = checkAllUsers;
       console.log('🔧 Debug tools loaded:');
       console.log('  - Run window.debugUserProfile() to debug authentication');
       console.log('  - Run window.createMissingUserProfile({ role: "user" }) to create missing profile');
+      console.log('  - Run window.createAdminAccount("email", "password", "Name") to create admin');
+      console.log('  - Run window.verifyAdminAccount("email", "password") to verify admin');
+      console.log('  - Run window.checkAllUsers() to see all users');
     }
   }, []);
 
@@ -86,6 +94,7 @@ function App() {
         <Route path="/dash" element={
           <AdminRoute>
             <Navigate to="/admin/dashboard" replace />
+            {/* <AdminLayout /> */}
           </AdminRoute>
         } />
         

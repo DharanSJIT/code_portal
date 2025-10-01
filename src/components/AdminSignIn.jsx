@@ -2,8 +2,9 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { loginWithEmailAndPassword } from '../firebase';
+import { loginWithEmailAndPassword, getUserById } from '../firebase';
 import authService from '../services/authService';
+import { toast } from 'react-toastify';
 
 const AdminSignIn = ({ isOpen = true, onClose = () => {} }) => {
   const navigate = useNavigate();
@@ -24,7 +25,8 @@ const AdminSignIn = ({ isOpen = true, onClose = () => {} }) => {
     }
     
     try {
-      // Step 1: Login with Firebase
+      // Step 1: Login with Firebase Authentication
+      console.log('Step 1: Attempting Firebase login...');
       const { user, error } = await loginWithEmailAndPassword(email, password);
       
       if (error) {
@@ -39,39 +41,75 @@ const AdminSignIn = ({ isOpen = true, onClose = () => {} }) => {
         return;
       }
       
-      // Step 2: Verify with backend and check admin status
-      try {
-        const backendData = await authService.loginAndVerifyAdmin(user);
-        
-        // Step 3: Check if user is admin
-        if (!backendData.user.isAdmin) {
-          setAuthError("Access denied: Admin privileges required");
-          setAuthLoading(false);
-          
-          // Logout the user since they're not admin
-          await authService.logoutWithBackend();
-          return;
-        }
-        
-        // Step 4: Store admin session (additional to what authService already stores)
-        localStorage.setItem('adminUser', JSON.stringify({
-          uid: backendData.user.uid,
-          email: backendData.user.email,
-          name: backendData.user.displayName || email,
-          role: 'admin'
-        }));
-        
-        console.log('Admin login successful:', backendData);
-        
-        // Step 5: Close modal and navigate to admin dashboard
-        handleClose();
-        navigate('/admin/dashboard');
-        
-      } catch (backendError) {
-        console.error('Backend verification failed:', backendError);
-        setAuthError(`Error verifying admin access: ${backendError.message}`);
+      console.log('Step 1: Firebase login successful. UID:', user.uid);
+      
+      // Step 2: Get user profile from Firestore
+      console.log('Step 2: Fetching user profile from Firestore...');
+      const { user: userDoc, error: userError } = await getUserById(user.uid);
+      
+      if (userError) {
+        console.error('Firestore lookup error:', userError);
+        setAuthError(`Error fetching user profile: ${userError}`);
         setAuthLoading(false);
+        return;
       }
+      
+      if (!userDoc) {
+        console.error('User document not found in Firestore for UID:', user.uid);
+        setAuthError("User profile not found. Please contact administrator.");
+        setAuthLoading(false);
+        return;
+      }
+      
+      console.log('Step 2: User profile found:', userDoc);
+      
+      // Step 3: Check if user is admin
+      console.log('Step 3: Checking admin privileges...');
+      const isAdmin = userDoc.role === 'admin' || userDoc.isAdmin === true;
+      
+      if (!isAdmin) {
+        console.error('User is not an admin. Role:', userDoc.role, 'isAdmin:', userDoc.isAdmin);
+        setAuthError("Access denied: Admin privileges required");
+        setAuthLoading(false);
+        
+        // Logout the user since they're not admin
+        await authService.logoutWithBackend();
+        return;
+      }
+      
+      console.log('Step 3: Admin privileges confirmed!');
+      
+      // Step 4: Try to verify with backend (optional - won't block if backend fails)
+      try {
+        console.log('Step 4: Attempting backend verification...');
+        const backendData = await authService.loginAndVerifyAdmin(user);
+        console.log('Step 4: Backend verification successful:', backendData);
+      } catch (backendError) {
+        // Backend verification failed, but we'll continue anyway since Firestore confirmed admin
+        console.warn('Step 4: Backend verification failed (continuing anyway):', backendError.message);
+      }
+      
+      // Step 5: Store admin session
+      const adminUser = {
+        uid: user.uid,
+        email: user.email,
+        name: userDoc.displayName || userDoc.name || email,
+        role: 'admin'
+      };
+      
+      localStorage.setItem('adminUser', JSON.stringify(adminUser));
+      localStorage.setItem('isAdmin', 'true');
+      localStorage.setItem('userEmail', user.email);
+      localStorage.setItem('userId', user.uid);
+      
+      console.log('Admin login successful! Stored admin user:', adminUser);
+      
+      // Step 6: Show success message
+      toast.success('Welcome back, Admin!');
+      
+      // Step 7: Close modal and navigate to admin dashboard
+      handleClose();
+      navigate('/admin/dashboard');
       
     } catch (error) {
       console.error('Login error:', error);

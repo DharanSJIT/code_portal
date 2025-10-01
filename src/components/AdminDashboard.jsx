@@ -1,8 +1,7 @@
 // src/components/AdminDashboard.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getDashboardStats, logOutEnhanced } from '../firebase';
-import authService from '../services/authService';
+import { getDashboardStats, logOutEnhanced, getCurrentUser, getUserById } from '../firebase';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -30,33 +29,74 @@ const AdminDashboard = () => {
 
   const verifyAdminAndFetchData = async () => {
     try {
-      // Verify admin status with backend
-      const isAdmin = await authService.checkAdminStatus();
+      console.log('AdminDashboard: Verifying admin access...');
       
-      if (!isAdmin) {
-        setError('Access denied. Admin privileges required.');
+      // Check localStorage first
+      const storedAdmin = localStorage.getItem('adminUser');
+      if (storedAdmin) {
+        const adminData = JSON.parse(storedAdmin);
+        console.log('AdminDashboard: Found admin in localStorage:', adminData);
+        setAdminInfo(adminData);
+      }
+      
+      // Verify with Firebase
+      const user = getCurrentUser();
+      
+      if (!user) {
+        console.error('AdminDashboard: No user signed in');
+        setError('Please sign in to access the dashboard');
         setTimeout(() => {
-          navigate('/admin-signin');
+          navigate('/admin/signin');
         }, 2000);
         return;
       }
-
-      // Get admin user info
-      try {
-        const userInfo = await authService.getCurrentUser();
-        setAdminInfo(userInfo);
-      } catch (userError) {
-        console.warn('Could not fetch admin info:', userError);
+      
+      console.log('AdminDashboard: Current user:', user.email);
+      
+      // Get user profile from Firestore
+      const { user: userDoc, error: userError } = await getUserById(user.uid);
+      
+      if (userError || !userDoc) {
+        console.error('AdminDashboard: Error fetching user profile:', userError);
+        setError('User profile not found');
+        setTimeout(() => {
+          navigate('/admin/signin');
+        }, 2000);
+        return;
       }
+      
+      console.log('AdminDashboard: User profile:', userDoc);
+      
+      // Check admin privileges
+      const isAdmin = userDoc.role === 'admin' || userDoc.isAdmin === true;
+      
+      if (!isAdmin) {
+        console.error('AdminDashboard: User is not admin. Role:', userDoc.role, 'isAdmin:', userDoc.isAdmin);
+        setError('Access denied. Admin privileges required.');
+        setTimeout(() => {
+          navigate('/admin/signin');
+        }, 2000);
+        return;
+      }
+      
+      console.log('AdminDashboard: Admin access verified!');
+      
+      // Set admin info
+      setAdminInfo({
+        uid: user.uid,
+        email: user.email,
+        name: userDoc.displayName || userDoc.name || user.email,
+        role: 'admin'
+      });
 
       // Fetch dashboard stats
       await fetchStats();
       
     } catch (error) {
-      console.error('Admin verification failed:', error);
+      console.error('AdminDashboard: Verification error:', error);
       setError('Authentication failed. Redirecting to login...');
       setTimeout(() => {
-        navigate('/admin-signin');
+        navigate('/admin/signin');
       }, 2000);
     }
   };
@@ -64,6 +104,7 @@ const AdminDashboard = () => {
   const fetchStats = async () => {
     try {
       setLoading(true);
+      console.log('AdminDashboard: Fetching stats...');
       
       // Get dashboard stats from Firebase
       const { stats: dashboardStats, recentActivity: activity, error: statsError } = await getDashboardStats();
@@ -71,6 +112,8 @@ const AdminDashboard = () => {
       if (statsError) {
         throw new Error(statsError);
       }
+      
+      console.log('AdminDashboard: Stats fetched successfully');
       
       setStats({
         totalStudents: dashboardStats.totalStudents || 0,
@@ -88,7 +131,7 @@ const AdminDashboard = () => {
       setRecentActivity(activity || []);
       
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
+      console.error('AdminDashboard: Error fetching stats:', error);
       setError('Failed to load dashboard data');
     } finally {
       setLoading(false);
@@ -97,9 +140,13 @@ const AdminDashboard = () => {
 
   const handleLogout = async () => {
     try {
+      console.log('AdminDashboard: Logging out...');
       await logOutEnhanced();
       localStorage.removeItem('adminUser');
-      navigate('/admin-signin');
+      localStorage.removeItem('isAdmin');
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('userId');
+      navigate('/admin/signin');
     } catch (error) {
       console.error('Logout failed:', error);
     }
@@ -115,7 +162,7 @@ const AdminDashboard = () => {
         <div className="text-center">
           <div className="text-red-500 text-xl mb-4">{error}</div>
           <button 
-            onClick={() => navigate('/admin-signin')}
+            onClick={() => navigate('/admin/signin')}
             className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
           >
             Go to Login
