@@ -124,7 +124,7 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header userData={userData} />
+      {/* <Header userData={userData} /> */}
 
       <main className="flex-grow px-4 py-6 md:px-8">
         <AnimatePresence mode="wait">
@@ -286,7 +286,7 @@ const HomePage = () => {
         </AnimatePresence>
       </main>
 
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 };
