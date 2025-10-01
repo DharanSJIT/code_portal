@@ -39,7 +39,7 @@ const StudentList = () => {
       });
       
       setStudents(studentsList);
-      toast.success(`Loaded ${studentsList.length} students`);
+      // toast.success(`Loaded ${studentsList.length} students`);
     } catch (error) {
       console.error('Error fetching students:', error);
       toast.error('Failed to load students: ' + error.message);

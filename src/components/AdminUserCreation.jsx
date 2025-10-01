@@ -1,4 +1,3 @@
-// src/components/AdminUserCreation.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase.js';
@@ -17,6 +16,7 @@ const AdminUserCreation = () => {
     rollNumber: '',
     department: '',
     year: '',
+    college: '',
     platformUrls: {
       github: '',
       leetcode: '',
@@ -31,7 +31,6 @@ const AdminUserCreation = () => {
     const { name, value } = e.target;
     
     if (name.includes('.')) {
-      // Handle nested objects (platformUrls)
       const [parent, child] = name.split('.');
       setStudentData({
         ...studentData,
@@ -41,7 +40,6 @@ const AdminUserCreation = () => {
         }
       });
     } else {
-      // Handle top-level fields
       setStudentData({
         ...studentData,
         [name]: value
@@ -49,9 +47,8 @@ const AdminUserCreation = () => {
     }
   };
 
-  // URL validation removed as per user request
   const validateUrls = () => {
-    return true; // Accept all URLs without validation
+    return true;
   };
 
   const checkDuplicateEmail = async (email) => {
@@ -68,7 +65,6 @@ const AdminUserCreation = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate form
     if (!studentData.name || !studentData.email) {
       toast.error('Name and email are required');
       return;
@@ -78,7 +74,6 @@ const AdminUserCreation = () => {
       return;
     }
     
-    // Check for duplicate email in Firestore
     const isDuplicate = await checkDuplicateEmail(studentData.email);
     if (isDuplicate) {
       toast.error('A student with this email already exists');
@@ -89,7 +84,6 @@ const AdminUserCreation = () => {
       setLoading(true);
       console.log('Creating student account...');
       
-      // Format platform URLs to ensure they have https://
       const formattedUrls = {};
       Object.entries(studentData.platformUrls).forEach(([platform, url]) => {
         if (!url) return;
@@ -101,12 +95,10 @@ const AdminUserCreation = () => {
         }
       });
       
-      // Generate a secure temporary password (student should change this)
       const tempPassword = `Temp@${Math.random().toString(36).slice(2, 10)}${Date.now().toString().slice(-4)}`;
       
       console.log('Creating Firebase Auth account...');
       
-      // Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth, 
         studentData.email, 
@@ -116,7 +108,6 @@ const AdminUserCreation = () => {
       const userId = userCredential.user.uid;
       console.log('Auth account created. UID:', userId);
       
-      // Prepare scraping status object
       const scrapingStatus = {};
       Object.keys(formattedUrls).forEach(platform => {
         if (formattedUrls[platform]) {
@@ -124,33 +115,22 @@ const AdminUserCreation = () => {
         }
       });
       
-      // Create comprehensive user document in Firestore
       const userDocument = {
-        // Basic Information
         name: studentData.name.trim(),
         email: studentData.email.toLowerCase().trim(),
         displayName: studentData.name.trim(),
         phoneNumber: studentData.phoneNumber.trim() || '',
-        
-        // Academic Information
         registerNumber: studentData.registerNumber.trim() || '',
         rollNumber: studentData.rollNumber.trim() || '',
         department: studentData.department || '',
         year: studentData.year || '',
-        
-        // User Role
+        college: studentData.college || '',
         role: 'student',
         isAdmin: false,
-        
-        // Timestamps
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         lastLoginAt: null,
-        
-        // Platform URLs (for web scraping)
         platformUrls: formattedUrls,
-        
-        // Platform Data (will be populated by backend scraper)
         platformData: {
           github: null,
           leetcode: null,
@@ -158,19 +138,13 @@ const AdminUserCreation = () => {
           atcoder: null,
           hackerrank: null
         },
-        
-        // Scraping Status (for backend to track)
         scrapingStatus: {
           lastUpdated: new Date().toISOString(),
           ...scrapingStatus
         },
-        
-        // Performance Metrics
         totalSolved: 0,
         streak: 0,
         lastActivityDate: null,
-        
-        // Stats by platform (will be updated by scraper)
         stats: {
           github: { repos: 0, contributions: 0 },
           leetcode: { solved: 0, easy: 0, medium: 0, hard: 0 },
@@ -187,12 +161,10 @@ const AdminUserCreation = () => {
       toast.success(`Student added successfully! Temporary password: ${tempPassword}`);
       toast.info('Please share the temporary password with the student', { autoClose: 10000 });
       
-      // If there are platform URLs, the backend scraper will pick them up
       if (Object.keys(formattedUrls).length > 0) {
         toast.info('Profile scraping will be initiated by the backend', { autoClose: 5000 });
       }
       
-      // Wait a bit for the user to see the password
       setTimeout(() => {
         navigate('/admin/students');
       }, 2000);
@@ -200,7 +172,6 @@ const AdminUserCreation = () => {
     } catch (error) {
       console.error('Error adding student:', error);
       
-      // Provide specific error messages
       if (error.code === 'auth/email-already-in-use') {
         toast.error('This email is already registered in Firebase Auth');
       } else if (error.code === 'auth/invalid-email') {
@@ -224,6 +195,7 @@ const AdminUserCreation = () => {
       rollNumber: '',
       department: '',
       year: '',
+      college: '',
       platformUrls: {
         github: '',
         leetcode: '',
@@ -233,6 +205,39 @@ const AdminUserCreation = () => {
         linkedin: ''
       }
     });
+  };
+
+  const platformIcons = {
+    github: (
+      <svg className="w-5 h-5" fill="#181717" viewBox="0 0 24 24">
+        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+      </svg>
+    ),
+    leetcode: (
+      <svg className="w-5 h-5" fill="#FFA116" viewBox="0 0 24 24">
+        <path d="M13.483 0a1.374 1.374 0 0 0-.961.438L7.116 6.226l-3.854 4.126a5.266 5.266 0 0 0-1.209 2.104 5.35 5.35 0 0 0-.125.513 5.527 5.527 0 0 0 .062 2.362 5.83 5.83 0 0 0 .349 1.017 5.938 5.938 0 0 0 1.271 1.818l4.277 4.193.039.038c2.248 2.165 5.852 2.133 8.063-.074l2.396-2.392c.54-.54.54-1.414.003-1.955a1.378 1.378 0 0 0-1.951-.003l-2.396 2.392a3.021 3.021 0 0 1-4.205.038l-.02-.019-4.276-4.193c-.652-.64-.972-1.469-.948-2.263a2.68 2.68 0 0 1 .066-.523 2.545 2.545 0 0 1 .619-1.164L9.13 8.114c1.058-1.134 3.204-1.27 4.43-.278l3.501 2.831c.593.48 1.461.387 1.94-.207a1.384 1.384 0 0 0-.207-1.943l-3.5-2.831c-.8-.647-1.766-1.045-2.774-1.202l2.015-2.158A1.384 1.384 0 0 0 13.483 0zm-2.866 12.815a1.38 1.38 0 0 0-1.38 1.382 1.38 1.38 0 0 0 1.38 1.382H20.79a1.38 1.38 0 0 0 1.38-1.382 1.38 1.38 0 0 0-1.38-1.382z"/>
+      </svg>
+    ),
+    codeforces: (
+      <svg className="w-5 h-5" fill="#1F8ACB" viewBox="0 0 24 24">
+        <path d="M4.5 7.5C5.328 7.5 6 8.172 6 9v10.5c0 .828-.672 1.5-1.5 1.5h-3C.672 21 0 20.328 0 19.5V9c0-.828.672-1.5 1.5-1.5h3zm9-4.5c.828 0 1.5.672 1.5 1.5v15c0 .828-.672 1.5-1.5 1.5h-3c-.828 0-1.5-.672-1.5-1.5v-15c0-.828.672-1.5 1.5-1.5h3zm9 7.5c.828 0 1.5.672 1.5 1.5v7.5c0 .828-.672 1.5-1.5 1.5h-3c-.828 0-1.5-.672-1.5-1.5V12c0-.828.672-1.5 1.5-1.5h3z"/>
+      </svg>
+    ),
+    atcoder: (
+      <svg className="w-5 h-5" fill="#000000" viewBox="0 0 24 24">
+        <path d="M12 0l-8 4v8l8 4 8-4V4l-8-4zm0 2.208L17.385 5 12 7.792 6.615 5 12 2.208zM5 6.5l6 3v7l-6-3v-7zm8 10v-7l6-3v7l-6 3zm-1-12.5l5 2.5-5 2.5-5-2.5 5-2.5z"/>
+      </svg>
+    ),
+    hackerrank: (
+      <svg className="w-5 h-5" fill="#00EA64" viewBox="0 0 24 24">
+        <path d="M12 0c1.285 0 9.75 4.886 10.392 6 .645 1.115.645 10.885 0 12S13.287 24 12 24s-9.75-4.885-10.395-6c-.641-1.115-.641-10.885 0-12C2.25 4.886 10.715 0 12 0zm2.295 6.799c-.141 0-.258.115-.258.258v3.875H9.963V6.908c0-.141-.116-.258-.258-.258H8.279c-.141 0-.258.115-.258.258v10.018c0 .143.117.258.258.258h1.426c.142 0 .258-.115.258-.258v-4.09h4.074v4.09c0 .143.116.258.258.258h1.426c.141 0 .258-.115.258-.258V6.908c0-.141-.117-.258-.258-.258h-1.426z"/>
+      </svg>
+    ),
+    linkedin: (
+      <svg className="w-5 h-5" fill="#0A66C2" viewBox="0 0 24 24">
+        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+      </svg>
+    )
   };
 
   return (
@@ -248,7 +253,6 @@ const AdminUserCreation = () => {
       </div>
       
       <form onSubmit={handleSubmit}>
-        {/* Personal Information */}
         <div className="mb-8">
           <h3 className="text-lg font-semibold text-gray-700 mb-4 pb-2 border-b">Personal Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -298,6 +302,23 @@ const AdminUserCreation = () => {
                 placeholder="+91 1234567890"
               />
             </div>
+
+            <div>
+              <label htmlFor="college" className="block text-sm font-medium text-gray-700 mb-1">
+                College
+              </label>
+              <select
+                id="college"
+                name="college"
+                value={studentData.college}
+                onChange={handleInputChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select College</option>
+                <option value="Engineering">Engineering</option>
+                <option value="Technology">Technology</option>
+              </select>
+            </div>
             
             <div>
               <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-1">
@@ -317,6 +338,8 @@ const AdminUserCreation = () => {
                 <option value="EEE">Electrical & Electronics</option>
                 <option value="MECH">Mechanical Engineering</option>
                 <option value="CIVIL">Civil Engineering</option>
+                <option value="AI">AI & ML</option>
+                <option value="ADS">ADS</option>
               </select>
             </div>
             
@@ -371,7 +394,6 @@ const AdminUserCreation = () => {
           </div>
         </div>
         
-        {/* Coding Profiles */}
         <div className="mb-8">
           <h3 className="text-lg font-semibold text-gray-700 mb-4 pb-2 border-b">
             Coding Profiles
@@ -379,8 +401,9 @@ const AdminUserCreation = () => {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label htmlFor="github" className="block text-sm font-medium text-gray-700 mb-1">
-                GitHub Profile
+              <label htmlFor="github" className="flex items-center text-sm font-medium text-gray-700 mb-1">
+                {platformIcons.github}
+                <span className="ml-2">GitHub Profile</span>
               </label>
               <input
                 type="text"
@@ -394,8 +417,9 @@ const AdminUserCreation = () => {
             </div>
             
             <div>
-              <label htmlFor="leetcode" className="block text-sm font-medium text-gray-700 mb-1">
-                LeetCode Profile
+              <label htmlFor="leetcode" className="flex items-center text-sm font-medium text-gray-700 mb-1">
+                {platformIcons.leetcode}
+                <span className="ml-2">LeetCode Profile</span>
               </label>
               <input
                 type="text"
@@ -409,8 +433,9 @@ const AdminUserCreation = () => {
             </div>
             
             <div>
-              <label htmlFor="codeforces" className="block text-sm font-medium text-gray-700 mb-1">
-                Codeforces Profile
+              <label htmlFor="codeforces" className="flex items-center text-sm font-medium text-gray-700 mb-1">
+                {platformIcons.codeforces}
+                <span className="ml-2">Codeforces Profile</span>
               </label>
               <input
                 type="text"
@@ -424,8 +449,9 @@ const AdminUserCreation = () => {
             </div>
             
             <div>
-              <label htmlFor="atcoder" className="block text-sm font-medium text-gray-700 mb-1">
-                AtCoder Profile
+              <label htmlFor="atcoder" className="flex items-center text-sm font-medium text-gray-700 mb-1">
+                {platformIcons.atcoder}
+                <span className="ml-2">AtCoder Profile</span>
               </label>
               <input
                 type="text"
@@ -439,8 +465,9 @@ const AdminUserCreation = () => {
             </div>
             
             <div>
-              <label htmlFor="hackerrank" className="block text-sm font-medium text-gray-700 mb-1">
-                HackerRank Profile
+              <label htmlFor="hackerrank" className="flex items-center text-sm font-medium text-gray-700 mb-1">
+                {platformIcons.hackerrank}
+                <span className="ml-2">HackerRank Profile</span>
               </label>
               <input
                 type="text"
@@ -454,8 +481,9 @@ const AdminUserCreation = () => {
             </div>
             
             <div>
-              <label htmlFor="linkedin" className="block text-sm font-medium text-gray-700 mb-1">
-                LinkedIn Profile
+              <label htmlFor="linkedin" className="flex items-center text-sm font-medium text-gray-700 mb-1">
+                {platformIcons.linkedin}
+                <span className="ml-2">LinkedIn Profile</span>
               </label>
               <input
                 type="text"
@@ -476,7 +504,6 @@ const AdminUserCreation = () => {
           </div>
         </div>
         
-        {/* Action Buttons */}
         <div className="flex justify-end space-x-4">
           <button
             type="button"
