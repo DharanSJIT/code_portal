@@ -220,9 +220,9 @@ const StudentList = () => {
           transition={{ duration: 0.4, delay: 0.3 }}
         >
           <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {/* <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
+            </svg> */}
             Filter Students
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -262,7 +262,7 @@ const StudentList = () => {
                   id="college"
                   value={filterCollege}
                   onChange={(e) => setFilterCollege(e.target.value)}
-                  className="w-full px-4 py-3 pl-10 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 transition-colors bg-white appearance-none"
+                  className="w-full px-4 py-3 pl-4 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 transition-colors bg-white appearance-none"
                 >
                   <option value="">All Colleges</option>
                   {colleges.length > 0 ? (
@@ -276,11 +276,11 @@ const StudentList = () => {
                     </>
                   )}
                 </select>
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                {/* <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                   <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
-                </div>
+                </div> */}
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                   <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -301,18 +301,18 @@ const StudentList = () => {
                   id="department"
                   value={filterDepartment}
                   onChange={(e) => setFilterDepartment(e.target.value)}
-                  className="w-full px-4 py-3 pl-10 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 transition-colors bg-white appearance-none"
+                  className="w-full px-4 py-3 pl-4 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 transition-colors bg-white appearance-none"
                 >
                   <option value="">All Departments</option>
                   {departments.map(dept => (
                     <option key={dept} value={dept}>{dept}</option>
                   ))}
                 </select>
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                {/* <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                   <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
                   </svg>
-                </div>
+                </div> */}
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                   <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -333,18 +333,18 @@ const StudentList = () => {
                   id="year"
                   value={filterYear}
                   onChange={(e) => setFilterYear(e.target.value)}
-                  className="w-full px-4 py-3 pl-10 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 transition-colors bg-white appearance-none"
+                  className="w-full px-4 py-3 pl-4 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 transition-colors bg-white appearance-none"
                 >
                   <option value="">All Years</option>
                   {years.map(year => (
                     <option key={year} value={year}>Year {year}</option>
                   ))}
                 </select>
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                {/* <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                   <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                </div>
+                </div> */}
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                   <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />

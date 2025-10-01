@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 const AdminUserCreation = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [formStep, setFormStep] = useState(1);
   const [studentData, setStudentData] = useState({
     name: '',
     email: '',
@@ -25,6 +26,11 @@ const AdminUserCreation = () => {
       hackerrank: '',
       linkedin: ''
     }
+  });
+
+  const [formErrors, setFormErrors] = useState({
+    name: '',
+    email: '',
   });
 
   const handleInputChange = (e) => {
@@ -45,6 +51,14 @@ const AdminUserCreation = () => {
         [name]: value
       });
     }
+    
+    // Clear any errors for the field being edited
+    if (formErrors[name]) {
+      setFormErrors({
+        ...formErrors,
+        [name]: ''
+      });
+    }
   };
 
   const validateUrls = () => {
@@ -62,11 +76,28 @@ const AdminUserCreation = () => {
     }
   };
 
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!studentData.name.trim()) {
+      errors.name = 'Name is required';
+    }
+    
+    if (!studentData.email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(studentData.email)) {
+      errors.email = 'Email is invalid';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!studentData.name || !studentData.email) {
-      toast.error('Name and email are required');
+    if (!validateForm()) {
+      toast.error('Please fix the form errors');
       return;
     }
     
@@ -77,6 +108,10 @@ const AdminUserCreation = () => {
     const isDuplicate = await checkDuplicateEmail(studentData.email);
     if (isDuplicate) {
       toast.error('A student with this email already exists');
+      setFormErrors({
+        ...formErrors,
+        email: 'This email is already in use'
+      });
       return;
     }
     
@@ -174,8 +209,16 @@ const AdminUserCreation = () => {
       
       if (error.code === 'auth/email-already-in-use') {
         toast.error('This email is already registered in Firebase Auth');
+        setFormErrors({
+          ...formErrors,
+          email: 'This email is already registered'
+        });
       } else if (error.code === 'auth/invalid-email') {
         toast.error('Invalid email format');
+        setFormErrors({
+          ...formErrors,
+          email: 'Invalid email format'
+        });
       } else if (error.code === 'auth/weak-password') {
         toast.error('Password is too weak');
       } else {
@@ -205,6 +248,7 @@ const AdminUserCreation = () => {
         linkedin: ''
       }
     });
+    setFormErrors({});
   };
 
   const platformIcons = {
@@ -240,302 +284,509 @@ const AdminUserCreation = () => {
     )
   };
 
-  return (
-    <div className="p-6 max-w-5xl mx-auto bg-white rounded-lg shadow-md">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Add New Student</h2>
-        <button
-          onClick={() => navigate('/admin/students')}
-          className="text-sm text-gray-600 hover:text-gray-800"
-        >
-          ← Back to Students
-        </button>
-      </div>
-      
-      <form onSubmit={handleSubmit}>
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold text-gray-700 mb-4 pb-2 border-b">Personal Information</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                Full Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={studentData.name}
-                onChange={handleInputChange}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter full name"
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={studentData.email}
-                onChange={handleInputChange}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="student@example.com"
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                Phone Number
-              </label>
-              <input
-                type="tel"
-                id="phoneNumber"
-                name="phoneNumber"
-                value={studentData.phoneNumber}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="+91 1234567890"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="college" className="block text-sm font-medium text-gray-700 mb-1">
-                College
-              </label>
-              <select
-                id="college"
-                name="college"
-                value={studentData.college}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select College</option>
-                <option value="Engineering">Engineering</option>
-                <option value="Technology">Technology</option>
-              </select>
-            </div>
-            
-            <div>
-              <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-1">
-                Department
-              </label>
-              <select
-                id="department"
-                name="department"
-                value={studentData.department}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select Department</option>
-                <option value="CSE">Computer Science & Engineering</option>
-                <option value="IT">Information Technology</option>
-                <option value="ECE">Electronics & Communication</option>
-                <option value="EEE">Electrical & Electronics</option>
-                <option value="MECH">Mechanical Engineering</option>
-                <option value="CIVIL">Civil Engineering</option>
-                <option value="AI">AI & ML</option>
-                <option value="ADS">ADS</option>
-              </select>
-            </div>
-            
-            <div>
-              <label htmlFor="year" className="block text-sm font-medium text-gray-700 mb-1">
-                Year of Study
-              </label>
-              <select
-                id="year"
-                name="year"
-                value={studentData.year}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select Year</option>
-                <option value="1">1st Year</option>
-                <option value="2">2nd Year</option>
-                <option value="3">3rd Year</option>
-                <option value="4">4th Year</option>
-              </select>
-            </div>
-            
-            <div>
-              <label htmlFor="registerNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                Register Number
-              </label>
-              <input
-                type="text"
-                id="registerNumber"
-                name="registerNumber"
-                value={studentData.registerNumber}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="REG12345"
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="rollNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                Roll Number
-              </label>
-              <input
-                type="text"
-                id="rollNumber"
-                name="rollNumber"
-                value={studentData.rollNumber}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="ROLL123"
-              />
-            </div>
-          </div>
-        </div>
-        
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold text-gray-700 mb-4 pb-2 border-b">
-            Coding Profiles
-            <span className="text-sm font-normal text-gray-500 ml-2">(URLs for web scraping)</span>
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="github" className="flex items-center text-sm font-medium text-gray-700 mb-1">
-                {platformIcons.github}
-                <span className="ml-2">GitHub Profile</span>
-              </label>
-              <input
-                type="text"
-                id="github"
-                name="platformUrls.github"
-                value={studentData.platformUrls.github}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="https://github.com/username"
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="leetcode" className="flex items-center text-sm font-medium text-gray-700 mb-1">
-                {platformIcons.leetcode}
-                <span className="ml-2">LeetCode Profile</span>
-              </label>
-              <input
-                type="text"
-                id="leetcode"
-                name="platformUrls.leetcode"
-                value={studentData.platformUrls.leetcode}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="https://leetcode.com/username"
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="codeforces" className="flex items-center text-sm font-medium text-gray-700 mb-1">
-                {platformIcons.codeforces}
-                <span className="ml-2">Codeforces Profile</span>
-              </label>
-              <input
-                type="text"
-                id="codeforces"
-                name="platformUrls.codeforces"
-                value={studentData.platformUrls.codeforces}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="https://codeforces.com/profile/username"
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="atcoder" className="flex items-center text-sm font-medium text-gray-700 mb-1">
-                {platformIcons.atcoder}
-                <span className="ml-2">AtCoder Profile</span>
-              </label>
-              <input
-                type="text"
-                id="atcoder"
-                name="platformUrls.atcoder"
-                value={studentData.platformUrls.atcoder}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="https://atcoder.jp/users/username"
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="hackerrank" className="flex items-center text-sm font-medium text-gray-700 mb-1">
-                {platformIcons.hackerrank}
-                <span className="ml-2">HackerRank Profile</span>
-              </label>
-              <input
-                type="text"
-                id="hackerrank"
-                name="platformUrls.hackerrank"
-                value={studentData.platformUrls.hackerrank}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="https://www.hackerrank.com/username"
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="linkedin" className="flex items-center text-sm font-medium text-gray-700 mb-1">
-                {platformIcons.linkedin}
-                <span className="ml-2">LinkedIn Profile</span>
-              </label>
-              <input
-                type="text"
-                id="linkedin"
-                name="platformUrls.linkedin"
-                value={studentData.platformUrls.linkedin}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="https://www.linkedin.com/in/username"
-              />
-            </div>
+  // Step indicator component
+  const StepIndicator = () => (
+    <div className="mb-8">
+      <div className="flex justify-center">
+        <div className="w-full max-w-md flex items-center">
+          {/* Progress line */}
+          <div className="w-full bg-slate-200 rounded h-1 flex items-center">
+            <div 
+              className="h-1 bg-blue-500 rounded transition-all duration-300" 
+              style={{ width: formStep === 1 ? '50%' : '100%' }}
+            ></div>
           </div>
           
-          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
-            <p className="text-sm text-blue-800">
-              <strong>Note:</strong> These URLs will be used by the backend web scraper to fetch student's coding activity and statistics.
-            </p>
+          {/* Step markers overlaid on the line */}
+          <div className="w-full absolute flex justify-between px-1">
+            <button 
+              onClick={() => setFormStep(1)}
+              className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition-all duration-300 ${
+                formStep >= 1 
+                  ? ' text-white' 
+                  : 'bg-white border-2 border-slate-300 text-slate-500'
+              }`}
+              type="button"
+            >
+              
+            </button>
+            <button 
+              onClick={() => validateForm() && setFormStep(2)}
+              className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition-all duration-300 ${
+                formStep >= 2 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-white border-2 border-slate-300 text-slate-500'
+              }`}
+              type="button"
+            >
+              2
+            </button>
           </div>
         </div>
-        
-        <div className="flex justify-end space-x-4">
+      </div>
+      
+      {/* Step labels */}
+      <div className="flex justify-between max-w-md mx-auto text-xs mt-2 px-1 font-medium text-slate-600">
+        <span className={formStep >= 1 ? "text-blue-600" : ""}>Personal Info</span>
+        <span className={formStep >= 2 ? "text-blue-600" : ""}>Coding Profiles</span>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="container mx-auto px-4 py-6 max-w-5xl mt-[6vh]">
+      <div className="bg-white rounded-xl overflow-hidden shadow-md border border-slate-200">
+        {/* Header */}
+        <div className="flex justify-between items-center p-5 sm:p-6 border-b border-slate-200 bg-slate-50">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-800">Add New Student</h2>
           <button
-            type="button"
-            onClick={handleReset}
-            className="px-6 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
-          >
-            Reset Form
-          </button>
-          <button
-            type="button"
             onClick={() => navigate('/admin/students')}
-            className="px-6 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+            className="text-sm text-slate-600 hover:text-slate-900 flex items-center gap-1 transition-all duration-300 hover:-translate-x-1"
           >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <span className="flex items-center">
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Adding Student...
-              </span>
-            ) : 'Add Student'}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Students
           </button>
         </div>
-      </form>
+        
+        <div className="p-5 sm:p-6">
+          <StepIndicator />
+          
+          <form onSubmit={handleSubmit}>
+            {formStep === 1 && (
+              <div className="space-y-6 animate-fade-in ">
+                <div className="flex items-center mb-4 pb-1 border-b border-slate-200 mb-10">
+                 
+                  <h3 className="text-lg font-semibold text-slate-800">Personal Information</h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-2">
+                      Full Name <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        value={studentData.name}
+                        onChange={handleInputChange}
+                        required
+                        className={`w-full px-4 py-2 border ${formErrors.name ? 'border-red-500 bg-red-50' : 'border-slate-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300`}
+                        placeholder="Enter full name"
+                      />
+                      {formErrors.name && (
+                        <p className="mt-1 text-xs text-red-600">{formErrors.name}</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+                      Email Address <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        value={studentData.email}
+                        onChange={handleInputChange}
+                        required
+                        className={`w-full px-4 py-2 border ${formErrors.email ? 'border-red-500 bg-red-50' : 'border-slate-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300`}
+                        placeholder="student@example.com"
+                      />
+                      {formErrors.email && (
+                        <p className="mt-1 text-xs text-red-600">{formErrors.email}</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="phoneNumber" className="block text-sm font-medium text-slate-700 mb-2">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      id="phoneNumber"
+                      name="phoneNumber"
+                      value={studentData.phoneNumber}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                      placeholder="+91 1234567890"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="college" className="block text-sm font-medium text-slate-700 mb-2">
+                      College
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="college"
+                        name="college"
+                        value={studentData.college}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 appearance-none pr-10"
+                      >
+                        <option value="">Select College</option>
+                        <option value="Engineering">Engineering</option>
+                        <option value="Technology">Technology</option>
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                        <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="department" className="block text-sm font-medium text-slate-700 mb-2">
+                      Department
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="department"
+                        name="department"
+                        value={studentData.department}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 appearance-none pr-10"
+                      >
+                        <option value="">Select Department</option>
+                        <option value="CSE">Computer Science & Engineering</option>
+                        <option value="IT">Information Technology</option>
+                        <option value="ECE">Electronics & Communication</option>
+                        <option value="EEE">Electrical & Electronics</option>
+                        <option value="MECH">Mechanical Engineering</option>
+                        <option value="CIVIL">Civil Engineering</option>
+                        <option value="AI">AI & ML</option>
+                        <option value="ADS">ADS</option>
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                        <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="year" className="block text-sm font-medium text-slate-700 mb-2">
+                      Year of Study
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="year"
+                        name="year"
+                        value={studentData.year}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 appearance-none pr-10"
+                      >
+                        <option value="">Select Year</option>
+                        <option value="1">1st Year</option>
+                        <option value="2">2nd Year</option>
+                        <option value="3">3rd Year</option>
+                        <option value="4">4th Year</option>
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                        <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="registerNumber" className="block text-sm font-medium text-slate-700 mb-2">
+                      Register Number
+                    </label>
+                    <input
+                      type="text"
+                      id="registerNumber"
+                      name="registerNumber"
+                      value={studentData.registerNumber}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                      placeholder="REG12345"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="rollNumber" className="block text-sm font-medium text-slate-700 mb-2">
+                      Roll Number
+                    </label>
+                    <input
+                      type="text"
+                      id="rollNumber"
+                      name="rollNumber"
+                      value={studentData.rollNumber}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                      placeholder="ROLL123"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row justify-between gap-3 mt-8">
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="flex items-center justify-center px-5 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-all duration-300"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Reset Form
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => validateForm() && setFormStep(2)}
+                    className="flex items-center justify-center px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                  >
+                    Continue to Coding Profiles
+                    <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {formStep === 2 && (
+              <div className="space-y-6 animate-fade-in ">
+                <div className="flex items-center mb-10 pb-1 border-b border-slate-200">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold mr-3">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-800 ">
+                    Coding Profiles
+                    {/* <span className="text-sm font-normal text-slate-500 ml-2">(Optional)</span> */}
+                  </h3>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pb-6">
+                  <div>
+                    <label htmlFor="github" className="flex items-center text-sm font-medium text-slate-700 mb-2">
+                      {platformIcons.github}
+                      <span className="ml-2">GitHub Profile</span>
+                    </label>
+                    <div className="relative mb-4">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none ">
+                        <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        id="github"
+                        name="platformUrls.github"
+                        value={studentData.platformUrls.github}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                        placeholder="github.com/username"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="leetcode" className="flex items-center text-sm font-medium text-slate-700 mb-2">
+                      {platformIcons.leetcode}
+                      <span className="ml-2">LeetCode Profile</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        id="leetcode"
+                        name="platformUrls.leetcode"
+                        value={studentData.platformUrls.leetcode}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                        placeholder="leetcode.com/username"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="codeforces" className="flex items-center text-sm font-medium text-slate-700 mb-2">
+                      {platformIcons.codeforces}
+                      <span className="ml-2">Codeforces Profile</span>
+                    </label>
+                    <div className="relative mb-4">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        id="codeforces"
+                        name="platformUrls.codeforces"
+                        value={studentData.platformUrls.codeforces}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                        placeholder="codeforces.com/profile/username"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="atcoder" className="flex items-center text-sm font-medium text-slate-700 mb-2">
+                                            {platformIcons.atcoder}
+                      <span className="ml-2">AtCoder Profile</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        id="atcoder"
+                        name="platformUrls.atcoder"
+                        value={studentData.platformUrls.atcoder}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                        placeholder="atcoder.jp/users/username"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="hackerrank" className="flex items-center text-sm font-medium text-slate-700 mb-2">
+                      {platformIcons.hackerrank}
+                      <span className="ml-2">HackerRank Profile</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        id="hackerrank"
+                        name="platformUrls.hackerrank"
+                        value={studentData.platformUrls.hackerrank}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                        placeholder="hackerrank.com/username"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="linkedin" className="flex items-center text-sm font-medium text-slate-700 mb-2">
+                      {platformIcons.linkedin}
+                      <span className="ml-2">LinkedIn Profile</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        id="linkedin"
+                        name="platformUrls.linkedin"
+                        value={studentData.platformUrls.linkedin}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                        placeholder="linkedin.com/in/username"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex">
+                    <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <p className="text-sm text-blue-800 font-medium mb-1">Profile Scraping</p>
+                      <p className="text-xs text-blue-700">
+                        These URLs will be used by the backend web scraper to fetch student's coding activity and statistics. URLs should be in the format <span className="font-semibold">domain.com/username</span> or full URLs with https.
+                      </p>
+                    </div>
+                  </div>
+                </div> */}
+                
+                <div className="flex flex-col sm:flex-row justify-between gap-3 mt-8">
+                  <button
+                    type="button"
+                    onClick={() => setFormStep(1)}
+                    className="flex items-center justify-center px-5 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-all duration-300"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Back
+                  </button>
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      type="button"
+                      onClick={() => navigate('/admin/students')}
+                      className="flex items-center justify-center px-5 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-all duration-300"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex items-center justify-center px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed transition-all duration-300"
+                    >
+                      {loading ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Adding Student...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                          </svg>
+                          Add Student
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </form>
+        </div>
+      </div>
+      
+      <div className="mt-6 text-center text-sm text-slate-500">
+        <p>After adding a student, a temporary password will be generated to share with them.</p>
+      </div>
+      
+      {/* Add CSS for animations */}
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.3s ease-out forwards;
+        }
+      `}</style>
     </div>
   );
 };

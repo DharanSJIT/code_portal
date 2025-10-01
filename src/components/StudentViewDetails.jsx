@@ -407,7 +407,7 @@ const StudentViewDetails = ({ student, onClose }) => {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <header className="px-8 py-6 border-b border-slate-200 bg-white">
+        <header className="px-8 py-4 border-b border-slate-200 bg-white">
           <div className="flex justify-between items-start gap-6">
             <div className="flex items-center gap-5">
               <div 
@@ -584,7 +584,7 @@ const StudentViewDetails = ({ student, onClose }) => {
         </main>
 
         {/* Footer */}
-        <footer className="px-8 py-5 border-t border-slate-200 flex justify-end items-center rounded-b-xl bg-white opacity-0 animate-fadeIn" style={{ animationDelay: '0.9s', animationFillMode: 'forwards' }}>
+        <footer className="px-8 py-3 border-t border-slate-200 flex justify-end items-center rounded-b-xl bg-white opacity-0 animate-fadeIn" style={{ animationDelay: '0.9s', animationFillMode: 'forwards' }}>
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
