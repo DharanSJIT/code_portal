@@ -747,12 +747,7 @@ const LandingPage = () => {
                   </a>
                   <div className="pt-2 pb-1">
                     <div className="border-t border-gray-200 pt-4 flex flex-col space-y-3">
-                      <a
-                        onClick={openSignInModal}
-                        className="px-3 py-2 text-center rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
-                      >
-                        Sign In
-                      </a>
+                      
                       <a
                         onClick={openSignInModal}
                         className="px-3 py-2 text-center rounded-md text-base font-medium text-white bg-blue-500 shadow-md hover:bg-blue-600 cursor-pointer"
