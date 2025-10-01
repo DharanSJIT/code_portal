@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { loginWithEmailAndPassword, getUserById } from '../firebase';
+import { loginWithEmailAndPassword } from '../firebase';
+import authService from '../services/authService';
 
 const AdminSignIn = ({ isOpen = true, onClose = () => {} }) => {
   const navigate = useNavigate();
@@ -23,6 +24,7 @@ const AdminSignIn = ({ isOpen = true, onClose = () => {} }) => {
     }
     
     try {
+      // Step 1: Login with Firebase
       const { user, error } = await loginWithEmailAndPassword(email, password);
       
       if (error) {
@@ -37,34 +39,42 @@ const AdminSignIn = ({ isOpen = true, onClose = () => {} }) => {
         return;
       }
       
-      // Check if user has admin role
-      const { user: userDoc, error: userError } = await getUserById(user.uid);
-      
-      if (userError) {
-        setAuthError(`Error verifying admin access: ${userError}`);
+      // Step 2: Verify with backend and check admin status
+      try {
+        const backendData = await authService.loginAndVerifyAdmin(user);
+        
+        // Step 3: Check if user is admin
+        if (!backendData.user.isAdmin) {
+          setAuthError("Access denied: Admin privileges required");
+          setAuthLoading(false);
+          
+          // Logout the user since they're not admin
+          await authService.logoutWithBackend();
+          return;
+        }
+        
+        // Step 4: Store admin session (additional to what authService already stores)
+        localStorage.setItem('adminUser', JSON.stringify({
+          uid: backendData.user.uid,
+          email: backendData.user.email,
+          name: backendData.user.displayName || email,
+          role: 'admin'
+        }));
+        
+        console.log('Admin login successful:', backendData);
+        
+        // Step 5: Close modal and navigate to admin dashboard
+        handleClose();
+        navigate('/admin/dashboard');
+        
+      } catch (backendError) {
+        console.error('Backend verification failed:', backendError);
+        setAuthError(`Error verifying admin access: ${backendError.message}`);
         setAuthLoading(false);
-        return;
       }
-      
-      if (!userDoc || userDoc.role !== 'admin') {
-        setAuthError("Access denied: Admin privileges required");
-        setAuthLoading(false);
-        return;
-      }
-      
-      // Store admin session
-      localStorage.setItem('adminUser', JSON.stringify({
-        uid: user.uid,
-        email: user.email,
-        name: userDoc.name || user.displayName,
-        role: 'admin'
-      }));
-      
-      // Close modal and navigate to admin dashboard
-      handleClose();
-      navigate('/admin/dashboard');
       
     } catch (error) {
+      console.error('Login error:', error);
       setAuthError(error.message || "An error occurred during sign in");
       setAuthLoading(false);
     }
@@ -137,6 +147,7 @@ const AdminSignIn = ({ isOpen = true, onClose = () => {} }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter admin email"
+                autoComplete="email"
               />
             </div>
             
@@ -149,11 +160,12 @@ const AdminSignIn = ({ isOpen = true, onClose = () => {} }) => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter your password"
+                autoComplete="current-password"
               />
             </div>
             
             {authError && (
-              <div className="p-2 text-red-500 text-sm bg-red-50 rounded">
+              <div className="p-3 text-red-700 text-sm bg-red-50 border border-red-200 rounded-lg">
                 {authError}
               </div>
             )}
@@ -161,7 +173,7 @@ const AdminSignIn = ({ isOpen = true, onClose = () => {} }) => {
             <button
               type="submit"
               disabled={authLoading}
-              className="w-full py-3 px-4 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg shadow-md transition-colors disabled:opacity-70 disabled:bg-blue-400"
+              className="w-full py-3 px-4 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg shadow-md transition-colors disabled:opacity-70 disabled:bg-blue-400 disabled:cursor-not-allowed"
             >
               {authLoading ? (
                 <span className="flex items-center justify-center">
@@ -169,7 +181,7 @@ const AdminSignIn = ({ isOpen = true, onClose = () => {} }) => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Processing...
+                  Verifying...
                 </span>
               ) : "Sign In as Admin"}
             </button>
@@ -178,7 +190,7 @@ const AdminSignIn = ({ isOpen = true, onClose = () => {} }) => {
           <div className="text-center mt-4">
             <button 
               onClick={goToStudentLogin}
-              className="text-sm text-blue-600 hover:text-blue-800"
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
             >
               Go to Student Login
             </button>

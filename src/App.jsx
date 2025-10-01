@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -24,7 +24,21 @@ import StudentDetails from './components/StudentDetails';
 import ScrapingStatus from './components/ScrapingStatus';
 import AdminLeaderboard from './components/AdminLeaderboard';
 
+// Debug utilities (remove after fixing the issue)
+import { debugUserProfile, createMissingUserProfile } from './utils/debugAuth';
+
 function App() {
+  // Make debug tools available globally for testing
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      window.debugUserProfile = debugUserProfile;
+      window.createMissingUserProfile = createMissingUserProfile;
+      console.log('🔧 Debug tools loaded:');
+      console.log('  - Run window.debugUserProfile() to debug authentication');
+      console.log('  - Run window.createMissingUserProfile({ role: "user" }) to create missing profile');
+    }
+  }, []);
+
   return (
     <BrowserRouter>
       <ToastContainer position="top-right" autoClose={3000} />

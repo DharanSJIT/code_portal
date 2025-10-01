@@ -1,5 +1,6 @@
 // src/firebase.js
 import { initializeApp } from 'firebase/app';
+import authService from './services/authService';
 import { 
   getAuth, 
   signInWithEmailAndPassword, 
@@ -405,6 +406,21 @@ const getDashboardStats = async () => {
 };
 
 // Export all functions and instances
+const logOutEnhanced = async () => {
+  try {
+    // Notify backend first
+    await authService.logoutWithBackend();
+    
+    // Then sign out from Firebase
+    await signOut(auth);
+    
+    return { success: true, error: null };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
+// Export the enhanced logout
 export {
   auth,
   db,
@@ -412,6 +428,7 @@ export {
   loginWithEmailAndPassword,
   signInWithGoogle,
   logOut,
+  logOutEnhanced, // New enhanced logout
   subscribeToAuthChanges,
   getCurrentUser,
   createStudentDocument,
@@ -422,5 +439,6 @@ export {
   deleteStudent,
   initiateScrapingForStudent,
   getAllScrapingStatus,
-  getDashboardStats
+  getDashboardStats,
+  authService // Export auth service
 };

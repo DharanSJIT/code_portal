@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { loginWithEmailAndPassword, signInWithGoogle } from '../firebase';
+import { loginWithEmailAndPassword, signInWithGoogle, getUserById } from '../firebase';
+import authService from '../services/authService';
 
 const SignIn = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
@@ -25,10 +26,57 @@ const SignIn = ({ isOpen, onClose }) => {
       }
       
       if (user) {
-        handleClose();
-        navigate('/home');
+        console.log('Google Sign-in successful. User UID:', user.uid);
+        
+        // Try to verify with backend first
+        try {
+          const backendResponse = await authService.loginAndVerifyAdmin(user);
+          
+          // If backend says user is admin, redirect to admin
+          if (backendResponse.user.isAdmin) {
+            setAuthError("Admin users should use the Admin Sign In page.");
+            setAuthLoading(false);
+            return;
+          }
+          
+          // Backend verification successful, user is a student
+          handleClose();
+          navigate('/home');
+          return;
+        } catch (backendError) {
+          console.log('Backend verification failed, trying Firestore lookup:', backendError.message);
+          
+          // Fallback: Try Firestore lookup
+          const { user: userDoc, error: userError } = await getUserById(user.uid);
+          
+          if (userError) {
+            console.error('Firestore lookup error:', userError);
+            setAuthError(`Error: ${userError}. Please contact administrator.`);
+            setAuthLoading(false);
+            return;
+          }
+          
+          if (!userDoc) {
+            console.error('User document not found in Firestore for UID:', user.uid);
+            setAuthError("User profile not found. Please contact administrator to create your profile.");
+            setAuthLoading(false);
+            return;
+          }
+          
+          // Check if user is a student (not admin)
+          if (userDoc.role === 'admin') {
+            setAuthError("Admin users should use the Admin Sign In page.");
+            setAuthLoading(false);
+            return;
+          }
+          
+          // Firestore says user is a student, proceed
+          handleClose();
+          navigate('/home');
+        }
       }
     } catch (error) {
+      console.error('Google sign-in error:', error);
       setAuthError(error.message || "An error occurred during sign in with Google");
       setAuthLoading(false);
     }
@@ -55,10 +103,60 @@ const SignIn = ({ isOpen, onClose }) => {
       }
       
       if (user) {
-        handleClose();
-        navigate('/home');
+        console.log('Email sign-in successful. User UID:', user.uid);
+        console.log('User email:', user.email);
+        
+        // Try to verify with backend first
+        try {
+          const backendResponse = await authService.loginAndVerifyAdmin(user);
+          
+          // If backend says user is admin, redirect to admin
+          if (backendResponse.user.isAdmin) {
+            setAuthError("Admin users should use the Admin Sign In page.");
+            setAuthLoading(false);
+            return;
+          }
+          
+          // Backend verification successful, user is a student
+          handleClose();
+          navigate('/home');
+          return;
+        } catch (backendError) {
+          console.log('Backend verification failed, trying Firestore lookup:', backendError.message);
+          
+          // Fallback: Try Firestore lookup
+          const { user: userDoc, error: userError } = await getUserById(user.uid);
+          
+          if (userError) {
+            console.error('Firestore lookup error:', userError);
+            console.error('Attempted to find document with UID:', user.uid);
+            setAuthError(`Error: ${userError}. Please contact administrator.`);
+            setAuthLoading(false);
+            return;
+          }
+          
+          if (!userDoc) {
+            console.error('User document not found in Firestore for UID:', user.uid);
+            console.error('Available user email:', user.email);
+            setAuthError("User profile not found. Please contact administrator to create your profile.");
+            setAuthLoading(false);
+            return;
+          }
+          
+          // Check if user is a student (not admin)
+          if (userDoc.role === 'admin') {
+            setAuthError("Admin users should use the Admin Sign In page.");
+            setAuthLoading(false);
+            return;
+          }
+          
+          // Firestore says user is a student, proceed
+          handleClose();
+          navigate('/home');
+        }
       }
     } catch (error) {
+      console.error('Email sign-in error:', error);
       setAuthError(error.message || "An error occurred during sign in");
       setAuthLoading(false);
     }
@@ -69,6 +167,10 @@ const SignIn = ({ isOpen, onClose }) => {
     setPassword('');
     setAuthError(null);
     onClose();
+  };
+  
+  const goToAdminLogin = () => {
+    navigate('/admin/signin');
   };
 
   // If the modal is not open, don't render anything
@@ -102,7 +204,7 @@ const SignIn = ({ isOpen, onClose }) => {
         </button>
         
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">Sign In</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-1">Student Sign In</h2>
           <p className="text-gray-600">Welcome back to CodeTrack Pro!</p>
         </div>
         
@@ -111,7 +213,7 @@ const SignIn = ({ isOpen, onClose }) => {
           <button
             onClick={handleGoogleSignIn}
             disabled={authLoading}
-            className="flex items-center justify-center w-full py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-70"
+            className="flex items-center justify-center w-full py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
               <path
@@ -151,6 +253,7 @@ const SignIn = ({ isOpen, onClose }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter your email"
+                autoComplete="email"
               />
             </div>
             
@@ -163,11 +266,12 @@ const SignIn = ({ isOpen, onClose }) => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter your password"
+                autoComplete="current-password"
               />
             </div>
             
             {authError && (
-              <div className="p-2 text-red-500 text-sm bg-red-50 rounded">
+              <div className="p-3 text-red-700 text-sm bg-red-50 border border-red-200 rounded-lg">
                 {authError}
               </div>
             )}
@@ -175,7 +279,7 @@ const SignIn = ({ isOpen, onClose }) => {
             <button
               type="submit"
               disabled={authLoading}
-              className="w-full py-3 px-4 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg shadow-md transition-colors disabled:opacity-70 disabled:bg-blue-400"
+              className="w-full py-3 px-4 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg shadow-md transition-colors disabled:opacity-70 disabled:bg-blue-400 disabled:cursor-not-allowed"
             >
               {authLoading ? (
                 <span className="flex items-center justify-center">
@@ -189,10 +293,16 @@ const SignIn = ({ isOpen, onClose }) => {
             </button>
           </form>
           
-          <div className="text-center mt-4">
+          <div className="text-center mt-4 space-y-2">
             <p className="text-sm text-gray-600">
               Don't have an account? Please contact your administrator.
             </p>
+            <button 
+              onClick={goToAdminLogin}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Admin? Sign in here
+            </button>
           </div>
         </div>
       </motion.div>
