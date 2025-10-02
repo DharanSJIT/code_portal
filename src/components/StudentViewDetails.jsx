@@ -48,11 +48,11 @@ const PlatformIcon = ({ platform }) => {
         <line x1="32" y1="128" x2="96" y2="128" fill="none" stroke="#4B5563" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16"/>
       </svg>
     ),
-    hackerrank: (
-      <svg viewBox="0 0 24 24" fill="#2D9A41" className="h-8 w-8 transition transform hover:scale-110 duration-300">
-        <path d="M12.5 10.334H11.5V13.667H12.5V10.334ZM15.833 8.167H14.833V15.833H15.833V8.167ZM9.167 8.167H8.167V15.833H9.167V8.167ZM18.25 5H5.75C5.333 5 5 5.333 5 5.75V18.25C5 18.667 5.333 19 5.75 19H18.25C18.667 19 19 18.667 19 18.25V5.75C19 5.333 18.667 5 18.25 5Z"></path>
-      </svg>
-    ),
+    // hackerrank: (
+    //   <svg viewBox="0 0 24 24" fill="#2D9A41" className="h-8 w-8 transition transform hover:scale-110 duration-300">
+    //     <path d="M12.5 10.334H11.5V13.667H12.5V10.334ZM15.833 8.167H14.833V15.833H15.833V8.167ZM9.167 8.167H8.167V15.833H9.167V8.167ZM18.25 5H5.75C5.333 5 5 5.333 5 5.75V18.25C5 18.667 5.333 19 5.75 19H18.25C18.667 19 19 18.667 19 18.25V5.75C19 5.333 18.667 5 18.25 5Z"></path>
+    //   </svg>
+    // ),
     atcoder: (
       <svg viewBox="0 0 256 256" fill="#374151" className="h-8 w-8 transition transform hover:scale-110 duration-300">
         <path d="M188.6,188.6a8,8,0,0,1,0,11.3l-50.06,50.06a8,8,0,0,1-11.32,0L77.17,199.9a8,8,0,0,1,0-11.3L121.28,144.5a8,8,0,0,1,11.32,0ZM162,176a8,8,0,0,0-11.31-11.31L135.37,179.94a8,8,0,0,0,11.31,11.31Z"></path>
@@ -450,75 +450,75 @@ const scrapeGitHubData = async (githubUrl) => {
   }
 };
 
-const scrapeHackerRankData = async (hackerrankUrl) => {
-  try {
-    const username = hackerrankUrl.split('/').filter(Boolean).pop();
+// const scrapeHackerRankData = async (hackerrankUrl) => {
+//   try {
+//     const username = hackerrankUrl.split('/').filter(Boolean).pop();
     
-    if (!username) {
-      throw new Error('Invalid HackerRank URL');
-    }
+//     if (!username) {
+//       throw new Error('Invalid HackerRank URL');
+//     }
 
-    // Method 1: Try direct API with CORS proxy
-    const apiUrls = [
-      `https://corsproxy.io/?${encodeURIComponent(`https://www.hackerrank.com/rest/hackers/${username}/profile`)}`,
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.hackerrank.com/rest/hackers/${username}/profile`)}`,
-      `https://cors-anywhere.herokuapp.com/https://www.hackerrank.com/rest/hackers/${username}/profile`
-    ];
+//     // Method 1: Try direct API with CORS proxy
+//     const apiUrls = [
+//       `https://corsproxy.io/?${encodeURIComponent(`https://www.hackerrank.com/rest/hackers/${username}/profile`)}`,
+//       `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.hackerrank.com/rest/hackers/${username}/profile`)}`,
+//       `https://cors-anywhere.herokuapp.com/https://www.hackerrank.com/rest/hackers/${username}/profile`
+//     ];
 
-    for (const apiUrl of apiUrls) {
-      try {
-        console.log(`Trying HackerRank API: ${apiUrl}`);
-        const response = await fetch(apiUrl, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-          }
-        });
+//     for (const apiUrl of apiUrls) {
+//       try {
+//         console.log(`Trying HackerRank API: ${apiUrl}`);
+//         const response = await fetch(apiUrl, {
+//           method: 'GET',
+//           headers: {
+//             'Accept': 'application/json',
+//             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+//           }
+//         });
         
-        if (response.ok) {
-          const data = await response.json();
-          console.log('HackerRank API response:', data);
+//         if (response.ok) {
+//           const data = await response.json();
+//           console.log('HackerRank API response:', data);
           
-          if (data.model) {
-            const profile = data.model;
-            return {
-              problemsSolved: profile.submission_count || 0,
-              badges: profile.badges_count || 0,
-              totalScore: profile.score || 0,
-              stars: profile.stars || 0,
-              level: profile.level || ' '
-            };
-          }
-        }
-      } catch (apiError) {
-        console.log(`HackerRank API ${apiUrl} failed:`, apiError.message);
-        continue;
-      }
-    }
+//           if (data.model) {
+//             const profile = data.model;
+//             return {
+//               problemsSolved: profile.submission_count || 0,
+//               badges: profile.badges_count || 0,
+//               totalScore: profile.score || 0,
+//               stars: profile.stars || 0,
+//               level: profile.level || ' '
+//             };
+//           }
+//         }
+//       } catch (apiError) {
+//         console.log(`HackerRank API ${apiUrl} failed:`, apiError.message);
+//         continue;
+//       }
+//     }
 
-    // Method 2: Return reasonable mock data
-    console.log('All HackerRank APIs failed, returning estimated data');
-    return {
-      problemsSolved: Math.floor(Math.random() * 100) + 10,
-      badges: Math.floor(Math.random() * 15) + 1,
-      totalScore: Math.floor(Math.random() * 1000) + 100,
-      stars: Math.floor(Math.random() * 5) + 1,
-      level: ['Beginner', 'Intermediate', 'Advanced'][Math.floor(Math.random() * 3)]
-    };
+//     // Method 2: Return reasonable mock data
+//     console.log('All HackerRank APIs failed, returning estimated data');
+//     return {
+//       problemsSolved: Math.floor(Math.random() * 100) + 10,
+//       badges: Math.floor(Math.random() * 15) + 1,
+//       totalScore: Math.floor(Math.random() * 1000) + 100,
+//       stars: Math.floor(Math.random() * 5) + 1,
+//       level: ['Beginner', 'Intermediate', 'Advanced'][Math.floor(Math.random() * 3)]
+//     };
 
-  } catch (error) {
-    console.error('HackerRank scraping error:', error);
-    // Return reasonable mock data
-    return {
-      problemsSolved: 0,
-      badges: 0,
-      totalScore: 0,
-      stars: 0,
-      level: 'N/A'
-    };
-  }
-};
+//   } catch (error) {
+//     console.error('HackerRank scraping error:', error);
+//     // Return reasonable mock data
+//     return {
+//       problemsSolved: 0,
+//       badges: 0,
+//       totalScore: 0,
+//       stars: 0,
+//       level: 'N/A'
+//     };
+//   }
+// };
 
 const scrapeCodeforcesData = async (codeforcesUrl) => {
   try {
@@ -686,7 +686,7 @@ const StudentViewDetails = ({ student, onClose }) => {
   const [platformData, setPlatformData] = useState({
     leetcode: { loading: false, data: null, error: null },
     github: { loading: false, data: null, error: null },
-    hackerrank: { loading: false, data: null, error: null },
+    // hackerrank: { loading: false, data: null, error: null },
     codeforces: { loading: false, data: null, error: null },
     atcoder: { loading: false, data: null, error: null }
   });
@@ -741,9 +741,9 @@ const StudentViewDetails = ({ student, onClose }) => {
       if (currentStudent.platformUrls.github) {
         promises.push(updatePlatform('github', scrapeGitHubData));
       }
-      if (currentStudent.platformUrls.hackerrank) {
-        promises.push(updatePlatform('hackerrank', scrapeHackerRankData));
-      }
+      // if (currentStudent.platformUrls.hackerrank) {
+      //   promises.push(updatePlatform('hackerrank', scrapeHackerRankData));
+      // }
       if (currentStudent.platformUrls.codeforces) {
         promises.push(updatePlatform('codeforces', scrapeCodeforcesData));
       }
@@ -782,7 +782,7 @@ const StudentViewDetails = ({ student, onClose }) => {
     const scraperMap = {
       leetcode: scrapeLeetCodeData,
       github: scrapeGitHubData,
-      hackerrank: scrapeHackerRankData,
+      // hackerrank: scrapeHackerRankData,
       codeforces: scrapeCodeforcesData,
       atcoder: scrapeAtCoderData
     };
@@ -839,7 +839,7 @@ const StudentViewDetails = ({ student, onClose }) => {
 
   // Calculate total problems solved
   const calculateTotalSolved = () => {
-    const platforms = ['leetcode', 'codeforces', 'hackerrank', 'atcoder'];
+    const platforms = ['leetcode', 'codeforces', 'atcoder'];
     return platforms.reduce((total, platform) => {
       const platformInfo = getPlatformData(platform);
       if (platformInfo.data) {
@@ -882,13 +882,13 @@ const StudentViewDetails = ({ student, onClose }) => {
           maxRank: data.maxRank || 'N/A',
         };
       
-      case 'hackerrank':
-        return {
-          problemsSolved: data.problemsSolved || 0,
-          badges: data.badges || 0,
-          totalScore: data.totalScore || 0,
-          level: data.level || 'N/A'
-        };
+      // case 'hackerrank':
+      //   return {
+      //     problemsSolved: data.problemsSolved || 0,
+      //     badges: data.badges || 0,
+      //     totalScore: data.totalScore || 0,
+      //     level: data.level || 'N/A'
+      //   };
       
       case 'atcoder':
         return {
@@ -918,7 +918,7 @@ const StudentViewDetails = ({ student, onClose }) => {
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
   };
 
-  const platformOrder = ['leetcode', 'codeforces', 'github', 'hackerrank', 'atcoder'];
+  const platformOrder = ['leetcode', 'codeforces', 'github', 'atcoder'];
   const availablePlatforms = platformOrder.filter(p => currentStudent.platformUrls?.[p]);
 
   const snapshotData = [
@@ -940,12 +940,12 @@ const StudentViewDetails = ({ student, onClose }) => {
       maxValue: 5, 
       color: "text-emerald-500" 
     },
-    { 
-      label: "HackerRank Badges", 
-      value: getPlatformStats('hackerrank')?.badges || 0, 
-      maxValue: Math.max((getPlatformStats('hackerrank')?.badges || 0) * 1.5, 10), 
-      color: "text-amber-500" 
-    },
+    // { 
+    //   label: "HackerRank Badges", 
+    //   value: getPlatformStats('hackerrank')?.badges || 0, 
+    //   maxValue: Math.max((getPlatformStats('hackerrank')?.badges || 0) * 1.5, 10), 
+    //   color: "text-amber-500" 
+    // },
   ];
 
   const formatLastUpdated = (lastUpdated) => {
@@ -1140,14 +1140,14 @@ const StudentViewDetails = ({ student, onClose }) => {
                             </>
                           )}
                           
-                          {platform === 'hackerrank' && stats && (
+                          {/* {platform === 'hackerrank' && stats && (
                             <>
                               <StatItem label="Problems Solved" value={stats.problemsSolved} />
                               <StatItem label="Badges Earned" value={stats.badges} />
                               <StatItem label="Total Score" value={stats.totalScore} />
                               {stats.level !== 'N/A' && <StatItem label="Level" value={stats.level} />}
                             </>
-                          )}
+                          )} */}
                           
                           {platform === 'atcoder' && stats && (
                             <>

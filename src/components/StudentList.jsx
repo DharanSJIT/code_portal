@@ -78,20 +78,20 @@ const StudentList = () => {
       // Scrape AtCoder
       if (platformUrls.atcoder) {
         try {
-          toast.info('🔍 Scraping AtCoder...', { autoClose: 2000 });
+          // toast.info('🔍 Scraping AtCoder...', { autoClose: 2000 });
           const data = await scrapeAtCoder(platformUrls.atcoder);
           
           if (data && !data.error) {
             updateData['scrapingStatus.atcoder'] = 'completed';
             updateData['platformData.atcoder'] = data;
-            toast.success(`✅ AtCoder: ${data.problemsSolved} problems solved`);
+            // toast.success(`✅ AtCoder: ${data.problemsSolved} problems solved`);
             successCount++;
           } else {
             throw new Error(data?.error || 'Failed');
           }
         } catch (error) {
           updateData['scrapingStatus.atcoder'] = 'failed';
-          toast.error(`❌ AtCoder failed`);
+          // toast.error(`❌ AtCoder failed`);
           failCount++;
         }
       }
@@ -99,20 +99,20 @@ const StudentList = () => {
       // Scrape HackerRank
       if (platformUrls.hackerrank) {
         try {
-          toast.info('🔍 Scraping HackerRank...', { autoClose: 2000 });
+          // toast.info('🔍 Scraping HackerRank...', { autoClose: 2000 });
           const data = await scrapeHackerRank(platformUrls.hackerrank);
           
           if (data && !data.error) {
             updateData['scrapingStatus.hackerrank'] = 'completed';
             updateData['platformData.hackerrank'] = data;
-            toast.success(`✅ HackerRank: ${data.problemsSolved} problems`);
+            // toast.success(`✅ HackerRank: ${data.problemsSolved} problems`);
             successCount++;
           } else {
             throw new Error(data?.error || 'Failed');
           }
         } catch (error) {
           updateData['scrapingStatus.hackerrank'] = 'failed';
-          toast.error(`❌ HackerRank failed`);
+          // toast.error(`❌ HackerRank failed`);
           failCount++;
         }
       }
@@ -120,20 +120,20 @@ const StudentList = () => {
       // Scrape GitHub
       if (platformUrls.github) {
         try {
-          toast.info('🔍 Scraping GitHub...', { autoClose: 2000 });
+          // toast.info('🔍 Scraping GitHub...', { autoClose: 2000 });
           const data = await scrapeGitHub(platformUrls.github);
           
           if (data && !data.error) {
             updateData['scrapingStatus.github'] = 'completed';
             updateData['platformData.github'] = data;
-            toast.success(`✅ GitHub: ${data.repositories} repos`);
+            // toast.success(`✅ GitHub: ${data.repositories} repos`);
             successCount++;
           } else {
             throw new Error(data?.error || 'Failed');
           }
         } catch (error) {
           updateData['scrapingStatus.github'] = 'failed';
-          toast.warning(`⚠️ GitHub failed`);
+          // toast.warning(`⚠️ GitHub failed`);
           failCount++;
         }
       }
@@ -141,20 +141,20 @@ const StudentList = () => {
       // Scrape LeetCode
       if (platformUrls.leetcode) {
         try {
-          toast.info('🔍 Scraping LeetCode...', { autoClose: 2000 });
+          // toast.info('🔍 Scraping LeetCode...', { autoClose: 2000 });
           const data = await scrapeLeetCode(platformUrls.leetcode);
           
           if (data && !data.error) {
             updateData['scrapingStatus.leetcode'] = 'completed';
             updateData['platformData.leetcode'] = data;
-            toast.success(`✅ LeetCode: ${data.problemsSolved} problems`);
+            // toast.success(`✅ LeetCode: ${data.problemsSolved} problems`);
             successCount++;
           } else {
             throw new Error(data?.error || 'Failed');
           }
         } catch (error) {
           updateData['scrapingStatus.leetcode'] = 'failed';
-          toast.warning(`⚠️ LeetCode failed`);
+          // toast.warning(`⚠️ LeetCode failed`);
           failCount++;
         }
       }
@@ -162,20 +162,20 @@ const StudentList = () => {
       // Scrape Codeforces
       if (platformUrls.codeforces) {
         try {
-          toast.info('🔍 Scraping Codeforces...', { autoClose: 2000 });
+          // toast.info('🔍 Scraping Codeforces...', { autoClose: 2000 });
           const data = await scrapeCodeforces(platformUrls.codeforces);
           
           if (data && !data.error) {
             updateData['scrapingStatus.codeforces'] = 'completed';
             updateData['platformData.codeforces'] = data;
-            toast.success(`✅ Codeforces: ${data.rating} rating`);
+            // toast.success(`✅ Codeforces: ${data.rating} rating`);
             successCount++;
           } else {
             throw new Error(data?.error || 'Failed');
           }
         } catch (error) {
           updateData['scrapingStatus.codeforces'] = 'failed';
-          toast.warning(`⚠️ Codeforces failed`);
+          // toast.warning(`⚠️ Codeforces failed`);
           failCount++;
         }
       }
@@ -184,9 +184,9 @@ const StudentList = () => {
       setScrapingStatus(prev => ({ ...prev, [studentId]: 'completed' }));
       
       if (successCount > 0) {
-        toast.success(`🎉 Done! Success: ${successCount}, Failed: ${failCount}`);
+        // toast.success(`🎉 Done! Success: ${successCount}, Failed: ${failCount}`);
       } else {
-        toast.error('❌ All scraping attempts failed');
+        // toast.error('❌ All scraping attempts failed');
       }
       
       setTimeout(() => fetchStudents(), 1000);
