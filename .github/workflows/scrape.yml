@@ -1,0 +1,38 @@
+name: Auto Scrape Student Data
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # Every 30 minutes
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: functions/package.json
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: functions
+
+      - name: Run Auto Scraper
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+        run: node functions/scripts/scrape-all.js
+
+      - name: Notify Success
+        if: success()
+        run: echo "🎉 Auto-scraping completed successfully!"
+
+      - name: Notify Failure
+        if: failure()
+        run: echo "❌ Auto-scraping failed!"
