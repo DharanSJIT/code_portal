@@ -2,10 +2,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../firebase.js';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import StudentViewDetails from './StudentViewDetails';
 import { motion, AnimatePresence } from 'framer-motion';
+import { scrapeAllPlatforms, formatScrapedData } from '../utils/scrapers';
 
 const AdminLeaderboard = () => {
   const [students, setStudents] = useState([]);
@@ -15,6 +16,9 @@ const AdminLeaderboard = () => {
   const [collegeFilter, setCollegeFilter] = useState('all');
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [hoveredStudent, setHoveredStudent] = useState(null);
+  const [autoScraping, setAutoScraping] = useState(false);
+  const [scrapingProgress, setScrapingProgress] = useState({ completed: 0, total: 0 });
+  const [lastScraped, setLastScraped] = useState(null);
   const containerRef = useRef(null);
 
   // Platform configurations
@@ -75,11 +79,16 @@ const AdminLeaderboard = () => {
             ...studentData,
             platformData: studentData.platformData || {},
             scrapingStatus: studentData.scrapingStatus || {},
-            college: studentData.college || 'Engineering' // Default to Engineering if not specified
+            college: studentData.college || 'Engineering'
           });
         });
         setStudents(studentsList);
         setLoading(false);
+        
+        // Auto-scrape data when students are loaded
+        if (studentsList.length > 0) {
+          startAutoScraping(studentsList);
+        }
       },
       (error) => {
         console.error('Error fetching students:', error);
@@ -90,6 +99,101 @@ const AdminLeaderboard = () => {
 
     return () => unsubscribe();
   }, []);
+
+  // Auto-scraping function for all students
+  const startAutoScraping = async (studentsList) => {
+    // Check if we need to scrape (only scrape once per hour to avoid rate limits)
+    const lastScrapedTime = localStorage.getItem('lastAutoScrape');
+    const oneHourAgo = Date.now() - (60 * 60 * 1000);
+    
+    if (lastScrapedTime && parseInt(lastScrapedTime) > oneHourAgo) {
+      console.log('Auto-scraping skipped - recently completed');
+      return;
+    }
+
+    setAutoScraping(true);
+    setScrapingProgress({ completed: 0, total: studentsList.length });
+    
+    const studentsWithUrls = studentsList.filter(student => 
+      student.platformUrls && Object.values(student.platformUrls).some(url => url)
+    );
+
+    if (studentsWithUrls.length === 0) {
+      setAutoScraping(false);
+      return;
+    }
+
+    console.log(`Starting auto-scraping for ${studentsWithUrls.length} students...`);
+
+    for (let i = 0; i < studentsWithUrls.length; i++) {
+      const student = studentsWithUrls[i];
+      try {
+        await scrapeStudentData(student);
+        setScrapingProgress(prev => ({ ...prev, completed: i + 1 }));
+      } catch (error) {
+        console.error(`Failed to scrape data for ${student.name}:`, error);
+      }
+      
+      // Add delay between requests to avoid rate limiting
+      if (i < studentsWithUrls.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+
+    setAutoScraping(false);
+    localStorage.setItem('lastAutoScrape', Date.now().toString());
+    setLastScraped(new Date().toLocaleString());
+    toast.success(`Auto-scraping completed! Updated ${studentsWithUrls.length} students`);
+  };
+
+  // Scrape individual student data
+  const scrapeStudentData = async (student) => {
+    if (!student.platformUrls) return;
+
+    const platformUrls = student.platformUrls;
+    const updateData = {
+      'scrapingStatus.lastUpdated': new Date().toISOString()
+    };
+
+    try {
+      // Use the scrapeAllPlatforms function from your scraper
+      const scrapedData = await scrapeAllPlatforms(platformUrls);
+      const formattedData = formatScrapedData(scrapedData);
+
+      // Update platform data
+      Object.keys(formattedData.platformData).forEach(platform => {
+        if (formattedData.platformData[platform]) {
+          updateData[`platformData.${platform}`] = formattedData.platformData[platform];
+        }
+      });
+
+      // Update scraping status
+      Object.keys(formattedData.scrapingStatus).forEach(platform => {
+        if (platform !== 'lastUpdated') {
+          updateData[`scrapingStatus.${platform}`] = formattedData.scrapingStatus[platform];
+        }
+      });
+
+      await updateDoc(doc(db, 'users', student.id), updateData);
+      console.log(`Successfully updated data for ${student.name}`);
+      
+    } catch (error) {
+      console.error(`Error scraping data for ${student.name}:`, error);
+      // Mark all platforms as failed
+      Object.keys(platformUrls).forEach(platform => {
+        if (platformUrls[platform]) {
+          updateData[`scrapingStatus.${platform}`] = 'failed';
+        }
+      });
+      await updateDoc(doc(db, 'users', student.id), updateData);
+    }
+  };
+
+  // Manual refresh scraping
+  const handleManualRefresh = async () => {
+    toast.info('Starting manual refresh of all student data...');
+    await startAutoScraping(students);
+  };
 
   // Extract metric value based on platform
   const getMetricValue = (student, boardId) => {
@@ -119,9 +223,7 @@ const AdminLeaderboard = () => {
   // Filter and sort students
   const filteredAndSortedStudents = students
     .filter(s => {
-      // Department filter
       const departmentMatch = departmentFilter === 'all' || s.department === departmentFilter;
-      // College filter
       const collegeMatch = collegeFilter === 'all' || s.college === collegeFilter;
       return departmentMatch && collegeMatch;
     })
@@ -246,6 +348,64 @@ const AdminLeaderboard = () => {
           </p>
         </motion.div>
 
+        {/* Auto-scraping Status */}
+        {autoScraping && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center"
+                >
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </motion.div>
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-900">Auto-scraping in Progress</h3>
+                  <p className="text-blue-700">
+                    Updating {scrapingProgress.completed} of {scrapingProgress.total} students...
+                  </p>
+                </div>
+              </div>
+              <div className="w-48 bg-blue-200 rounded-full h-2">
+                <motion.div
+                  className="bg-blue-600 h-2 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ 
+                    width: `${(scrapingProgress.completed / scrapingProgress.total) * 100}%` 
+                  }}
+                  transition={{ duration: 0.5 }}
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Last Updated Info */}
+        {lastScraped && !autoScraping && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-green-50 border border-green-200 rounded-xl p-4 mb-8"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-green-800 font-medium">Data automatically updated</span>
+              </div>
+              <span className="text-green-700 text-sm">Last scraped: {lastScraped}</span>
+            </div>
+          </motion.div>
+        )}
+
         {/* Stats Overview */}
         <motion.div
           variants={containerVariants}
@@ -273,7 +433,39 @@ const AdminLeaderboard = () => {
           ))}
         </motion.div>
 
-       
+        {/* College Distribution */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-gray-200"
+        >
+          <h3 className="text-xl font-bold text-gray-900 mb-6">College Distribution</h3>
+          <div className="grid grid-cols-2 gap-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              whileHover={{ scale: 1.05 }}
+              className="text-center p-6 rounded-xl border border-gray-200 bg-blue-50"
+            >
+              <div className="text-3xl font-bold text-blue-600 mb-2">{platformStats.collegeStats.engineering}</div>
+              <div className="text-lg font-semibold text-blue-800">Engineering</div>
+              <div className="text-sm text-blue-600 mt-2">Students</div>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3 }}
+              whileHover={{ scale: 1.05 }}
+              className="text-center p-6 rounded-xl border border-gray-200 bg-green-50"
+            >
+              <div className="text-3xl font-bold text-green-600 mb-2">{platformStats.collegeStats.technology}</div>
+              <div className="text-lg font-semibold text-green-800">Technology</div>
+              <div className="text-sm text-green-600 mt-2">Students</div>
+            </motion.div>
+          </div>
+        </motion.div>
 
         {/* Platform Selection & Filters */}
         <motion.div
@@ -287,7 +479,7 @@ const AdminLeaderboard = () => {
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Platform Selection</h2>
               <p className="text-gray-600">Choose a platform to view rankings</p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-4 ">
+            <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex items-center gap-4">
                 <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">
                   Department:
@@ -360,7 +552,58 @@ const AdminLeaderboard = () => {
           </div>
         </motion.div>
 
-       
+        {/* Scraping Status */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-gray-200"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-gray-900">Data Status</h3>
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-500">
+                {collegeFilter === 'all' ? 'All Colleges' : collegeOptions.find(c => c.id === collegeFilter)?.name} • 
+                {departmentFilter === 'all' ? ' All Departments' : ` ${departmentFilter}`}
+              </div>
+              <motion.button
+                onClick={handleManualRefresh}
+                disabled={autoScraping}
+                className={`px-4 py-2 rounded-lg font-semibold text-sm flex items-center gap-2 ${
+                  autoScraping 
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+                whileHover={!autoScraping ? { scale: 1.05 } : {}}
+                whileTap={!autoScraping ? { scale: 0.95 } : {}}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh Data
+              </motion.button>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-6">
+            {[
+              { status: 'completed', count: platformStats.scrapingStats.completed, label: 'Updated Profiles' },
+              { status: 'in_progress', count: platformStats.scrapingStats.in_progress, label: 'In Progress' },
+              { status: 'failed', count: platformStats.scrapingStats.failed, label: 'Needs Attention' }
+            ].map((stat, index) => (
+              <motion.div
+                key={stat.status}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.5 + index * 0.1 }}
+                whileHover={{ scale: 1.05 }}
+                className="text-center p-6 rounded-xl border border-gray-200 bg-gray-50"
+              >
+                <div className="text-3xl font-bold text-gray-900 mb-2">{stat.count}</div>
+                <div className="text-sm text-gray-600">{stat.label}</div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
 
         {/* Leaderboard Table */}
         <motion.div
@@ -456,9 +699,9 @@ const AdminLeaderboard = () => {
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider hidden md:table-cell">
                         College
                       </th>
-                      {/* <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                         Status
-                      </th> */}
+                      </th>
                       <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
                         {currentBoard.metricLabel}
                       </th>
@@ -559,14 +802,14 @@ const AdminLeaderboard = () => {
                                 </div>
                               </td>
                               
-                              {/* <td className="px-6 py-4">
+                              <td className="px-6 py-4">
                                 <motion.span
                                   whileHover={{ scale: 1.05 }}
                                   className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${statusStyle.className}`}
                                 >
                                   {statusStyle.label}
                                 </motion.span>
-                              </td> */}
+                              </td>
                               
                               <td className="px-6 py-4 text-right">
                                 <motion.div
@@ -772,13 +1015,18 @@ const AdminLeaderboard = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => toast.info('Refreshing all platform data...')}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-semibold shadow-lg hover:shadow-xl"
+                onClick={handleManualRefresh}
+                disabled={autoScraping}
+                className={`inline-flex items-center gap-2 px-6 py-3 font-semibold shadow-lg hover:shadow-xl rounded-xl transition-colors ${
+                  autoScraping 
+                    ? 'bg-gray-400 text-white cursor-not-allowed' 
+                    : 'bg-purple-600 text-white hover:bg-purple-700'
+                }`}
               >
-                Refresh Now
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
+                {autoScraping ? 'Scraping...' : 'Refresh Now'}
               </motion.button>
             </motion.div>
           </motion.div>
