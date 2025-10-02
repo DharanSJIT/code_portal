@@ -1,65 +1,63 @@
 // AdminLeaderboard.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../firebase.js';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import StudentViewDetails from './StudentViewDetails';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const AdminLeaderboard = () => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeBoard, setActiveBoard] = useState('leetcode');
   const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [collegeFilter, setCollegeFilter] = useState('all');
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [hoveredStudent, setHoveredStudent] = useState(null);
+  const containerRef = useRef(null);
 
   // Platform configurations
   const boards = [
     { 
       id: 'leetcode', 
       name: 'LeetCode', 
-      icon: '💻', 
-      color: 'text-orange-600', 
-      bgColor: 'bg-orange-50', 
-      borderColor: 'border-orange-200',
-      metricLabel: 'Problems Solved'
+      metricLabel: 'Problems Solved',
+      statusField: 'leetcodeStatus',
+      dataField: 'leetcode',
+      metricField: 'totalSolved'
     },
     { 
       id: 'github', 
       name: 'GitHub', 
-      icon: '🐙', 
-      color: 'text-gray-700', 
-      bgColor: 'bg-gray-50', 
-      borderColor: 'border-gray-200',
-      metricLabel: 'Repositories'
+      metricLabel: 'Repositories',
+      statusField: 'githubStatus',
+      dataField: 'github',
+      metricField: 'repositories'
     },
     { 
       id: 'codeforces', 
       name: 'Codeforces', 
-      icon: '🏆', 
-      color: 'text-blue-600', 
-      bgColor: 'bg-blue-50', 
-      borderColor: 'border-blue-200',
-      metricLabel: 'Problems Solved'
-    },
-    { 
-      id: 'hackerrank', 
-      name: 'HackerRank', 
-      icon: '✅', 
-      color: 'text-green-600', 
-      bgColor: 'bg-green-50', 
-      borderColor: 'border-green-200',
-      metricLabel: 'Problems Solved'
+      metricLabel: 'Problems Solved',
+      statusField: 'codeforcesStatus',
+      dataField: 'codeforces',
+      metricField: 'problemsSolved'
     },
     { 
       id: 'atcoder', 
       name: 'AtCoder', 
-      icon: '🎯', 
-      color: 'text-purple-600', 
-      bgColor: 'bg-purple-50', 
-      borderColor: 'border-purple-200',
-      metricLabel: 'Problems Solved'
-    },
+      metricLabel: 'Problems Solved',
+      statusField: 'atcoderStatus',
+      dataField: 'atcoder',
+      metricField: 'problemsSolved'
+    }
+  ];
+
+  // College options
+  const collegeOptions = [
+    { id: 'all', name: 'All Colleges' },
+    { id: 'Engineering', name: 'Engineering' },
+    { id: 'Technology', name: 'Technology' }
   ];
 
   // Real-time listener for student data
@@ -71,14 +69,17 @@ const AdminLeaderboard = () => {
       (snapshot) => {
         const studentsList = [];
         snapshot.forEach(doc => {
+          const studentData = doc.data();
           studentsList.push({
             id: doc.id,
-            ...doc.data()
+            ...studentData,
+            platformData: studentData.platformData || {},
+            scrapingStatus: studentData.scrapingStatus || {},
+            college: studentData.college || 'Engineering' // Default to Engineering if not specified
           });
         });
         setStudents(studentsList);
         setLoading(false);
-        console.log('Leaderboard data updated:', studentsList.length, 'students');
       },
       (error) => {
         console.error('Error fetching students:', error);
@@ -92,438 +93,707 @@ const AdminLeaderboard = () => {
 
   // Extract metric value based on platform
   const getMetricValue = (student, boardId) => {
-    const data = student;
+    const board = boards.find(b => b.id === boardId);
+    if (!board) return 0;
+
+    const platformData = student.platformData?.[board.dataField];
+    const scrapingStatus = student.scrapingStatus?.[board.dataField];
     
-    switch(boardId) {
-      case 'leetcode':
-        return data.leetcodeSolved || data.totalSolved || data.leetCodeSolved || 0;
-      case 'github':
-        return data.githubRepoCount || data.repos || data.githubRepos || data.public_repos || 0;
-      case 'codeforces':
-        return data.codeforcesSolved || data.cfSolved || data.codeforcesProblems || 0;
-      case 'hackerrank':
-        return data.hackerrankSolved || data.hrSolved || data.hackerRankSolved || 0;
-      case 'atcoder':
-        return data.atcoderSolved || data.acSolved || data.atCoderSolved || 0;
-      default:
-        return 0;
+    if (scrapingStatus !== 'completed' || !platformData) {
+      return 0;
     }
+
+    return platformData[board.metricField] || 0;
+  };
+
+  // Get scraping status
+  const getScrapingStatus = (student, boardId) => {
+    const board = boards.find(b => b.id === boardId);
+    if (!board) return 'unknown';
+    return student.scrapingStatus?.[board.dataField] || 'not_started';
   };
 
   // Get unique departments
   const departments = ['all', ...new Set(students.map(s => s.department).filter(Boolean))];
 
-  // Filter and sort students based on active board and department
+  // Filter and sort students
   const filteredAndSortedStudents = students
-    .filter(s => departmentFilter === 'all' || s.department === departmentFilter)
+    .filter(s => {
+      // Department filter
+      const departmentMatch = departmentFilter === 'all' || s.department === departmentFilter;
+      // College filter
+      const collegeMatch = collegeFilter === 'all' || s.college === collegeFilter;
+      return departmentMatch && collegeMatch;
+    })
     .map(s => ({
       ...s,
-      metricValue: getMetricValue(s, activeBoard)
+      metricValue: getMetricValue(s, activeBoard),
+      scrapingStatus: getScrapingStatus(s, activeBoard)
     }))
     .sort((a, b) => {
-      // Primary sort by metric value
       if (b.metricValue !== a.metricValue) {
         return b.metricValue - a.metricValue;
       }
-      // Secondary sort by name
       return (a.name || '').localeCompare(b.name || '');
     });
 
-  // Get rank badge styling
-  const getRankBadge = (rank) => {
-    if (rank === 1) {
-      return { 
-        icon: '🥇', 
-        color: 'text-yellow-600', 
-        bg: 'bg-yellow-50', 
-        border: 'border-yellow-300',
-        label: '1st Place'
-      };
+  // Get status style
+  const getStatusStyle = (status) => {
+    switch (status) {
+      case 'completed':
+        return { 
+          label: 'Updated',
+          className: 'bg-green-100 text-green-800 border-green-200'
+        };
+      case 'failed':
+        return { 
+          label: 'Failed',
+          className: 'bg-red-100 text-red-800 border-red-200'
+        };
+      case 'in_progress':
+        return { 
+          label: 'Updating',
+          className: 'bg-blue-100 text-blue-800 border-blue-200'
+        };
+      default:
+        return { 
+          label: 'Not Started',
+          className: 'bg-gray-100 text-gray-800 border-gray-200'
+        };
     }
-    if (rank === 2) {
-      return { 
-        icon: '🥈', 
-        color: 'text-gray-500', 
-        bg: 'bg-gray-50', 
-        border: 'border-gray-300',
-        label: '2nd Place'
-      };
+  };
+
+  // Calculate statistics
+  const platformStats = {
+    totalStudents: students.length,
+    activeStudents: filteredAndSortedStudents.filter(s => s.metricValue > 0).length,
+    departments: departments.length - 1,
+    totalMetric: filteredAndSortedStudents.reduce((sum, s) => sum + s.metricValue, 0),
+    averageMetric: filteredAndSortedStudents.filter(s => s.metricValue > 0).length > 0 
+      ? Math.round(filteredAndSortedStudents.filter(s => s.metricValue > 0).reduce((sum, s) => sum + s.metricValue, 0) / 
+                  filteredAndSortedStudents.filter(s => s.metricValue > 0).length)
+      : 0,
+    scrapingStats: {
+      completed: filteredAndSortedStudents.filter(s => s.scrapingStatus === 'completed').length,
+      failed: filteredAndSortedStudents.filter(s => s.scrapingStatus === 'failed').length,
+      in_progress: filteredAndSortedStudents.filter(s => s.scrapingStatus === 'in_progress').length,
+    },
+    collegeStats: {
+      engineering: students.filter(s => s.college === 'Engineering').length,
+      technology: students.filter(s => s.college === 'Technology').length
     }
-    if (rank === 3) {
-      return { 
-        icon: '🥉', 
-        color: 'text-orange-600', 
-        bg: 'bg-orange-50', 
-        border: 'border-orange-300',
-        label: '3rd Place'
-      };
-    }
-    return { 
-      icon: rank, 
-      color: 'text-gray-600', 
-      bg: 'bg-white', 
-      border: 'border-gray-200',
-      label: `${rank}th Place`
-    };
   };
 
   const currentBoard = boards.find(b => b.id === activeBoard);
 
-  return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-            Student Leaderboards
-          </h1>
-          <p className="text-gray-600">
-            Track top performers across different coding platforms in real-time
-          </p>
-        </div>
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white border-2 border-gray-200 rounded-xl p-4 md:p-6 hover:border-blue-400 transition-all">
-            <p className="text-sm text-gray-600 mb-1 font-medium">Total Students</p>
-            <p className="text-2xl md:text-3xl font-bold text-gray-900">{students.length}</p>
-          </div>
-          <div className="bg-white border-2 border-gray-200 rounded-xl p-4 md:p-6 hover:border-blue-400 transition-all">
-            <p className="text-sm text-gray-600 mb-1 font-medium">Active Platforms</p>
-            <p className="text-2xl md:text-3xl font-bold text-blue-600">{boards.length}</p>
-          </div>
-          <div className="bg-white border-2 border-gray-200 rounded-xl p-4 md:p-6 hover:border-blue-400 transition-all">
-            <p className="text-sm text-gray-600 mb-1 font-medium">Departments</p>
-            <p className="text-2xl md:text-3xl font-bold text-gray-900">{departments.length - 1}</p>
-          </div>
-          <div className="bg-white border-2 border-gray-200 rounded-xl p-4 md:p-6 hover:border-blue-400 transition-all">
-            <p className="text-sm text-gray-600 mb-1 font-medium">Top Score</p>
-            <p className="text-2xl md:text-3xl font-bold text-green-600">
-              {filteredAndSortedStudents[0]?.metricValue || 0}
-            </p>
-          </div>
-        </div>
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 100
+      }
+    }
+  };
+
+  const cardVariants = {
+    hidden: { scale: 0.9, opacity: 0 },
+    visible: {
+      scale: 1,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 200
+      }
+    },
+    hover: {
+      scale: 1.02,
+      transition: {
+        type: "spring",
+        stiffness: 400
+      }
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto" ref={containerRef}>
+        {/* Header Section */}
+        <motion.div
+          initial={{ y: -50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 100 }}
+          className="mb-12 text-center"
+        >
+          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+            Leaderboards
+          </h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Real-time tracking of student performance across competitive programming platforms
+          </p>
+        </motion.div>
+
+        {/* Stats Overview */}
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12"
+        >
+          {[
+            { label: 'Total Students', value: platformStats.totalStudents, color: 'from-blue-500 to-blue-600' },
+            { label: `Active on ${currentBoard.name}`, value: platformStats.activeStudents, color: 'from-green-500 to-green-600' },
+            { label: 'Departments', value: platformStats.departments, color: 'from-purple-500 to-purple-600' },
+            { label: 'Top Score', value: filteredAndSortedStudents[0]?.metricValue || 0, color: 'from-orange-500 to-orange-600' }
+          ].map((stat, index) => (
+            <motion.div
+              key={stat.label}
+              variants={itemVariants}
+              whileHover={{ scale: 1.05 }}
+              className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200 relative overflow-hidden group"
+            >
+              <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
+              <p className="text-sm font-semibold text-gray-600 mb-2">{stat.label}</p>
+              <p className="text-3xl font-bold text-gray-900">{stat.value.toLocaleString()}</p>
+              <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-gray-200 to-gray-300" />
+            </motion.div>
+          ))}
+        </motion.div>
+
+       
 
         {/* Platform Selection & Filters */}
-        <div className="bg-white border-2 border-gray-200 rounded-xl p-4 md:p-6 mb-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
-            <h3 className="text-lg font-bold text-gray-900">Select Platform</h3>
-            <div className="flex items-center gap-3">
-              <label htmlFor="dept-filter" className="text-sm font-semibold text-gray-700">
-                Department:
-              </label>
-              <select
-                id="dept-filter"
-                value={departmentFilter}
-                onChange={(e) => setDepartmentFilter(e.target.value)}
-                className="px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white"
-              >
-                {departments.map(dept => (
-                  <option key={dept} value={dept}>
-                    {dept === 'all' ? 'All Departments' : dept}
-                  </option>
-                ))}
-              </select>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-gray-200"
+        >
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Platform Selection</h2>
+              <p className="text-gray-600">Choose a platform to view rankings</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 ">
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">
+                  Department:
+                </label>
+                <select
+                  value={departmentFilter}
+                  onChange={(e) => setDepartmentFilter(e.target.value)}
+                  className="px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm"
+                >
+                  {departments.map(dept => (
+                    <option key={dept} value={dept}>
+                      {dept === 'all' ? 'All Departments' : dept}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">
+                  College:
+                </label>
+                <select
+                  value={collegeFilter}
+                  onChange={(e) => setCollegeFilter(e.target.value)}
+                  className="px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm"
+                >
+                  {collegeOptions.map(college => (
+                    <option key={college.id} value={college.id}>
+                      {college.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {boards.map(board => (
-              <button
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {boards.map((board, index) => (
+              <motion.button
                 key={board.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 + index * 0.1 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setActiveBoard(board.id)}
-                className={`p-4 rounded-xl border-2 transition-all text-left ${
+                className={`p-6 rounded-xl border-2 transition-all duration-300 text-left group ${
                   activeBoard === board.id
-                    ? `${board.bgColor} ${board.borderColor} shadow-md scale-105`
-                    : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                    ? 'border-blue-500 bg-blue-50 shadow-md'
+                    : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
                 }`}
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-2xl">{board.icon}</span>
-                  <span className={`text-sm font-bold ${
-                    activeBoard === board.id ? board.color : 'text-gray-600'
+                <div className="flex items-center justify-between mb-3">
+                  <span className={`text-lg font-bold transition-colors ${
+                    activeBoard === board.id ? 'text-blue-700' : 'text-gray-700'
                   }`}>
                     {board.name}
                   </span>
+                  <div className={`w-3 h-3 rounded-full transition-colors ${
+                    activeBoard === board.id ? 'bg-blue-500' : 'bg-gray-300'
+                  }`} />
                 </div>
-                <div className="text-xs text-gray-500">
-                  {filteredAndSortedStudents.filter(s => s.metricValue > 0).length} active
+                <div className="text-sm text-gray-500 mb-2">
+                  {board.metricLabel}
                 </div>
-              </button>
+                <div className="text-xs text-gray-400">
+                  {students.filter(s => getScrapingStatus(s, board.id) === 'completed').length} students
+                </div>
+              </motion.button>
             ))}
           </div>
-        </div>
+        </motion.div>
+
+       
 
         {/* Leaderboard Table */}
-        <div className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden shadow-sm">
-          <div className={`p-6 ${currentBoard.bgColor} border-b-2 ${currentBoard.borderColor}`}>
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-4xl">{currentBoard.icon}</span>
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200"
+        >
+          <div className="p-8 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900">
-                  {currentBoard.name} Leaderboard
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  {currentBoard.name} Rankings
                 </h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Showing {filteredAndSortedStudents.filter(s => s.metricValue > 0).length} students with activity
+                <p className="text-gray-600">
+                  {platformStats.activeStudents} active students • 
+                  Average score: {platformStats.averageMetric.toLocaleString()} • 
+                  {collegeFilter === 'all' ? ' All Colleges' : ` ${collegeOptions.find(c => c.id === collegeFilter)?.name}`}
                 </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">
+                  Total: {platformStats.totalMetric.toLocaleString()} {currentBoard.metricLabel.toLowerCase()}
+                </span>
               </div>
             </div>
           </div>
 
-          {loading ? (
-            <div className="p-16 text-center">
-              <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-blue-600 mb-4"></div>
-              <p className="text-gray-600 font-semibold text-lg">Loading leaderboard...</p>
-            </div>
-          ) : filteredAndSortedStudents.filter(s => s.metricValue > 0).length === 0 ? (
-            <div className="p-16 text-center">
-              <div className="w-32 h-32 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">No Activity Yet</h3>
-              <p className="text-gray-600">No students have data for {currentBoard.name} yet.</p>
-              <Link
-                to="/admin/students"
-                className="inline-block mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+          <AnimatePresence>
+            {loading ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="p-16 text-center"
               >
-                View All Students
-              </Link>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50 border-b-2 border-gray-200">
-                    <th className="px-4 md:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      Rank
-                    </th>
-                    <th className="px-4 md:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      Student
-                    </th>
-                    <th className="px-4 md:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider hidden md:table-cell">
-                      Department
-                    </th>
-                    <th className="px-4 md:px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      {currentBoard.metricLabel}
-                    </th>
-                    <th className="px-4 md:px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredAndSortedStudents
-                    .filter(s => s.metricValue > 0)
-                    .map((student, index) => {
-                      const rank = index + 1;
-                      const badge = getRankBadge(rank);
-                      
-                      return (
-                        <tr 
-                          key={student.id} 
-                          className={`hover:bg-gray-50 transition-colors ${
-                            rank <= 3 ? `${badge.bg} border-l-4 ${badge.border}` : ''
-                          }`}
-                        >
-                          <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                            <div className={`flex items-center justify-center w-12 h-12 rounded-full border-2 ${badge.border} ${badge.bg} font-bold ${badge.color} text-lg`}>
-                              {badge.icon}
-                            </div>
-                          </td>
+                <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-blue-600 mb-4"></div>
+                <p className="text-gray-600 font-semibold text-lg">Loading leaderboard data...</p>
+              </motion.div>
+            ) : platformStats.activeStudents === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="p-16 text-center"
+              >
+                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">No Data Available</h3>
+                <p className="text-gray-600 mb-4">
+                  No students found for the selected filters on {currentBoard.name}.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <button
+                    onClick={() => {
+                      setDepartmentFilter('all');
+                      setCollegeFilter('all');
+                    }}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-semibold"
+                  >
+                    Reset Filters
+                  </button>
+                  <Link
+                    to="/admin/students"
+                    className="px-6 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-colors font-semibold"
+                  >
+                    Manage Students
+                  </Link>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="overflow-x-auto"
+              >
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                        Rank
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                        Student
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider hidden lg:table-cell">
+                        Department
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider hidden md:table-cell">
+                        College
+                      </th>
+                      {/* <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                        Status
+                      </th> */}
+                      <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                        {currentBoard.metricLabel}
+                      </th>
+                      <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    <AnimatePresence>
+                      {filteredAndSortedStudents
+                        .filter(s => s.metricValue > 0)
+                        .map((student, index) => {
+                          const rank = index + 1;
+                          const statusStyle = getStatusStyle(student.scrapingStatus);
+                          const isTopThree = rank <= 3;
                           
-                          <td className="px-4 md:px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold flex-shrink-0">
-                                {student.name?.charAt(0).toUpperCase() || '?'}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="text-sm md:text-base font-bold text-gray-900 truncate">
-                                  {student.name}
+                          return (
+                            <motion.tr
+                              key={student.id}
+                              variants={itemVariants}
+                              initial="hidden"
+                              animate="visible"
+                              exit="hidden"
+                              whileHover={{ 
+                                scale: 1.01,
+                                backgroundColor: "rgba(249, 250, 251, 0.8)",
+                                transition: { type: "spring", stiffness: 400 }
+                              }}
+                              onHoverStart={() => setHoveredStudent(student.id)}
+                              onHoverEnd={() => setHoveredStudent(null)}
+                              className={`relative transition-all duration-300 ${
+                                isTopThree ? 'bg-gradient-to-r from-gray-50 to-white' : ''
+                              }`}
+                            >
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <motion.div
+                                  whileHover={{ scale: 1.1 }}
+                                  className={`flex items-center justify-center w-10 h-10 rounded-xl border-2 font-bold text-sm ${
+                                    isTopThree 
+                                      ? 'border-yellow-400 bg-yellow-50 text-yellow-700 shadow-sm' 
+                                      : 'border-gray-200 bg-white text-gray-700'
+                                  }`}
+                                >
+                                  {rank}
+                                </motion.div>
+                              </td>
+                              
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-4">
+                                  <motion.div
+                                    whileHover={{ scale: 1.1, rotate: 5 }}
+                                    className="relative"
+                                  >
+                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                                      {student.name?.charAt(0).toUpperCase() || '?'}
+                                    </div>
+                                    {isTopThree && (
+                                      <motion.div
+                                        initial={{ scale: 0 }}
+                                        animate={{ scale: 1 }}
+                                        className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center"
+                                      >
+                                        <span className="text-xs font-bold text-white">★</span>
+                                      </motion.div>
+                                    )}
+                                  </motion.div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-base font-bold text-gray-900 truncate">
+                                      {student.name}
+                                    </div>
+                                    <div className="text-sm text-gray-500 truncate">
+                                      {student.email}
+                                    </div>
+                                    <div className="text-xs text-gray-400 lg:hidden">
+                                      {student.department} • {student.college}
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="text-xs text-gray-500 truncate">
-                                  {student.email}
+                              </td>
+                              
+                              <td className="px-6 py-4 hidden lg:table-cell">
+                                <div className="text-sm font-semibold text-gray-900">
+                                  {student.department || 'N/A'}
                                 </div>
-                                <div className="text-xs text-gray-500 md:hidden">
-                                  {student.department} • Year {student.year}
+                                <div className="text-xs text-gray-500">
+                                  Year {student.year || 'N/A'}
                                 </div>
-                              </div>
-                            </div>
-                          </td>
-                          
-                          <td className="px-4 md:px-6 py-4 hidden md:table-cell">
-                            <div className="text-sm font-semibold text-gray-900">
-                              {student.department || 'N/A'}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              Year {student.year || 'N/A'}
-                            </div>
-                          </td>
-                          
-                          <td className="px-4 md:px-6 py-4 text-right">
-                            <div className={`text-xl md:text-2xl font-bold ${currentBoard.color}`}>
-                              {student.metricValue.toLocaleString()}
-                            </div>
-                            {rank <= 3 && (
-                              <div className="text-xs text-gray-500 mt-1">
-                                {badge.label}
-                              </div>
-                            )}
-                          </td>
-                          
-                          <td className="px-4 md:px-6 py-4">
-                            <div className="flex justify-end gap-2">
-                              <button
-                                onClick={() => setSelectedStudent(student)}
-                                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-semibold"
-                              >
-                                View
-                              </button>
-                              <Link
-                                to={`/admin/students/${student.id}`}
-                                className="hidden md:inline-block px-3 py-1.5 bg-white text-gray-700 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:text-blue-600 transition-all text-xs font-semibold"
-                              >
-                                Edit
-                              </Link>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                              </td>
 
-        {/* Top 3 Winners Podium */}
-        {!loading && filteredAndSortedStudents.filter(s => s.metricValue > 0).length > 0 && (
-          <div className="mt-8 bg-white border-2 border-gray-200 rounded-xl p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Top Performers</h3>
-              <span className="text-sm text-gray-500">
-                {currentBoard.name} • {departmentFilter === 'all' ? 'All Departments' : departmentFilter}
-              </span>
+                              <td className="px-6 py-4 hidden md:table-cell">
+                                <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                                  student.college === 'Engineering' 
+                                    ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                    : 'bg-green-100 text-green-800 border border-green-200'
+                                }`}>
+                                  {student.college}
+                                </div>
+                              </td>
+                              
+                              {/* <td className="px-6 py-4">
+                                <motion.span
+                                  whileHover={{ scale: 1.05 }}
+                                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${statusStyle.className}`}
+                                >
+                                  {statusStyle.label}
+                                </motion.span>
+                              </td> */}
+                              
+                              <td className="px-6 py-4 text-right">
+                                <motion.div
+                                  initial={{ scale: 0.8 }}
+                                  animate={{ scale: 1 }}
+                                  className="text-xl font-bold text-gray-900"
+                                >
+                                  {student.metricValue.toLocaleString()}
+                                </motion.div>
+                                {isTopThree && (
+                                  <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ delay: 0.2 }}
+                                    className="text-xs text-yellow-600 font-semibold mt-1"
+                                  >
+                                    Top Performer
+                                  </motion.div>
+                                )}
+                              </td>
+                              
+                              <td className="px-6 py-4">
+                                <div className="flex justify-end gap-2">
+                                  <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => setSelectedStudent(student)}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-md"
+                                  >
+                                    View Details
+                                  </motion.button>
+                                </div>
+                              </td>
+                            </motion.tr>
+                          );
+                        })}
+                    </AnimatePresence>
+                  </tbody>
+                </table>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+
+        {/* Top Performers Section */}
+        {!loading && platformStats.activeStudents > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="mt-12 bg-white rounded-2xl shadow-lg p-8 border border-gray-200"
+          >
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Top Performers</h3>
+                <p className="text-gray-600">
+                  Celebrating excellence in {currentBoard.name} • 
+                  {collegeFilter === 'all' ? ' All Colleges' : ` ${collegeOptions.find(c => c.id === collegeFilter)?.name}`}
+                </p>
+              </div>
+              <div className="text-sm text-gray-500 bg-gray-100 px-4 py-2 rounded-full">
+                {departmentFilter === 'all' ? 'All Departments' : departmentFilter}
+              </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {filteredAndSortedStudents
                 .filter(s => s.metricValue > 0)
                 .slice(0, 3)
                 .map((student, index) => {
                   const rank = index + 1;
-                  const badge = getRankBadge(rank);
+                  const statusStyle = getStatusStyle(student.scrapingStatus);
                   
                   return (
-                    <div 
+                    <motion.div
                       key={student.id}
-                      className={`p-6 rounded-xl border-2 ${badge.border} ${badge.bg} text-center transform hover:scale-105 transition-all`}
+                      variants={cardVariants}
+                      initial="hidden"
+                      animate="visible"
+                      whileHover="hover"
+                      className={`p-8 rounded-2xl border-2 text-center relative overflow-hidden ${
+                        rank === 1 
+                          ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-yellow-100 shadow-xl' 
+                          : rank === 2
+                          ? 'border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100 shadow-lg'
+                          : 'border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100 shadow-md'
+                      }`}
                     >
-                      <div className="text-5xl mb-4">{badge.icon}</div>
-                      <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-3xl mx-auto mb-4 shadow-lg">
-                        {student.name?.charAt(0).toUpperCase() || '?'}
-                      </div>
-                      <h4 className="text-lg font-bold text-gray-900 mb-1 truncate">
+                      {/* Rank Badge */}
+                      <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ type: "spring", stiffness: 200, delay: index * 0.2 }}
+                        className={`absolute -top-4 -right-4 w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg ${
+                          rank === 1 ? 'bg-yellow-500' :
+                          rank === 2 ? 'bg-gray-500' :
+                          'bg-orange-500'
+                        }`}
+                      >
+                        #{rank}
+                      </motion.div>
+                      
+                      {/* Student Info */}
+                      <h4 className="text-xl font-bold text-gray-900 mb-2 truncate">
                         {student.name}
                       </h4>
                       <p className="text-sm text-gray-600 mb-1 truncate">
                         {student.department}
                       </p>
                       <p className="text-xs text-gray-500 mb-4">
-                        Year {student.year}
+                        {student.college} • Year {student.year}
                       </p>
-                      <div className={`text-4xl font-bold ${currentBoard.color} mb-1`}>
+                      
+                      {/* Status */}
+                      <motion.span
+                        whileHover={{ scale: 1.05 }}
+                        className={`inline-flex items-center px-4 py-1 rounded-full text-sm font-semibold border mb-4 ${statusStyle.className}`}
+                      >
+                        {statusStyle.label}
+                      </motion.span>
+                      
+                      {/* Metric */}
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.5 + index * 0.1 }}
+                        className={`text-4xl font-bold mb-2 ${
+                          rank === 1 ? 'text-yellow-600' :
+                          rank === 2 ? 'text-gray-600' :
+                          'text-orange-600'
+                        }`}
+                      >
                         {student.metricValue.toLocaleString()}
-                      </div>
-                      <p className="text-xs text-gray-500">
+                      </motion.div>
+                      <p className="text-sm text-gray-500 mb-6">
                         {currentBoard.metricLabel.toLowerCase()}
                       </p>
-                      <button
+                      
+                      {/* Action Button */}
+                      <motion.button
+                        whileHover={{ scale: 1.05, y: -2 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => setSelectedStudent(student)}
-                        className="mt-4 w-full px-4 py-2 bg-white text-gray-700 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:text-blue-600 transition-all text-sm font-semibold"
+                        className="w-full px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-xl hover:border-blue-500 hover:text-blue-600 transition-all font-semibold shadow-sm hover:shadow-md"
                       >
-                        View Profile
-                      </button>
-                    </div>
+                        View Full Profile
+                      </motion.button>
+                    </motion.div>
                   );
                 })}
             </div>
-          </div>
+          </motion.div>
         )}
 
-        {/* Quick Stats Section */}
-        {!loading && filteredAndSortedStudents.length > 0 && (
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white border-2 border-gray-200 rounded-xl p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Platform Statistics</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Active Students</span>
-                  <span className="text-lg font-bold text-gray-900">
-                    {filteredAndSortedStudents.filter(s => s.metricValue > 0).length}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Total {currentBoard.metricLabel}</span>
-                  <span className="text-lg font-bold text-blue-600">
-                    {filteredAndSortedStudents
-                      .reduce((sum, s) => sum + s.metricValue, 0)
-                      .toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Average Score</span>
-                  <span className="text-lg font-bold text-green-600">
-                    {filteredAndSortedStudents.filter(s => s.metricValue > 0).length > 0
-                      ? Math.round(
-                          filteredAndSortedStudents
-                            .filter(s => s.metricValue > 0)
-                            .reduce((sum, s) => sum + s.metricValue, 0) /
-                          filteredAndSortedStudents.filter(s => s.metricValue > 0).length
-                        ).toLocaleString()
-                      : 0}
-                  </span>
-                </div>
-              </div>
-            </div>
+        {/* Quick Actions */}
+        {!loading && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1 }}
+            className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8"
+          >
+            <motion.div
+              whileHover={{ scale: 1.02, y: -5 }}
+              className="bg-white rounded-2xl shadow-lg p-8 border border-gray-200 text-center group cursor-pointer"
+            >
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Manage Students</h3>
+              <p className="text-gray-600 mb-6">View and edit all student profiles and data</p>
+              <Link
+                to="/admin/students"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-semibold shadow-lg hover:shadow-xl"
+              >
+                View Students
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </Link>
+            </motion.div>
 
-            <div className="bg-white border-2 border-gray-200 rounded-xl p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
-              <div className="space-y-3">
-                <Link
-                  to="/admin/students"
-                  className="block w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-center"
-                >
-                  View All Students
-                </Link>
-                <Link
-                  to="/admin/add-student"
-                  className="block w-full px-4 py-3 bg-white text-gray-700 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:text-blue-600 transition-all font-semibold text-center"
-                >
-                  Add New Student
-                </Link>
-                <button
-                  onClick={() => {
-                    toast.info('Refreshing leaderboard data...');
-                  }}
-                  className="block w-full px-4 py-3 bg-white text-gray-700 border-2 border-gray-300 rounded-lg hover:border-green-500 hover:text-green-600 transition-all font-semibold text-center"
-                >
-                  Refresh Data
-                </button>
-              </div>
-            </div>
-          </div>
+            <motion.div
+              whileHover={{ scale: 1.02, y: -5 }}
+              className="bg-white rounded-2xl shadow-lg p-8 border border-gray-200 text-center group cursor-pointer"
+            >
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Add Student</h3>
+              <p className="text-gray-600 mb-6">Register new students to the platform</p>
+              <Link
+                to="/admin/add-student"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-semibold shadow-lg hover:shadow-xl"
+              >
+                Add New
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              </Link>
+            </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.02, y: -5 }}
+              className="bg-white rounded-2xl shadow-lg p-8 border border-gray-200 text-center group cursor-pointer"
+            >
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Refresh Data</h3>
+              <p className="text-gray-600 mb-6">Update all platform data with latest scraping</p>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => toast.info('Refreshing all platform data...')}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-semibold shadow-lg hover:shadow-xl"
+              >
+                Refresh Now
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </motion.button>
+            </motion.div>
+          </motion.div>
         )}
       </div>
 
       {/* Student Details Modal */}
-      {selectedStudent && (
-        <StudentViewDetails 
-          student={selectedStudent} 
-          onClose={() => setSelectedStudent(null)}
-        />
-      )}
+      <AnimatePresence>
+        {selectedStudent && (
+          <StudentViewDetails 
+            student={selectedStudent} 
+            onClose={() => setSelectedStudent(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
