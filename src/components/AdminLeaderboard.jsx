@@ -19,7 +19,10 @@ const AdminLeaderboard = () => {
   const [autoScraping, setAutoScraping] = useState(false);
   const [scrapingProgress, setScrapingProgress] = useState({ completed: 0, total: 0 });
   const [lastScraped, setLastScraped] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
   const containerRef = useRef(null);
+  const tableContainerRef = useRef(null);
 
   // Platform configurations
   const boards = [
@@ -64,6 +67,9 @@ const AdminLeaderboard = () => {
     { id: 'Technology', name: 'Technology' }
   ];
 
+  // Items per page options
+  const itemsPerPageOptions = [10, 20, 50, 100];
+
   // Real-time listener for student data
   useEffect(() => {
     const usersRef = collection(db, 'users');
@@ -99,6 +105,11 @@ const AdminLeaderboard = () => {
 
     return () => unsubscribe();
   }, []);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [departmentFilter, collegeFilter, activeBoard]);
 
   // Auto-scraping function for all students
   const startAutoScraping = async (studentsList) => {
@@ -143,7 +154,7 @@ const AdminLeaderboard = () => {
     setAutoScraping(false);
     localStorage.setItem('lastAutoScrape', Date.now().toString());
     setLastScraped(new Date().toLocaleString());
-    toast.success(`Auto-scraping completed! Updated ${studentsWithUrls.length} students`);
+    // toast.success(`Auto-scraping completed! Updated ${studentsWithUrls.length} students`);
   };
 
   // Scrape individual student data
@@ -239,6 +250,40 @@ const AdminLeaderboard = () => {
       return (a.name || '').localeCompare(b.name || '');
     });
 
+  // Pagination calculations
+  const activeStudents = filteredAndSortedStudents.filter(s => s.metricValue > 0);
+  const totalPages = Math.ceil(activeStudents.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentStudents = activeStudents.slice(startIndex, endIndex);
+
+  // Pagination handlers
+  const goToPage = (page) => {
+    setCurrentPage(page);
+    // Scroll to top of table when page changes
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+      if (tableContainerRef.current) {
+        tableContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+  };
+
+  const goToPrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+      if (tableContainerRef.current) {
+        tableContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+  };
+
   // Get status style
   const getStatusStyle = (status) => {
     switch (status) {
@@ -268,17 +313,16 @@ const AdminLeaderboard = () => {
   // Calculate statistics
   const platformStats = {
     totalStudents: students.length,
-    activeStudents: filteredAndSortedStudents.filter(s => s.metricValue > 0).length,
+    activeStudents: activeStudents.length,
     departments: departments.length - 1,
-    totalMetric: filteredAndSortedStudents.reduce((sum, s) => sum + s.metricValue, 0),
-    averageMetric: filteredAndSortedStudents.filter(s => s.metricValue > 0).length > 0 
-      ? Math.round(filteredAndSortedStudents.filter(s => s.metricValue > 0).reduce((sum, s) => sum + s.metricValue, 0) / 
-                  filteredAndSortedStudents.filter(s => s.metricValue > 0).length)
+    totalMetric: activeStudents.reduce((sum, s) => sum + s.metricValue, 0),
+    averageMetric: activeStudents.length > 0 
+      ? Math.round(activeStudents.reduce((sum, s) => sum + s.metricValue, 0) / activeStudents.length)
       : 0,
     scrapingStats: {
-      completed: filteredAndSortedStudents.filter(s => s.scrapingStatus === 'completed').length,
-      failed: filteredAndSortedStudents.filter(s => s.scrapingStatus === 'failed').length,
-      in_progress: filteredAndSortedStudents.filter(s => s.scrapingStatus === 'in_progress').length,
+      completed: activeStudents.filter(s => s.scrapingStatus === 'completed').length,
+      failed: activeStudents.filter(s => s.scrapingStatus === 'failed').length,
+      in_progress: activeStudents.filter(s => s.scrapingStatus === 'in_progress').length,
     },
     collegeStats: {
       engineering: students.filter(s => s.college === 'Engineering').length,
@@ -412,7 +456,7 @@ const AdminLeaderboard = () => {
             { label: 'Total Students', value: platformStats.totalStudents, color: 'from-blue-500 to-blue-600' },
             { label: `Active on ${currentBoard.name}`, value: platformStats.activeStudents, color: 'from-green-500 to-green-600' },
             { label: 'Departments', value: platformStats.departments, color: 'from-purple-500 to-purple-600' },
-            { label: 'Top Score', value: filteredAndSortedStudents[0]?.metricValue || 0, color: 'from-orange-500 to-orange-600' }
+            { label: 'Top Score', value: activeStudents[0]?.metricValue || 0, color: 'from-orange-500 to-orange-600' }
           ].map((stat, index) => (
             <motion.div
               key={stat.label}
@@ -589,43 +633,134 @@ const AdminLeaderboard = () => {
                 </div>
               </motion.div>
             ) : (
-              <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                className="overflow-x-auto"
-              >
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        Rank
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        Student
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider hidden lg:table-cell">
-                        Department
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider hidden md:table-cell">
-                        College
-                      </th>
-                      <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        {currentBoard.metricLabel}
-                      </th>
-                      <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    <AnimatePresence>
-                      {filteredAndSortedStudents
-                        .filter(s => s.metricValue > 0)
-                        .map((student, index) => {
-                          const rank = index + 1;
+              <>
+                {/* Pagination Controls - Top */}
+                <div className="flex flex-col sm:flex-row justify-between items-center p-6 border-b border-gray-200 bg-gray-50">
+                  <div className="flex items-center gap-4 mb-4 sm:mb-0">
+                    <span className="text-sm text-gray-700 font-medium">
+                      Showing {startIndex + 1}-{Math.min(endIndex, activeStudents.length)} of {activeStudents.length} students
+                    </span>
+                    <select
+                      value={itemsPerPage}
+                      onChange={(e) => {
+                        setItemsPerPage(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
+                    >
+                      {itemsPerPageOptions.map(option => (
+                        <option key={option} value={option}>
+                          {option} per page
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={goToPrevPage}
+                      disabled={currentPage === 1}
+                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                        currentPage === 1
+                          ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                      }`}
+                    >
+                      Previous
+                    </button>
+                    
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => goToPage(pageNum)}
+                            className={`w-10 h-10 rounded-lg border text-sm font-medium transition-colors ${
+                              currentPage === pageNum
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                      
+                      {totalPages > 5 && currentPage < totalPages - 2 && (
+                        <>
+                          <span className="px-2 text-gray-500">...</span>
+                          <button
+                            onClick={() => goToPage(totalPages)}
+                            className="w-10 h-10 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50"
+                          >
+                            {totalPages}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    
+                    <button
+                      onClick={goToNextPage}
+                      disabled={currentPage === totalPages}
+                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                        currentPage === totalPages
+                          ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+
+                {/* Scrollable Table Container */}
+                <motion.div
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  ref={tableContainerRef}
+                  className="overflow-x-auto max-h-[600px] relative" // Fixed height with scroll
+                >
+                  <table className="w-full">
+                    <thead className="sticky top-0 bg-gray-50 z-10">
+                      <tr className="border-b border-gray-200">
+                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider bg-gray-50">
+                          Rank
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider bg-gray-50">
+                          Student
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider bg-gray-50 hidden lg:table-cell">
+                          Department
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider bg-gray-50 hidden md:table-cell">
+                          College
+                        </th>
+                        <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider bg-gray-50">
+                          {currentBoard.metricLabel}
+                        </th>
+                        <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider bg-gray-50">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      <AnimatePresence>
+                        {currentStudents.map((student, index) => {
+                          const globalRank = startIndex + index + 1;
                           const statusStyle = getStatusStyle(student.scrapingStatus);
-                          const isTopThree = rank <= 3;
+                          const isTopThree = globalRank <= 3;
                           
                           return (
                             <motion.tr
@@ -654,7 +789,7 @@ const AdminLeaderboard = () => {
                                       : 'border-gray-200 bg-white text-gray-700'
                                   }`}
                                 >
-                                  {rank}
+                                  {globalRank}
                                 </motion.div>
                               </td>
                               
@@ -710,8 +845,6 @@ const AdminLeaderboard = () => {
                                 </div>
                               </td>
                               
-                            
-                              
                               <td className="px-6 py-4 text-right">
                                 <motion.div
                                   initial={{ scale: 0.8 }}
@@ -747,10 +880,85 @@ const AdminLeaderboard = () => {
                             </motion.tr>
                           );
                         })}
-                    </AnimatePresence>
-                  </tbody>
-                </table>
-              </motion.div>
+                      </AnimatePresence>
+                    </tbody>
+                  </table>
+                </motion.div>
+
+                {/* Pagination Controls - Bottom */}
+                <div className="flex flex-col sm:flex-row justify-between items-center p-6 border-t border-gray-200 bg-gray-50">
+                  <div className="text-sm text-gray-700 mb-4 sm:mb-0">
+                    Showing {startIndex + 1}-{Math.min(endIndex, activeStudents.length)} of {activeStudents.length} students
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={goToPrevPage}
+                      disabled={currentPage === 1}
+                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                        currentPage === 1
+                          ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                      }`}
+                    >
+                      Previous
+                    </button>
+                    
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => goToPage(pageNum)}
+                            className={`w-10 h-10 rounded-lg border text-sm font-medium transition-colors ${
+                              currentPage === pageNum
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                      
+                      {totalPages > 5 && currentPage < totalPages - 2 && (
+                        <>
+                          <span className="px-2 text-gray-500">...</span>
+                          <button
+                            onClick={() => goToPage(totalPages)}
+                            className="w-10 h-10 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50"
+                          >
+                            {totalPages}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    
+                    <button
+                      onClick={goToNextPage}
+                      disabled={currentPage === totalPages}
+                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                        currentPage === totalPages
+                          ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
           </AnimatePresence>
         </motion.div>
@@ -777,8 +985,7 @@ const AdminLeaderboard = () => {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {filteredAndSortedStudents
-                .filter(s => s.metricValue > 0)
+              {activeStudents
                 .slice(0, 3)
                 .map((student, index) => {
                   const rank = index + 1;
