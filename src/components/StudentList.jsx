@@ -10,7 +10,7 @@ import StudentViewDetails from './StudentViewDetails';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   scrapeAtCoder, 
-  scrapeHackerRank, 
+  // scrapeHackerRank, 
   scrapeGitHub, 
   scrapeLeetCode, 
   scrapeCodeforces 

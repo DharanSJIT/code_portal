@@ -1,14 +1,14 @@
 // src/components/ScrapingStatus.jsx
 import { useState, useEffect } from 'react';
 import { db } from '../firebase.js';
-import { collection, getDocs, updateDoc, doc, query, where } from 'firebase/firestore';
+// import { collection, getDocs, updateDoc, doc, query, where } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc, query, where, getDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import { 
   scrapeLeetCode, 
   scrapeGitHub, 
-  scrapeHackerRank, 
   scrapeCodeforces, 
-  scrapeAtCoder 
+  scrapeAtCoder
 } from '../utils/scrapers';
 
 const ScrapingStatus = () => {
@@ -72,7 +72,6 @@ const ScrapingStatus = () => {
     const results = {
       leetcode: null,
       github: null,
-      hackerrank: null,
       codeforces: null,
       atcoder: null
     };
@@ -80,29 +79,44 @@ const ScrapingStatus = () => {
     const platformScrapers = {
       leetcode: scrapeLeetCode,
       github: scrapeGitHub,
-      hackerrank: scrapeHackerRank,
       codeforces: scrapeCodeforces,
       atcoder: scrapeAtCoder
     };
 
-    // Scrape each platform individually
-    const scrapePromises = Object.entries(platformUrls).map(async ([platform, url]) => {
-      if (!url || !platformScrapers[platform]) return;
+    // Scrape each platform individually with better error handling
+    const scrapePromises = Object.entries(platformUrls)
+      .filter(([platform, url]) => url && platformScrapers[platform])
+      .map(async ([platform, url]) => {
+        try {
+          console.log(`  📡 Scraping ${platform}...`);
+          const result = await platformScrapers[platform](url);
+          console.log(`  ✅ ${platform} scraped successfully`);
+          return { platform, success: true, data: result };
+        } catch (error) {
+          console.error(`  ❌ ${platform} scraping failed:`, error.message);
+          return { 
+            platform, 
+            success: false, 
+            error: error.message,
+            data: { error: error.message }
+          };
+        }
+      });
 
-      try {
-        console.log(`  📡 Scraping ${platform}...`);
-        const result = await platformScrapers[platform](url);
-        results[platform] = result;
-        console.log(`  ✅ ${platform} scraped successfully`);
-        return { platform, success: true, data: result };
-      } catch (error) {
-        console.error(`  ❌ ${platform} scraping failed:`, error.message);
-        results[platform] = { error: error.message };
-        return { platform, success: false, error: error.message };
+    const resultsArray = await Promise.allSettled(scrapePromises);
+    
+    // Process results
+    resultsArray.forEach(result => {
+      if (result.status === 'fulfilled' && result.value) {
+        const { platform, success, data, error } = result.value;
+        if (success && data) {
+          results[platform] = data;
+        } else {
+          results[platform] = { error: error || 'Unknown error' };
+        }
       }
     });
 
-    const resultsArray = await Promise.allSettled(scrapePromises);
     return results;
   };
 
@@ -111,17 +125,23 @@ const ScrapingStatus = () => {
       platformData: {},
       scrapingStatus: {
         lastUpdated: new Date().toISOString()
-      }
+      },
+      lastManualSync: new Date().toISOString()
     };
     
     // Process each platform
-    const platforms = ['leetcode', 'github', 'hackerrank', 'codeforces', 'atcoder'];
+    const platforms = ['leetcode', 'github', 'codeforces', 'atcoder'];
     platforms.forEach(platform => {
       if (scrapedData[platform] && !scrapedData[platform].error) {
         formatted.platformData[platform] = scrapedData[platform];
         formatted.scrapingStatus[platform] = 'completed';
       } else if (scrapedData[platform]?.error) {
         formatted.scrapingStatus[platform] = 'failed';
+        // Keep existing data if available, otherwise store error
+        formatted.platformData[platform] = { 
+          error: scrapedData[platform].error,
+          lastAttempt: new Date().toISOString()
+        };
       }
     });
     
@@ -133,14 +153,14 @@ const ScrapingStatus = () => {
       setIsSyncing(true);
       toast.info('Starting manual sync for student...');
 
-      const studentDoc = await getDocs(doc(db, 'users', studentId));
+      const studentDoc = await getDoc(doc(db, 'users', studentId));
       if (!studentDoc.exists()) {
         throw new Error('Student not found');
       }
 
       const student = { id: studentDoc.id, ...studentDoc.data() };
       
-      if (!student.platformUrls) {
+      if (!student.platformUrls || Object.values(student.platformUrls).every(url => !url)) {
         throw new Error('No platform URLs found for student');
       }
 
@@ -157,10 +177,7 @@ const ScrapingStatus = () => {
       const formattedData = formatScrapedData(scrapedData);
       
       // Update Firestore with new data
-      await updateDoc(doc(db, 'users', student.id), {
-        ...formattedData,
-        lastManualSync: new Date().toISOString()
-      });
+      await updateDoc(doc(db, 'users', student.id), formattedData);
       
       setLastSyncTime(new Date());
       console.log(`✅ Successfully manually synced ${student.name || student.id}`);
@@ -168,7 +185,18 @@ const ScrapingStatus = () => {
       
     } catch (error) {
       console.error(`❌ Failed to sync student:`, error);
-      toast.error('Failed to sync student data');
+      toast.error(`Failed to sync student data: ${error.message}`);
+      
+      // Update with error status
+      try {
+        await updateDoc(doc(db, 'users', studentId), {
+          'scrapingStatus.lastUpdated': new Date().toISOString(),
+          'scrapingStatus.lastError': error.message,
+          'scrapingStatus.manualSync': 'failed'
+        });
+      } catch (updateError) {
+        console.error('Failed to update error status:', updateError);
+      }
     } finally {
       setIsSyncing(false);
       fetchScrapingStatus(); // Refresh data
@@ -176,18 +204,27 @@ const ScrapingStatus = () => {
   };
 
   const handleRetryAll = async () => {
+    if (isSyncing) return;
+    
     try {
       setIsSyncing(true);
-      toast.info('Starting sync for all students...');
+      toast.info(`Starting sync for ${students.length} students...`);
 
       let successfulUpdates = 0;
       let failedUpdates = 0;
 
-      // Process each student sequentially
-      for (const student of students) {
+      // Process each student sequentially to avoid rate limits
+      for (let i = 0; i < students.length; i++) {
+        const student = students[i];
+        
         try {
-          console.log(`🔄 Syncing ${student.name || student.id}`);
+          console.log(`🔄 [${i + 1}/${students.length}] Syncing ${student.name || student.id}`);
           
+          if (!student.platformUrls || Object.values(student.platformUrls).every(url => !url)) {
+            console.log(`   ⚠️  No platform URLs, skipping ${student.name || student.id}`);
+            continue;
+          }
+
           // Update status to scraping
           await updateDoc(doc(db, 'users', student.id), {
             'scrapingStatus.lastUpdated': new Date().toISOString(),
@@ -199,20 +236,19 @@ const ScrapingStatus = () => {
           const formattedData = formatScrapedData(scrapedData);
           
           // Update Firestore with new data
-          await updateDoc(doc(db, 'users', student.id), {
-            ...formattedData,
-            lastManualSync: new Date().toISOString()
-          });
+          await updateDoc(doc(db, 'users', student.id), formattedData);
           
           successfulUpdates++;
-          console.log(`✅ Successfully synced ${student.name || student.id}`);
+          console.log(`✅ [${i + 1}/${students.length}] Successfully synced ${student.name || student.id}`);
           
-          // Small delay between students to avoid rate limits
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Add delay between students to avoid rate limits
+          if (i < students.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+          }
           
         } catch (error) {
           failedUpdates++;
-          console.error(`❌ Failed to sync ${student.name || student.id}:`, error);
+          console.error(`❌ [${i + 1}/${students.length}] Failed to sync ${student.name || student.id}:`, error);
           
           // Update with error status
           try {
@@ -228,7 +264,12 @@ const ScrapingStatus = () => {
       }
 
       setLastSyncTime(new Date());
-      toast.success(`Sync completed! ${successfulUpdates} successful, ${failedUpdates} failed`);
+      
+      if (failedUpdates === 0) {
+        toast.success(`Sync completed! All ${successfulUpdates} students updated successfully`);
+      } else {
+        toast.warning(`Sync completed! ${successfulUpdates} successful, ${failedUpdates} failed`);
+      }
       
     } catch (error) {
       console.error('💥 Error in manual sync:', error);
@@ -285,11 +326,9 @@ const ScrapingStatus = () => {
 
     switch (platform) {
       case 'leetcode':
-        return `${data.problemsSolved || data.totalSolved || 0} solved`;
+        return `${data.totalSolved || data.solved || 0} solved`;
       case 'codeforces':
         return `${data.problemsSolved || 0} problems`;
-      case 'hackerrank':
-        return `${data.problemsSolved || 0} solved`;
       case 'atcoder':
         return `${data.problemsSolved || 0} problems`;
       case 'github':
@@ -382,21 +421,36 @@ const ScrapingStatus = () => {
               <button
                 onClick={handleRetryAll}
                 disabled={isSyncing}
-                className={`px-4 py-2 rounded-md font-medium text-sm ${
+                className={`px-4 py-2 rounded-md font-medium text-sm flex items-center space-x-2 ${
                   isSyncing
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
-                {isSyncing ? 'Syncing...' : 'Sync All Students'}
+                {isSyncing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Syncing...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span>Sync All Students</span>
+                  </>
+                )}
               </button>
               
               <button
                 onClick={fetchScrapingStatus}
                 disabled={isSyncing}
-                className="px-4 py-2 bg-white border border-gray-300 rounded-md font-medium text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="px-4 py-2 bg-white border border-gray-300 rounded-md font-medium text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 flex items-center space-x-2"
               >
-                Refresh
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>Refresh</span>
               </button>
             </div>
           </div>
@@ -405,9 +459,9 @@ const ScrapingStatus = () => {
           {isSyncing && (
             <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
               <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
                 <span className="text-sm font-medium text-blue-800">
-                  Manual sync in progress...
+                  Manual sync in progress... This may take several minutes.
                 </span>
               </div>
             </div>
@@ -585,11 +639,14 @@ const ScrapingStatus = () => {
                         <button
                           onClick={() => handleRetryStudent(student.id)}
                           disabled={isSyncing}
-                          className={`text-blue-600 hover:text-blue-900 text-sm font-medium ${
+                          className={`text-blue-600 hover:text-blue-900 text-sm font-medium flex items-center space-x-1 ${
                             isSyncing ? 'opacity-50 cursor-not-allowed' : ''
                           }`}
                         >
-                          Sync Now
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          <span>Sync Now</span>
                         </button>
                       </td>
                     </tr>
@@ -604,6 +661,9 @@ const ScrapingStatus = () => {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-500">
             Click "Sync Now" to manually update student data from coding platforms
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            Note: Syncing all students may take several minutes due to API rate limits
           </p>
         </div>
       </div>
