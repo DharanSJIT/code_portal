@@ -6,13 +6,15 @@ import 'react-toastify/dist/ReactToastify.css';
 // Pages
 import LandingPage from './pages/LandingPage';
 import HomePage from './pages/HomePage';
-import LeaderboardPage from './pages/LeaderboardPage'; // New leaderboard page
+import LeaderboardPage from './pages/LeaderboardPage';
 
 // Components
 import Header from './components/Header';
 import Footer from './components/Footer';
 import SignIn from './components/SignIn';
 import Leaderboard from './components/Leaderboard';
+import ActivityFeed from './components/ActivityFeed';
+import TaskTracker from './components/TaskTracker';
 
 // Admin Components
 import AdminSignIn from './components/AdminSignIn';
@@ -31,6 +33,99 @@ import { AuthProvider } from './contexts/AuthContext';
 // Debug utilities (remove after fixing the issue)
 import { debugUserProfile, createMissingUserProfile } from './utils/debugAuth';
 import { createAdminAccount, verifyAdminAccount, checkAllUsers } from './utils/adminSetup';
+
+// Protected Route Wrapper Component
+const ProtectedRoute = ({ children }) => {
+  return (
+    <>
+      <Header />
+      {children}
+      <Footer />
+    </>
+  );
+};
+
+// Tasks Page Component (Full Page)
+const TasksPage = () => {
+  const [tasks, setTasks] = React.useState([
+    { id: 1, title: 'Solve 3 LeetCode problems', completed: true },
+    { id: 2, title: 'Participate in Codeforces contest', completed: false },
+    { id: 3, title: 'Complete system design task', completed: false },
+    { id: 4, title: 'Push code to GitHub', completed: true },
+    { id: 5, title: 'Review pull requests', completed: false },
+    { id: 6, title: 'Update technical documentation', completed: false }
+  ]);
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Daily Tasks</h1>
+          <p className="text-gray-600">
+            Track your daily coding goals and stay consistent
+          </p>
+        </div>
+        <TaskTracker tasks={tasks} expanded={true} />
+      </div>
+    </div>
+  );
+};
+
+// Activity Page Component (Full Page)
+const ActivityPage = () => {
+  const [activities] = React.useState([
+    { id: 1, platform: 'LeetCode', action: 'Solved "Two Sum" problem', time: '2 hours ago' },
+    { id: 2, platform: 'GitHub', action: 'Pushed 12 commits to main', time: '4 hours ago' },
+    { id: 3, platform: 'Codeforces', action: 'Participated in Div 2 contest', time: '1 day ago' },
+    { id: 4, platform: 'AtCoder', action: 'Solved 3 problems in ABC contest', time: '2 days ago' },
+    { id: 5, platform: 'HackerRank', action: 'Earned Gold Badge in Algorithms', time: '3 days ago' },
+    { id: 6, platform: 'LeetCode', action: 'Completed daily challenge', time: '3 days ago' },
+    { id: 7, platform: 'GitHub', action: 'Created new repository "awesome-project"', time: '4 days ago' },
+    { id: 8, platform: 'Codeforces', action: 'Achieved rating of 1800+', time: '5 days ago' }
+  ]);
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Recent Activity</h1>
+          <p className="text-gray-600">
+            Your complete activity history across all platforms
+          </p>
+        </div>
+        <ActivityFeed activities={activities} expanded={true} />
+      </div>
+    </div>
+  );
+};
+
+// Profile Page Placeholder
+const ProfilePage = () => {
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          <h1 className="text-3xl font-bold text-gray-800 mb-4">Profile</h1>
+          <p className="text-gray-600">Profile page coming soon...</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Settings Page Placeholder
+const SettingsPage = () => {
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          <h1 className="text-3xl font-bold text-gray-800 mb-4">Settings</h1>
+          <p className="text-gray-600">Settings page coming soon...</p>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 function App() {
   // Make debug tools available globally for testing
@@ -71,25 +166,52 @@ function App() {
           <Route path="/signin" element={<SignIn isOpen={true} />} />
           <Route path="/admin/signin" element={<AdminSignIn isOpen={true} />} />
           
-          {/* Main App Routes */}
-          <Route path="/home" element={
-            <>
-              <Header />
+          {/* Main App Routes - Dashboard (HomePage) */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
               <HomePage />
-              <Footer />
-            </>
+            </ProtectedRoute>
           } />
+          
+          {/* Legacy home route - redirect to dashboard */}
+          <Route path="/home" element={<Navigate to="/dashboard" replace />} />
           
           {/* Leaderboard Page Route */}
           <Route path="/leaderboard" element={
-            <>
-              <Header />
+            <ProtectedRoute>
               <LeaderboardPage />
-              <Footer />
-            </>
+            </ProtectedRoute>
           } />
           
-          {/* Individual Component Routes (if needed) */}
+          {/* Tasks Page Route */}
+          <Route path="/tasks" element={
+            <ProtectedRoute>
+              <TasksPage />
+            </ProtectedRoute>
+          } />
+          
+          {/* Activity Page Route */}
+          <Route path="/activity" element={
+            <ProtectedRoute>
+              <ActivityPage />
+            </ProtectedRoute>
+          } />
+          
+          {/* Profile Page Route */}
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          } />
+          
+          {/* Settings Page Route */}
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <SettingsPage />
+            </ProtectedRoute>
+          } />
+          
+          {/* Individual Component Routes (if needed for testing) */}
           <Route path="/components/leaderboard" element={
             <div className="min-h-screen bg-gray-50">
               <Header />
@@ -143,10 +265,10 @@ function App() {
                     Return to Homepage
                   </a>
                   <a 
-                    href="/leaderboard" 
+                    href="/dashboard" 
                     className="px-6 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-colors font-semibold text-center"
                   >
-                    View Leaderboard
+                    Go to Dashboard
                   </a>
                 </div>
               </div>

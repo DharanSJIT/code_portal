@@ -1,7 +1,7 @@
 // src/components/Header.jsx
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { logOut, getCurrentUser } from '../firebase';
 
 const Header = () => {
@@ -10,6 +10,7 @@ const Header = () => {
   const [loading, setLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const dropdownRef = useRef(null);
   
   // Track scroll position for header styling
@@ -46,7 +47,7 @@ const Header = () => {
             uid: currentUser.uid,
             name: currentUser.displayName || 'User',
             email: currentUser.email,
-            // photoURL: currentUser.photoURL,
+            photoURL: currentUser.photoURL,
             streak: 0 
           });
         } else {
@@ -94,6 +95,19 @@ const Header = () => {
     setIsDropdownOpen(!isDropdownOpen);
   };
 
+  // Navigation items
+  const navItems = [
+    { name: 'Dashboard', path: '/dashboard' },
+    { name: 'Leaderboard', path: '/leaderboard' },
+    { name: 'Tasks', path: '/tasks' },
+    { name: 'Activity', path: '/activity' }
+  ];
+
+  // Check if current path is active
+  const isActive = (path) => {
+    return location.pathname === path;
+  };
+
   if (loading) {
     return (
       <header className="h-16 sm:h-20 bg-white shadow-md">
@@ -118,9 +132,10 @@ const Header = () => {
         <div className="flex justify-between items-center">
           <div className="flex items-center">
             <motion.div 
-              className="text-2xl font-bold text-blue-600"
+              className="text-2xl font-bold text-blue-600 cursor-pointer"
               whileHover={{ scale: 1.05 }}
               transition={{ type: 'spring', stiffness: 400, damping: 10 }}
+              onClick={() => navigate('/dashboard')}
             >
               CodeTracker
             </motion.div>
@@ -128,16 +143,20 @@ const Header = () => {
           
           <div className="flex items-center space-x-6">
             <nav className="hidden md:flex space-x-8">
-              {['Dashboard', 'Leaderboard', 'Challenges', 'Community'].map((item) => (
-                <motion.a
-                  key={item}
-                  href={`#${item.toLowerCase()}`}
-                  className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-200"
+              {navItems.map((item) => (
+                <motion.button
+                  key={item.name}
+                  onClick={() => navigate(item.path)}
+                  className={`font-medium transition-colors duration-200 ${
+                    isActive(item.path)
+                      ? 'text-blue-600'
+                      : 'text-gray-600 hover:text-blue-600'
+                  }`}
                   whileHover={{ y: -2 }}
                   whileTap={{ y: 0 }}
                 >
-                  {item}
-                </motion.a>
+                  {item.name}
+                </motion.button>
               ))}
             </nav>
             
@@ -218,23 +237,25 @@ const Header = () => {
                       
                       {/* Menu items */}
                       <div className="py-1">
-                        <a 
-                          href="#profile" 
-                          className="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 transition-colors"
+                        <button 
+                          onClick={() => {
+                            setIsDropdownOpen(false);
+                            navigate('/profile');
+                          }}
+                          className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 transition-colors"
                         >
-                        
                           Profile
-                        </a>
+                        </button>
                         
-                        <a 
-                          href="#settings" 
-                          className="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 transition-colors"
+                        <button 
+                          onClick={() => {
+                            setIsDropdownOpen(false);
+                            navigate('/settings');
+                          }}
+                          className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 transition-colors"
                         >
-                          
                           Settings
-                        </a>
-
-                       
+                        </button>
                       </div>
                       
                       {/* Divider */}
@@ -248,7 +269,6 @@ const Header = () => {
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                         >
-                          
                           Sign Out
                         </motion.button>
                       </div>
