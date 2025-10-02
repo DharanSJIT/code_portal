@@ -197,10 +197,22 @@ const StudentList = () => {
     }
   };
 
-  const handleViewDetails = (student) => {
-    setSelectedStudent(student);
-    setShowModal(true);
-  };
+  // const handleViewDetails = (student) => {
+  //   setSelectedStudent(student);
+  //   setShowModal(true);
+  // };
+
+  // In your StudentList.jsx, update the handleViewDetails function:
+
+const handleViewDetails = async (student) => {
+  setSelectedStudent(student);
+  setShowModal(true);
+  
+  // Auto-scrape data when viewing student details
+  if (student.platformUrls && Object.values(student.platformUrls).some(url => url)) {
+    await handleInitiateScraping(student.id, student.platformUrls);
+  }
+};
 
   const closeModal = () => {
     setShowModal(false);
