@@ -2,19 +2,33 @@ const admin = require('firebase-admin');
 const { scrapeAllPlatforms, formatScrapedData } = require('../utils/scrapers');
 
 // Initialize Firebase Admin
+console.log('🔧 Initializing Firebase Admin...');
+
 const serviceAccount = {
   projectId: process.env.FIREBASE_PROJECT_ID,
-  privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
   clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
 };
 
+// Debug: Check if environment variables are loaded
+console.log('📋 Environment check:');
+console.log('   Project ID:', process.env.FIREBASE_PROJECT_ID ? '✅ Loaded' : '❌ Missing');
+console.log('   Client Email:', process.env.FIREBASE_CLIENT_EMAIL ? '✅ Loaded' : '❌ Missing');
+console.log('   Private Key:', process.env.FIREBASE_PRIVATE_KEY ? '✅ Loaded' : '❌ Missing');
+
 try {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-  console.log('✅ Firebase Admin initialized');
+  // Check if Firebase app is already initialized
+  if (admin.apps.length === 0) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+    console.log('✅ Firebase Admin initialized successfully');
+  } else {
+    console.log('✅ Firebase already initialized');
+  }
 } catch (error) {
-  console.log('Firebase already initialized');
+  console.error('❌ Firebase initialization failed:', error.message);
+  process.exit(1);
 }
 
 async function scrapeAllStudents() {
@@ -22,8 +36,12 @@ async function scrapeAllStudents() {
     console.log('🔄 Starting automated student scraping via GitHub Actions...');
     console.log('Timestamp:', new Date().toISOString());
     
+    // Test Firebase connection
+    console.log('🔌 Testing Firebase connection...');
+    const db = admin.firestore();
+    
     // Get all students from Firestore
-    const studentsSnapshot = await admin.firestore()
+    const studentsSnapshot = await db
       .collection('users')
       .where('role', '==', 'student')
       .get();
@@ -85,6 +103,7 @@ async function scrapeAllStudents() {
     
   } catch (error) {
     console.error('💥 CRITICAL ERROR in scraping process:', error);
+    console.error('Stack trace:', error.stack);
     process.exit(1);
   }
 }
@@ -154,7 +173,7 @@ async function scrapeStudentData(student) {
 // Run the scraper
 scrapeAllStudents()
   .then(() => {
-    console.log('✨ Scraping process finished');
+    console.log('✨ Scraping process finished successfully');
     process.exit(0);
   })
   .catch(error => {
