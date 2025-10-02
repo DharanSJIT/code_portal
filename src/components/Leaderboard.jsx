@@ -323,10 +323,10 @@ const Leaderboard = () => {
           transition={{ duration: 0.5 }}
           className="text-center mb-12"
         >
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 bg-gradient-to-r from-gray-900 to-blue-700 bg-clip-text text-transparent">
+          {/* <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 bg-gradient-to-r from-gray-900 to-blue-700 bg-clip-text text-transparent">
             Coding Leaderboard
-          </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          </h1> */}
+          <p className="text-xl text-gray-900 max-w-2xl mx-auto">
             Track your progress across LeetCode, Codeforces, AtCoder, and GitHub
           </p>
         </motion.div>
