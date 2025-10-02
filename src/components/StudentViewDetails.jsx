@@ -282,65 +282,170 @@ const scrapeGitHubData = async (githubUrl) => {
       throw new Error('Invalid GitHub URL');
     }
 
+    console.log(`Fetching GitHub data for: ${username}`);
+
     // Get basic user info
     const userResponse = await fetch(`https://api.github.com/users/${username}`, {
       headers: {
         'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Authorization': '' // Add token if you have one to avoid rate limits
       }
     });
     
     if (!userResponse.ok) {
       if (userResponse.status === 403) {
-        // Rate limit exceeded, return mock data
-        return {
-          repositories: Math.floor(Math.random() * 50) + 5,
-          followers: Math.floor(Math.random() * 100) + 10,
-          following: Math.floor(Math.random() * 50) + 5,
-          totalContributions: Math.floor(Math.random() * 500) + 50
-        };
+        throw new Error('GitHub API rate limit exceeded. Please try again later.');
       }
-      throw new Error('GitHub user not found');
+      if (userResponse.status === 404) {
+        throw new Error('GitHub user not found');
+      }
+      throw new Error(`GitHub API error: ${userResponse.status}`);
     }
     
     const userData = await userResponse.json();
 
-    // Get repositories to calculate contributions
-    let totalContributions = 0;
+    // Get repositories data
+    let reposData = [];
+    let totalStars = 0;
+    let totalForks = 0;
+    let totalWatchers = 0;
+    
     try {
-      const reposResponse = await fetch(`https://api.github.com/users/${username}/repos?per_page=100`, {
-        headers: {
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-      });
+      // Fetch all repositories (paginated)
+      let page = 1;
+      let hasMore = true;
       
-      if (reposResponse.ok) {
-        const reposData = await reposResponse.json();
-        totalContributions = reposData.reduce((total, repo) => {
-          return total + (repo.stargazers_count || 0) + (repo.forks_count || 0) + (repo.watchers_count || 0);
-        }, 0);
+      while (hasMore && page <= 10) { // Limit to 10 pages (300 repos) to avoid excessive requests
+        const reposResponse = await fetch(
+          `https://api.github.com/users/${username}/repos?per_page=30&page=${page}&sort=updated`,
+          {
+            headers: {
+              'Accept': 'application/vnd.github.v3+json',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            }
+          }
+        );
+        
+        if (reposResponse.ok) {
+          const pageRepos = await reposResponse.json();
+          if (pageRepos.length === 0) {
+            hasMore = false;
+          } else {
+            reposData = [...reposData, ...pageRepos];
+            page++;
+          }
+        } else {
+          hasMore = false;
+          if (reposResponse.status === 403) {
+            console.log('GitHub repos API rate limited, using basic data');
+            break;
+          }
+        }
+      }
+
+      // Calculate metrics from repositories
+      if (reposData.length > 0) {
+        totalStars = reposData.reduce((sum, repo) => sum + (repo.stargazers_count || 0), 0);
+        totalForks = reposData.reduce((sum, repo) => sum + (repo.forks_count || 0), 0);
+        totalWatchers = reposData.reduce((sum, repo) => sum + (repo.watchers_count || 0), 0);
       }
     } catch (repoError) {
-      console.log('GitHub repos API failed, using basic data');
-      totalContributions = userData.followers * 10 + userData.public_repos * 5;
+      console.log('GitHub repos API failed, using basic user data:', repoError.message);
     }
 
+    // Get contribution data (approximate)
+    let totalContributions = 0;
+    try {
+      // Try to get contribution data from GitHub's events API
+      const eventsResponse = await fetch(
+        `https://api.github.com/users/${username}/events?per_page=100`,
+        {
+          headers: {
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          }
+        }
+      );
+      
+      if (eventsResponse.ok) {
+        const eventsData = await eventsResponse.json();
+        // Count different types of contribution events
+        const contributionEvents = eventsData.filter(event => 
+          ['PushEvent', 'PullRequestEvent', 'IssuesEvent', 'CreateEvent', 'WatchEvent'].includes(event.type)
+        );
+        totalContributions = contributionEvents.length;
+      } else {
+        // Fallback: estimate contributions based on repository activity
+        totalContributions = Math.floor(
+          (userData.public_repos || 0) * 5 + 
+          (userData.followers || 0) * 2 + 
+          totalStars * 0.5
+        );
+      }
+    } catch (eventsError) {
+      console.log('GitHub events API failed, using estimated contributions:', eventsError.message);
+      totalContributions = Math.floor(
+        (userData.public_repos || 0) * 5 + 
+        (userData.followers || 0) * 2 + 
+        totalStars * 0.5
+      );
+    }
+
+    // Calculate an engagement score
+    const engagementScore = Math.floor(
+      (userData.followers || 0) * 0.3 +
+      (userData.public_repos || 0) * 0.4 +
+      totalStars * 0.2 +
+      totalForks * 0.1
+    );
+
     return {
+      // Basic profile info
+      username: userData.login,
+      name: userData.name || username,
+      bio: userData.bio || '',
+      
+      // Repository stats
       repositories: userData.public_repos || 0,
+      gists: userData.public_gists || 0,
+      
+      // Social stats
       followers: userData.followers || 0,
       following: userData.following || 0,
+      
+      // Repository engagement
+      totalStars: totalStars,
+      totalForks: totalForks,
+      totalWatchers: totalWatchers,
+      
+      // Contribution metrics
       totalContributions: totalContributions,
+      engagementScore: engagementScore,
+      
+      // Additional info
+      accountCreated: userData.created_at,
+      lastUpdated: userData.updated_at,
+      isHireable: userData.hireable || false,
+      location: userData.location || 'Not specified',
+      company: userData.company || 'Not specified',
+      blog: userData.blog || '',
+      twitter: userData.twitter_username || ''
     };
 
   } catch (error) {
     console.error('GitHub scraping error:', error);
-    // Return reasonable mock data
+    
+    // Return error information for better debugging
     return {
+      error: error.message,
       repositories: 0,
       followers: 0,
       following: 0,
-      totalContributions: 0
+      totalStars: 0,
+      totalForks: 0,
+      totalContributions: 0,
+      engagementScore: 0
     };
   }
 };
@@ -824,9 +929,9 @@ const StudentViewDetails = ({ student, onClose }) => {
       color: "text-blue-500" 
     },
     { 
-      label: "GitHub Contributions", 
-      value: getPlatformStats('github')?.totalContributions || 0, 
-      maxValue: Math.max((getPlatformStats('github')?.totalContributions || 0) * 1.5, 100), 
+      label: "GitHub Repos", 
+      value: getPlatformStats('github')?.repositories || 0, 
+      maxValue: Math.max((getPlatformStats('github')?.repositories || 0) * 1.5, 100), 
       color: "text-purple-500" 
     },
     { 
@@ -1054,14 +1159,17 @@ const StudentViewDetails = ({ student, onClose }) => {
                             </>
                           )}
                           
-                          {platform === 'github' && stats && (
-                            <>
-                              <StatItem label="Public Repositories" value={stats.repositories} />
-                              <StatItem label="Followers" value={stats.followers} />
-                              <StatItem label="Following" value={stats.following} />
-                              <StatItem label="Total Contributions" value={stats.totalContributions} />
-                            </>
-                          )}
+                        {platform === 'github' && stats && (
+  <>
+    <StatItem label="Public Repositories" value={stats.repositories} />
+    <StatItem label="Followers" value={stats.followers} />
+    <StatItem label="Following" value={stats.following} />
+    {/* <StatItem label="Total Stars" value={stats.totalStars} /> */}
+    <StatItem label="Total Contributions" value={stats.totalContributions} />
+   
+  </>
+)}
+
                         </dl>
                       )}
                     </div>
