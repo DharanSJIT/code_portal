@@ -24,7 +24,7 @@ const useCountUp = (end, duration = 1500) => {
     }, frameRate);
 
     return () => clearInterval(counter);
-  }, [end, duration, totalFrames]);
+  }, [end, duration, totalFrames, frameRate]);
 
   return count;
 };
@@ -55,7 +55,7 @@ const PlatformIcon = ({ platform }) => {
     atcoder: (
       <svg viewBox="0 0 256 256" fill="#374151" className="h-8 w-8 transition transform hover:scale-110 duration-300">
         <path d="M188.6,188.6a8,8,0,0,1,0,11.3l-50.06,50.06a8,8,0,0,1-11.32,0L77.17,199.9a8,8,0,0,1,0-11.3L121.28,144.5a8,8,0,0,1,11.32,0ZM162,176a8,8,0,0,0-11.31-11.31L135.37,179.94a8,8,0,0,0,11.31,11.31Z"></path>
-        <path d="M128,24a104,104,0,1,0,104,104A104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Z"></path>
+        <path d="M128,24a104,104,0,1,0,104,104A104.11,104.11,0,0,0,128,216Z"></path>
       </svg>
     ),
     github: (
@@ -165,237 +165,343 @@ const ErrorDisplay = ({ message }) => (
   </div>
 );
 
+// Platform Status Indicator
+const PlatformStatus = ({ status }) => {
+  const getStatusConfig = () => {
+    switch (status) {
+      case 'completed':
+        return { color: 'bg-green-500', text: 'Updated' };
+      case 'scraping':
+        return { color: 'bg-blue-500 animate-pulse', text: 'Scraping...' };
+      case 'failed':
+        return { color: 'bg-red-500', text: 'Failed' };
+      default:
+        return { color: 'bg-gray-400', text: 'Pending' };
+    }
+  };
+
+  const config = getStatusConfig();
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className={`w-2 h-2 rounded-full ${config.color}`}></div>
+      <span className="text-xs text-slate-500">{config.text}</span>
+    </div>
+  );
+};
+
 // --- Main Component ---
 
 const StudentViewDetails = ({ student, onClose }) => {
   const [isMounted, setIsMounted] = useState(false);
-  const [platformData, setPlatformData] = useState({
-    leetcode: { loading: true, data: null, error: null },
-    codeforces: { loading: true, data: null, error: null },
-    hackerrank: { loading: true, data: null, error: null },
-    atcoder: { loading: true, data: null, error: null },
-    github: { loading: true, data: null, error: null },
+  const [leetcodeData, setLeetcodeData] = useState({
+    loading: false,
+    data: null,
+    error: null
   });
 
-  // Fetch logic functions
   useEffect(() => {
-    if (student) {
-      fetchAllPlatformData();
+    const timer = setTimeout(() => setIsMounted(true), 100);
+    
+    // Fetch LeetCode data if URL is available
+    if (student.platformUrls?.leetcode) {
+      fetchLeetCodeData(student.platformUrls.leetcode);
     }
-    const timer = setTimeout(() => setIsMounted(true), 100); // Trigger animations
+    
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [student]);
+  }, [student.platformUrls?.leetcode]);
 
-  const fetchAllPlatformData = async () => {
-    const promises = [];
-    if (student.platformUrls?.leetcode) { 
-      promises.push(fetchLeetCodeData(student.platformUrls.leetcode)); 
-    } else { 
-      setPlatformData(prev => ({ ...prev, leetcode: { loading: false, data: null, error: null } })); 
+  // Fetch LeetCode data directly from LeetCode API
+  const fetchLeetCodeData = async (leetcodeUrl) => {
+    try {
+      setLeetcodeData({ loading: true, data: null, error: null });
+      
+      // Extract username from URL
+      const username = leetcodeUrl.split('/').filter(Boolean).pop();
+      
+      if (!username) {
+        throw new Error('Invalid LeetCode URL');
+      }
+
+      // Method 1: Try leetcode-stats-api first
+      try {
+        const response = await fetch(`https://leetcode-stats-api.herokuapp.com/${username}`);
+        if (!response.ok) throw new Error('API not available');
+        
+        const data = await response.json();
+        
+        if (data.status === 'success' && data.totalSolved !== undefined) {
+          setLeetcodeData({
+            loading: false,
+            data: {
+              totalSolved: data.totalSolved || 0,
+              easy: data.easySolved || 0,
+              medium: data.mediumSolved || 0,
+              hard: data.hardSolved || 0,
+              ranking: data.ranking || 0,
+              acceptanceRate: data.acceptanceRate || 0,
+              reputation: data.reputation || 0
+            },
+            error: null
+          });
+          return;
+        }
+      } catch (apiError) {
+        console.log('LeetCode stats API failed, trying GraphQL...');
+      }
+
+      // Method 2: Try GraphQL API
+      try {
+        const graphqlQuery = {
+          query: `
+            query getUserProfile($username: String!) {
+              matchedUser(username: $username) {
+                username
+                submitStats {
+                  acSubmissionNum {
+                    difficulty
+                    count
+                    submissions
+                  }
+                  totalSubmissionNum {
+                    difficulty
+                    count
+                    submissions
+                  }
+                }
+                profile {
+                  ranking
+                  reputation
+                  starRating
+                }
+              }
+            }
+          `,
+          variables: { username }
+        };
+
+        const response = await fetch('https://leetcode.com/graphql', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Referer': 'https://leetcode.com',
+          },
+          body: JSON.stringify(graphqlQuery)
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          
+          if (result.data?.matchedUser) {
+            const userData = result.data.matchedUser;
+            let totalSolved = 0;
+            let easy = 0;
+            let medium = 0;
+            let hard = 0;
+
+            if (userData.submitStats?.acSubmissionNum) {
+              userData.submitStats.acSubmissionNum.forEach(item => {
+                if (item.difficulty === 'All') totalSolved = item.count;
+                if (item.difficulty === 'Easy') easy = item.count;
+                if (item.difficulty === 'Medium') medium = item.count;
+                if (item.difficulty === 'Hard') hard = item.count;
+              });
+            }
+
+            setLeetcodeData({
+              loading: false,
+              data: {
+                totalSolved,
+                easy,
+                medium,
+                hard,
+                ranking: userData.profile?.ranking || 0,
+                reputation: userData.profile?.reputation || 0
+              },
+              error: null
+            });
+            return;
+          }
+        }
+      } catch (graphqlError) {
+        console.log('GraphQL API failed, trying public API...');
+      }
+
+      // Method 3: Try public API endpoints
+      try {
+        // Alternative public API endpoint
+        const publicResponse = await fetch(`https://leetcodestats.cyclic.app/${username}`);
+        if (publicResponse.ok) {
+          const data = await publicResponse.json();
+          setLeetcodeData({
+            loading: false,
+            data: {
+              totalSolved: data.totalSolved || 0,
+              easy: data.easySolved || 0,
+              medium: data.mediumSolved || 0,
+              hard: data.hardSolved || 0,
+              ranking: data.ranking || 0,
+              acceptanceRate: data.acceptanceRate || 0
+            },
+            error: null
+          });
+          return;
+        }
+      } catch (publicError) {
+        console.log('Public API also failed');
+      }
+
+      // If all methods fail
+      throw new Error('All LeetCode API methods failed');
+
+    } catch (error) {
+      console.error('LeetCode fetch error:', error);
+      setLeetcodeData({
+        loading: false,
+        data: null,
+        error: 'Failed to fetch LeetCode data. Please check the username or try again later.'
+      });
     }
-    
-    if (student.platformUrls?.codeforces) { 
-      promises.push(fetchCodeforcesData(student.platformUrls.codeforces)); 
-    } else { 
-      setPlatformData(prev => ({ ...prev, codeforces: { loading: false, data: null, error: null } })); 
-    }
-    
-    if (student.platformUrls?.hackerrank) { 
-      promises.push(fetchHackerRankData(student.platformUrls.hackerrank)); 
-    } else { 
-      setPlatformData(prev => ({ ...prev, hackerrank: { loading: false, data: null, error: null } })); 
-    }
-    
-    if (student.platformUrls?.atcoder) { 
-      promises.push(fetchAtCoderData(student.platformUrls.atcoder)); 
-    } else { 
-      setPlatformData(prev => ({ ...prev, atcoder: { loading: false, data: null, error: null } })); 
-    }
-    
-    if (student.platformUrls?.github) { 
-      promises.push(fetchGitHubData(student.platformUrls.github)); 
-    } else { 
-      setPlatformData(prev => ({ ...prev, github: { loading: false, data: null, error: null } })); 
-    }
-    
-    await Promise.allSettled(promises);
-  };
-  
-  const fetchLeetCodeData = async (url) => { 
-    try { 
-      const username = url.split('/').filter(Boolean).pop(); 
-      const response = await fetch(`https://leetcode-stats-api.herokuapp.com/${username}`); 
-      const data = await response.json(); 
-      
-      if (data.status === 'error') throw new Error(data.message); 
-      
-      setPlatformData(prev => ({ 
-        ...prev, 
-        leetcode: { 
-          loading: false, 
-          data: { 
-            totalSolved: data.totalSolved || 0, 
-            easy: data.easySolved || 0, 
-            medium: data.mediumSolved || 0, 
-            hard: data.hardSolved || 0, 
-          }, 
-          error: null 
-        } 
-      })); 
-    } catch (error) { 
-      console.error('LeetCode fetch error:', error); 
-      setPlatformData(prev => ({ 
-        ...prev, 
-        leetcode: { 
-          loading: false, 
-          data: null, 
-          error: 'Failed to fetch LeetCode data.' 
-        } 
-      })); 
-    } 
-  };
-  
-  const fetchCodeforcesData = async (url) => { 
-    try { 
-      const username = url.split('/').filter(Boolean).pop(); 
-      const response = await fetch(`https://codeforces.com/api/user.info?handles=${username}`); 
-      const data = await response.json(); 
-      
-      if (data.status !== 'OK' || !data.result?.[0]) { 
-        throw new Error(data.comment || 'User not found'); 
-      } 
-      
-      const user = data.result[0]; 
-      const submissionsResponse = await fetch(`https://codeforces.com/api/user.status?handle=${username}&from=1&count=10000`); 
-      const submissionsData = await submissionsResponse.json(); 
-      
-      let solvedCount = 0; 
-      if (submissionsData.status === 'OK') { 
-        const solvedProblems = new Set(); 
-        submissionsData.result.forEach(sub => { 
-          if (sub.verdict === 'OK') { 
-            solvedProblems.add(`${sub.problem.contestId}-${sub.problem.index}`); 
-          } 
-        }); 
-        solvedCount = solvedProblems.size; 
-      } 
-      
-      setPlatformData(prev => ({ 
-        ...prev, 
-        codeforces: { 
-          loading: false, 
-          data: { 
-            rating: user.rating || 'Unrated', 
-            maxRating: user.maxRating || 'N/A', 
-            rank: user.rank || 'Unrated', 
-            maxRank: user.maxRank || 'N/A', 
-            solved: solvedCount, 
-          }, 
-          error: null 
-        } 
-      })); 
-    } catch (error) { 
-      console.error('Codeforces fetch error:', error); 
-      setPlatformData(prev => ({ 
-        ...prev, 
-        codeforces: { 
-          loading: false, 
-          data: null, 
-          error: 'Failed to fetch Codeforces data.' 
-        } 
-      })); 
-    } 
-  };
-  
-  const fetchHackerRankData = async () => { 
-    setPlatformData(prev => ({ 
-      ...prev, 
-      hackerrank: { 
-        loading: false, 
-        data: { 
-          solved: student.hackerrankSolved || 0, 
-          badges: student.hackerrankBadges || 0, 
-          stars: student.hackerrankStars || 0, 
-        }, 
-        error: null 
-      } 
-    })); 
-  };
-  
-  const fetchAtCoderData = async () => { 
-    setPlatformData(prev => ({ 
-      ...prev, 
-      atcoder: { 
-        loading: false, 
-        data: { 
-          solved: student.atcoderSolved || 0, 
-          rating: student.atcoderRating || 'Unrated', 
-          maxRating: student.atcoderMaxRating || 'N/A', 
-        }, 
-        error: null 
-      } 
-    })); 
-  };
-  
-  const fetchGitHubData = async (url) => { 
-    try { 
-      const username = url.split('/').filter(Boolean).pop(); 
-      const response = await fetch(`https://api.github.com/users/${username}`); 
-      
-      if (!response.ok) throw new Error(`GitHub API error: ${response.statusText}`); 
-      
-      const data = await response.json(); 
-      setPlatformData(prev => ({ 
-        ...prev, 
-        github: { 
-          loading: false, 
-          data: { 
-            repos: data.public_repos || 0, 
-            followers: data.followers || 0, 
-            following: data.following || 0, 
-          }, 
-          error: null 
-        } 
-      })); 
-    } catch (error) { 
-      console.error('GitHub fetch error:', error); 
-      setPlatformData(prev => ({ 
-        ...prev, 
-        github: { 
-          loading: false, 
-          data: null, 
-          error: 'Failed to fetch GitHub data.' 
-        } 
-      })); 
-    } 
   };
 
+  // Helper function to get platform data from student object (for other platforms)
+  const getPlatformData = (platform) => {
+    if (platform === 'leetcode') {
+      return {
+        data: leetcodeData.data || student.platformData?.[platform] || student.stats?.[platform] || null,
+        status: leetcodeData.loading ? 'scraping' : (leetcodeData.data ? 'completed' : student.scrapingStatus?.[platform] || 'pending'),
+        hasData: !!(leetcodeData.data || student.platformData?.[platform] || student.stats?.[platform])
+      };
+    }
+
+    const platformData = student.platformData?.[platform];
+    const stats = student.stats?.[platform];
+    const scrapingStatus = student.scrapingStatus?.[platform];
+    
+    return {
+      data: platformData || stats || null,
+      status: scrapingStatus || 'pending',
+      hasData: !!(platformData || stats)
+    };
+  };
+
+  // Calculate total problems solved across all platforms
   const calculateTotalSolved = () => {
-    const values = [ 
-      platformData.leetcode.data?.totalSolved, 
-      platformData.codeforces.data?.solved, 
-      platformData.hackerrank.data?.solved, 
-      platformData.atcoder.data?.solved 
-    ];
-    return values.reduce((sum, val) => sum + (Number.isInteger(val) ? val : 0), 0);
+    const platforms = ['leetcode', 'codeforces', 'hackerrank', 'atcoder'];
+    return platforms.reduce((total, platform) => {
+      const platformData = getPlatformData(platform);
+      if (platformData.data) {
+        if (platform === 'leetcode') {
+          return total + (platformData.data.totalSolved || platformData.data.solved || 0);
+        } else {
+          return total + (platformData.data.problemsSolved || platformData.data.solved || 0);
+        }
+      }
+      return total;
+    }, 0);
   };
-  
-  const platformOrder = ['leetcode', 'codeforces', 'github', 'hackerrank', 'atcoder'];
-  const availablePlatforms = platformOrder.filter(p => student.platformUrls?.[p]);
-  
+
+  // Get platform stats for display
+  const getPlatformStats = (platform) => {
+    const { data } = getPlatformData(platform);
+    
+    if (!data) return null;
+
+    switch (platform) {
+      case 'leetcode':
+        return {
+          totalSolved: data.totalSolved || data.solved || 0,
+          easy: data.easySolved || data.easy || 0,
+          medium: data.mediumSolved || data.medium || 0,
+          hard: data.hardSolved || data.hard || 0,
+          rating: data.rating || 0,
+          ranking: data.ranking || 0,
+          reputation: data.reputation || 0,
+          acceptanceRate: data.acceptanceRate || 0
+        };
+      
+      case 'codeforces':
+        return {
+          rating: data.rating || 'Unrated',
+          maxRating: data.maxRating || 'N/A',
+          problemsSolved: data.problemsSolved || 0,
+          rank: data.rank || 'unrated',
+          maxRank: data.maxRank || 'N/A',
+          contestsAttended: data.contestsAttended || 0
+        };
+      
+      case 'hackerrank':
+        return {
+          problemsSolved: data.problemsSolved || 0,
+          badges: data.badges || 0,
+          totalScore: data.totalScore || 0
+        };
+      
+      case 'atcoder':
+        return {
+          rating: data.rating || 'Unrated',
+          maxRating: data.maxRating || 'N/A',
+          problemsSolved: data.problemsSolved || 0,
+          contestsParticipated: data.contestsParticipated || 0,
+          rank: data.rank || 'Unrated'
+        };
+      
+      case 'github':
+        return {
+          repositories: data.repositories || data.repos || 0,
+          followers: data.followers || 0,
+          following: data.following || 0,
+          totalStars: data.totalStars || 0
+        };
+      
+      default:
+        return data;
+    }
+  };
+
   const getInitials = (name = '') => {
     const parts = name.split(' ');
     if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
-  }
+  };
 
+  const platformOrder = ['leetcode', 'codeforces', 'github', 'hackerrank', 'atcoder'];
+  const availablePlatforms = platformOrder.filter(p => student.platformUrls?.[p]);
+
+  // Snapshot data for radial progress cards
   const snapshotData = [
-    { label: "Total Problems Solved", value: calculateTotalSolved(), maxValue: 2000, color: "text-blue-500" },
-    { label: "GitHub Repositories", value: platformData.github.data?.repos ?? 0, maxValue: 100, color: "text-purple-500" },
-    { label: "Active Platforms", value: availablePlatforms.length, maxValue: 5, color: "text-emerald-500" },
-    { label: "HackerRank Badges", value: platformData.hackerrank.data?.badges ?? 0, maxValue: 50, color: "text-amber-500" },
+    { 
+      label: "Total Problems Solved", 
+      value: calculateTotalSolved(), 
+      maxValue: Math.max(calculateTotalSolved() * 1.5, 1000), 
+      color: "text-blue-500" 
+    },
+    { 
+      label: "GitHub Repositories", 
+      value: getPlatformStats('github')?.repositories || 0, 
+      maxValue: Math.max((getPlatformStats('github')?.repositories || 0) * 1.5, 50), 
+      color: "text-purple-500" 
+    },
+    { 
+      label: "Active Platforms", 
+      value: availablePlatforms.length, 
+      maxValue: 5, 
+      color: "text-emerald-500" 
+    },
+    { 
+      label: "HackerRank Badges", 
+      value: getPlatformStats('hackerrank')?.badges || 0, 
+      maxValue: Math.max((getPlatformStats('hackerrank')?.badges || 0) * 1.5, 20), 
+      color: "text-amber-500" 
+    },
   ];
+
+  // Format last updated time
+  const formatLastUpdated = (lastUpdated) => {
+    if (!lastUpdated) return 'Never';
+    const date = new Date(lastUpdated);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  };
 
   return (
     <div 
@@ -447,18 +553,21 @@ const StudentViewDetails = ({ student, onClose }) => {
               <span>{student.year || 'N/A'}</span>
             </div>
           </div>
+          {student.scrapingStatus?.lastUpdated && (
+            <div className="mt-3 text-xs text-slate-400">
+              Last updated: {formatLastUpdated(student.scrapingStatus.lastUpdated)}
+            </div>
+          )}
         </header>
 
         {/* Body */}
         <main className="overflow-y-auto flex-1 p-8 bg-slate-100/70">
+          {/* Overall Snapshot Section */}
           <section className="opacity-0 animate-fadeIn" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
-            <h3 className="text-base font-semibold text-slate-500 mb-4 uppercase tracking-wider flex items-center gap-2">
-              {/* <svg className="w-5 h-5 text-blue-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg> */}
+            <h3 className="text-base font-semibold text-slate-500 mb-4 uppercase tracking-wider">
               Overall Snapshot
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 ">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {snapshotData.map((item, index) => (
                 <div
                   key={item.label}
@@ -474,17 +583,17 @@ const StudentViewDetails = ({ student, onClose }) => {
             </div>
           </section>
 
+          {/* Platform Details Section */}
           <section className="mt-10 opacity-0 animate-fadeIn" style={{ animationDelay: '0.6s', animationFillMode: 'forwards' }}>
-            <h3 className="text-base font-semibold text-slate-500 mb-4 uppercase tracking-wider flex items-center gap-2">
-              {/* <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-              </svg> */}
+            <h3 className="text-base font-semibold text-slate-500 mb-4 uppercase tracking-wider">
               Platform Details
             </h3>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {availablePlatforms.map((platform, index) => {
-                const { loading, error, data } = platformData[platform];
+                const { data, status } = getPlatformData(platform);
+                const stats = getPlatformStats(platform);
                 const profileUrl = student.platformUrls[platform];
+                const isLoading = platform === 'leetcode' ? leetcodeData.loading : false;
 
                 return (
                   <div 
@@ -498,7 +607,10 @@ const StudentViewDetails = ({ student, onClose }) => {
                     <div className="flex items-center justify-between p-6 border-b border-slate-100">
                       <div className="flex items-center gap-4">
                         <PlatformIcon platform={platform} />
-                        <h4 className="text-2xl font-bold text-slate-800 capitalize">{platform}</h4>
+                        <div>
+                          <h4 className="text-2xl font-bold text-slate-800 capitalize">{platform}</h4>
+                          <PlatformStatus status={isLoading ? 'scraping' : status} />
+                        </div>
                       </div>
                       <a 
                         href={profileUrl} 
@@ -510,56 +622,67 @@ const StudentViewDetails = ({ student, onClose }) => {
                       </a>
                     </div>
                     <div className="p-6 min-h-[150px]">
-                      {loading ? (
+                      {isLoading ? (
                         <SkeletonLoader />
-                      ) : error ? (
-                        <ErrorDisplay message={error} />
-                      ) : data ? (
+                      ) : platform === 'leetcode' && leetcodeData.error ? (
+                        <ErrorDisplay message={leetcodeData.error} />
+                      ) : !data ? (
+                        <div className="flex flex-col items-center justify-center h-32 text-slate-500">
+                          <svg className="w-12 h-12 mb-2 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                          </svg>
+                          <p className="text-sm">No data available</p>
+                          <p className="text-xs text-slate-400">Click scrape in student list to fetch data</p>
+                        </div>
+                      ) : (
                         <dl>
-                          {platform === 'leetcode' && (
+                          {platform === 'leetcode' && stats && (
                             <>
-                              <StatItem label="Total Solved" value={data.totalSolved} />
-                              <LeetCodeDifficultyStats easy={data.easy} medium={data.medium} hard={data.hard} />
+                              <StatItem label="Total Solved" value={stats.totalSolved} />
+                              {stats.ranking > 0 && <StatItem label="Global Ranking" value={stats.ranking} />}
+                              {stats.reputation > 0 && <StatItem label="Reputation" value={stats.reputation} />}
+                              {stats.acceptanceRate > 0 && <StatItem label="Acceptance Rate" value={`${stats.acceptanceRate}%`} />}
+                              <LeetCodeDifficultyStats easy={stats.easy} medium={stats.medium} hard={stats.hard} />
                             </>
                           )}
                           
-                          {platform === 'codeforces' && (
+                          {platform === 'codeforces' && stats && (
                             <>
-                              <StatItem label="Problems Solved" value={data.solved} />
-                              <StatItem label="Current Rating" value={data.rating} />
-                              <StatItem label="Max Rating" value={data.maxRating} />
-                              <StatItem label="Rank" value={data.rank} />
+                              <StatItem label="Problems Solved" value={stats.problemsSolved} />
+                              <StatItem label="Current Rating" value={stats.rating} />
+                              <StatItem label="Max Rating" value={stats.maxRating} />
+                              <StatItem label="Rank" value={stats.rank} />
+                              <StatItem label="Contests Attended" value={stats.contestsAttended} />
                             </>
                           )}
                           
-                          {platform === 'hackerrank' && (
+                          {platform === 'hackerrank' && stats && (
                             <>
-                              <StatItem label="Problems Solved" value={data.solved} />
-                              <StatItem label="Badges Earned" value={data.badges} />
-                              <StatItem label="Total Stars" value={data.stars} />
+                              <StatItem label="Problems Solved" value={stats.problemsSolved} />
+                              <StatItem label="Badges Earned" value={stats.badges} />
+                              <StatItem label="Total Score" value={stats.totalScore} />
                             </>
                           )}
                           
-                          {platform === 'atcoder' && (
+                          {platform === 'atcoder' && stats && (
                             <>
-                              <StatItem label="Problems Solved" value={data.solved} />
-                              <StatItem label="Current Rating" value={data.rating} />
-                              <StatItem label="Max Rating" value={data.maxRating} />
+                              <StatItem label="Problems Solved" value={stats.problemsSolved} />
+                              <StatItem label="Current Rating" value={stats.rating} />
+                              <StatItem label="Max Rating" value={stats.maxRating} />
+                              <StatItem label="Contests Participated" value={stats.contestsParticipated} />
+                              <StatItem label="Rank" value={stats.rank} />
                             </>
                           )}
                           
-                          {platform === 'github' && (
+                          {platform === 'github' && stats && (
                             <>
-                              <StatItem label="Public Repositories" value={data.repos} />
-                              <StatItem label="Followers" value={data.followers} />
-                              <StatItem label="Following" value={data.following} />
+                              <StatItem label="Public Repositories" value={stats.repositories} />
+                              <StatItem label="Followers" value={stats.followers} />
+                              <StatItem label="Following" value={stats.following} />
+                              <StatItem label="Total Stars" value={stats.totalStars} />
                             </>
                           )}
                         </dl>
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-slate-500">
-                          No data available for this platform.
-                        </div>
                       )}
                     </div>
                   </div>
@@ -609,30 +732,35 @@ const StudentViewDetails = ({ student, onClose }) => {
 };
 
 // Add required CSS for animations
-document.head.insertAdjacentHTML('beforeend', `
-<style>
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  .animate-fadeIn {
-    animation: fadeIn 0.5s ease-out forwards;
-  }
-  @keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
-  }
-  .animate-bounce {
-    animation: bounce 2s infinite;
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-  .animate-pulse {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-</style>
-`);
+const styles = `
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.animate-bounce {
+  animation: bounce 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+`;
+
+// Inject styles
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement("style");
+  styleSheet.innerText = styles;
+  document.head.appendChild(styleSheet);
+}
 
 export default StudentViewDetails;
