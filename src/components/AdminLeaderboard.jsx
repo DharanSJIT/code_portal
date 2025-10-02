@@ -366,12 +366,7 @@ const AdminLeaderboard = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                 </motion.div>
-                <div>
-                  <h3 className="text-lg font-semibold text-blue-900">Auto-scraping in Progress</h3>
-                  <p className="text-blue-700">
-                    Updating {scrapingProgress.completed} of {scrapingProgress.total} students...
-                  </p>
-                </div>
+                
               </div>
               <div className="w-48 bg-blue-200 rounded-full h-2">
                 <motion.div
@@ -433,39 +428,7 @@ const AdminLeaderboard = () => {
           ))}
         </motion.div>
 
-        {/* College Distribution */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-gray-200"
-        >
-          <h3 className="text-xl font-bold text-gray-900 mb-6">College Distribution</h3>
-          <div className="grid grid-cols-2 gap-6">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              whileHover={{ scale: 1.05 }}
-              className="text-center p-6 rounded-xl border border-gray-200 bg-blue-50"
-            >
-              <div className="text-3xl font-bold text-blue-600 mb-2">{platformStats.collegeStats.engineering}</div>
-              <div className="text-lg font-semibold text-blue-800">Engineering</div>
-              <div className="text-sm text-blue-600 mt-2">Students</div>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.3 }}
-              whileHover={{ scale: 1.05 }}
-              className="text-center p-6 rounded-xl border border-gray-200 bg-green-50"
-            >
-              <div className="text-3xl font-bold text-green-600 mb-2">{platformStats.collegeStats.technology}</div>
-              <div className="text-lg font-semibold text-green-800">Technology</div>
-              <div className="text-sm text-green-600 mt-2">Students</div>
-            </motion.div>
-          </div>
-        </motion.div>
+       
 
         {/* Platform Selection & Filters */}
         <motion.div
@@ -551,59 +514,7 @@ const AdminLeaderboard = () => {
             ))}
           </div>
         </motion.div>
-
-        {/* Scraping Status */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-gray-200"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-gray-900">Data Status</h3>
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-500">
-                {collegeFilter === 'all' ? 'All Colleges' : collegeOptions.find(c => c.id === collegeFilter)?.name} • 
-                {departmentFilter === 'all' ? ' All Departments' : ` ${departmentFilter}`}
-              </div>
-              <motion.button
-                onClick={handleManualRefresh}
-                disabled={autoScraping}
-                className={`px-4 py-2 rounded-lg font-semibold text-sm flex items-center gap-2 ${
-                  autoScraping 
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-                whileHover={!autoScraping ? { scale: 1.05 } : {}}
-                whileTap={!autoScraping ? { scale: 0.95 } : {}}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Refresh Data
-              </motion.button>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-6">
-            {[
-              { status: 'completed', count: platformStats.scrapingStats.completed, label: 'Updated Profiles' },
-              { status: 'in_progress', count: platformStats.scrapingStats.in_progress, label: 'In Progress' },
-              { status: 'failed', count: platformStats.scrapingStats.failed, label: 'Needs Attention' }
-            ].map((stat, index) => (
-              <motion.div
-                key={stat.status}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.5 + index * 0.1 }}
-                whileHover={{ scale: 1.05 }}
-                className="text-center p-6 rounded-xl border border-gray-200 bg-gray-50"
-              >
-                <div className="text-3xl font-bold text-gray-900 mb-2">{stat.count}</div>
-                <div className="text-sm text-gray-600">{stat.label}</div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
+       
 
         {/* Leaderboard Table */}
         <motion.div
@@ -698,9 +609,6 @@ const AdminLeaderboard = () => {
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider hidden md:table-cell">
                         College
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        Status
                       </th>
                       <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
                         {currentBoard.metricLabel}
@@ -802,14 +710,7 @@ const AdminLeaderboard = () => {
                                 </div>
                               </td>
                               
-                              <td className="px-6 py-4">
-                                <motion.span
-                                  whileHover={{ scale: 1.05 }}
-                                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${statusStyle.className}`}
-                                >
-                                  {statusStyle.label}
-                                </motion.span>
-                              </td>
+                            
                               
                               <td className="px-6 py-4 text-right">
                                 <motion.div
