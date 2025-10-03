@@ -28,6 +28,7 @@ import ScrapingStatus from './components/ScrapingStatus';
 import AdminLeaderboard from './components/AdminLeaderboard';
 import Profile from './components/Profile';
 import ChangePassword from './components/ChangePassword';
+import StudentPasswordManager from './components/StudentPasswordManager';
 
 // Auth Context
 import { AuthProvider } from './contexts/AuthContext';
@@ -237,6 +238,7 @@ function App() {
             <Route path="add-student" element={<AdminUserCreation />} />
             <Route path="scraping-status" element={<ScrapingStatus />} />
             <Route path="leaderboard" element={<AdminLeaderboard />} />
+            <Route path="/admin/passwords" element={<StudentPasswordManager />} />
           </Route>
           
           {/* Legacy Routes with Authentication Guard */}

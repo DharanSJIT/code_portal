@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase.js';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
 const AdminUserCreation = () => {
@@ -32,6 +32,19 @@ const AdminUserCreation = () => {
     name: '',
     email: '',
   });
+
+  // Generate secure temporary password
+  const generateTemporaryPassword = () => {
+    const length = 12;
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    let password = 'Temp@';
+    
+    for (let i = 0; i < length - 5; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    
+    return password;
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -130,7 +143,8 @@ const AdminUserCreation = () => {
         }
       });
       
-      const tempPassword = `Temp@${Math.random().toString(36).slice(2, 10)}${Date.now().toString().slice(-4)}`;
+      // Generate secure temporary password
+      const tempPassword = generateTemporaryPassword();
       
       console.log('Creating Firebase Auth account...');
       
@@ -186,23 +200,93 @@ const AdminUserCreation = () => {
           codeforces: { rating: 0, maxRating: 0, problemsSolved: 0 },
           atcoder: { rating: 0, problemsSolved: 0 },
           hackerrank: { problemsSolved: 0, stars: 0 }
-        }
+        },
+        // ✅ STORE TEMPORARY PASSWORD IN FIRESTORE
+        tempPassword: tempPassword,
+        tempPasswordCreatedAt: new Date().toISOString(),
+        requiresPasswordReset: true
       };
       
       console.log('Creating Firestore document...');
       await setDoc(doc(db, 'users', userId), userDocument);
       console.log('Firestore document created successfully');
       
-      toast.success(`Student added successfully! Temporary password: ${tempPassword}`);
-      toast.info('Please share the temporary password with the student', { autoClose: 10000 });
+      // Show success message with password in a more prominent way
+      toast.success(`🎉 Student added successfully!`, {
+        autoClose: 5000
+      });
+      
+      // Show password in a custom alert for easy copying
+      setTimeout(() => {
+        const passwordMessage = `📧 Student: ${studentData.email}\n🔐 Temporary Password: ${tempPassword}\n\n📋 Password has been copied to clipboard automatically.`;
+        navigator.clipboard.writeText(tempPassword);
+        
+        // Create custom modal for password display
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        modal.innerHTML = `
+          <div class="bg-white rounded-xl p-6 max-w-md mx-4 shadow-2xl">
+            <div class="text-center mb-4">
+              <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <h3 class="text-xl font-bold text-gray-900 mb-2">Student Created Successfully!</h3>
+            </div>
+            
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+              <div class="flex items-start">
+                <svg class="w-5 h-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+                <div>
+                  <p class="text-sm font-semibold text-yellow-800 mb-1">Temporary Password Generated</p>
+                  <p class="text-xs text-yellow-700 mb-2">Share this password securely with the student</p>
+                  <div class="bg-yellow-100 px-3 py-2 rounded border border-yellow-300">
+                    <p class="font-mono text-sm text-yellow-900 break-all">${tempPassword}</p>
+                  </div>
+                  <p class="text-xs text-yellow-600 mt-2">✅ Password copied to clipboard</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <p class="text-xs text-blue-700 text-center">
+                <strong>Email:</strong> ${studentData.email}<br>
+                The student must change their password on first login.
+              </p>
+            </div>
+            
+            <div class="flex gap-3">
+              <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium">
+                Copy & Close
+              </button>
+              <button onclick="this.closest('.fixed').remove(); window.location.href='/admin/students'" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                View Students
+              </button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Add click outside to close
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) {
+            modal.remove();
+          }
+        });
+      }, 100);
       
       if (Object.keys(formattedUrls).length > 0) {
         toast.info('Profile scraping will be initiated by the backend', { autoClose: 5000 });
       }
       
+      // Reset form after successful creation
       setTimeout(() => {
-        navigate('/admin/students');
-      }, 2000);
+        handleReset();
+        setFormStep(1);
+      }, 3000);
       
     } catch (error) {
       console.error('Error adding student:', error);
@@ -259,7 +343,7 @@ const AdminUserCreation = () => {
     ),
     leetcode: (
       <svg className="w-5 h-5" fill="#FFA116" viewBox="0 0 24 24">
-        <path d="M13.483 0a1.374 1.374 0 0 0-.961.438L7.116 6.226l-3.854 4.126a5.266 5.266 0 0 0-1.209 2.104 5.35 5.35 0 0 0-.125.513 5.527 5.527 0 0 0 .062 2.362 5.83 5.83 0 0 0 .349 1.017 5.938 5.938 0 0 0 1.271 1.818l4.277 4.193.039.038c2.248 2.165 5.852 2.133 8.063-.074l2.396-2.392c.54-.54.54-1.414.003-1.955a1.378 1.378 0 0 0-1.951-.003l-2.396 2.392a3.021 3.021 0 0 1-4.205.038l-.02-.019-4.276-4.193c-.652-.64-.972-1.469-.948-2.263a2.68 2.68 0 0 1 .066-.523 2.545 2.545 0 0 1 .619-1.164L9.13 8.114c1.058-1.134 3.204-1.27 4.43-.278l3.501 2.831c.593.48 1.461.387 1.94-.207a1.384 1.384 0 0 0-.207-1.943l-3.5-2.831c-.8-.647-1.766-1.045-2.774-1.202l2.015-2.158A1.384 1.384 0 0 0 13.483 0zm-2.866 12.815a1.38 1.38 0 0 0-1.38 1.382 1.38 1.38 0 0 0 1.38 1.382H20.79a1.38 1.38 0 0 0 1.38-1.382 1.38 1.38 0 0 0-1.38-1.382z"/>
+        <path d="M13.483 0a1.374 1.374 0 0 0-.961.438L7.116 6.226l-3.854 4.126a5.266 5.266 0 0 0-1.209 2.104a5.35 5.35 0 0 0-.125.513a5.527 5.527 0 0 0 .062 2.362a5.83 5.83 0 0 0 .349 1.017a5.938 5.938 0 0 0 1.271 1.818l4.277 4.193l.039.038c2.248 2.165 5.852 2.133 8.063-.074l2.396-2.392c.54-.54.54-1.414.003-1.955a1.378 1.378 0 0 0-1.951-.003l-2.396 2.392a3.021 3.021 0 0 1-4.205.038l-.02-.019-4.276-4.193c-.652-.64-.972-1.469-.948-2.263a2.68 2.68 0 0 1 .066-.523a2.545 2.545 0 0 1 .619-1.164L9.13 8.114c1.058-1.134 3.204-1.27 4.43-.278l3.501 2.831c.593.48 1.461.387 1.94-.207a1.384 1.384 0 0 0-.207-1.943l-3.5-2.831c-.8-.647-1.766-1.045-2.774-1.202l2.015-2.158A1.384 1.384 0 0 0 13.483 0zm-2.866 12.815a1.38 1.38 0 0 0-1.38 1.382 1.38 1.38 0 0 0 1.38 1.382H20.79a1.38 1.38 0 0 0 1.38-1.382 1.38 1.38 0 0 0-1.38-1.382z"/>
       </svg>
     ),
     codeforces: (
@@ -303,12 +387,12 @@ const AdminUserCreation = () => {
               onClick={() => setFormStep(1)}
               className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition-all duration-300 ${
                 formStep >= 1 
-                  ? ' text-white' 
+                  ? 'bg-blue-500 text-white' 
                   : 'bg-white border-2 border-slate-300 text-slate-500'
               }`}
               type="button"
             >
-              
+              1
             </button>
             <button 
               onClick={() => validateForm() && setFormStep(2)}
@@ -357,7 +441,11 @@ const AdminUserCreation = () => {
             {formStep === 1 && (
               <div className="space-y-6 animate-fade-in ">
                 <div className="flex items-center mb-4 pb-1 border-b border-slate-200 mb-10">
-                 
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold mr-3">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
                   <h3 className="text-lg font-semibold text-slate-800">Personal Information</h3>
                 </div>
 
@@ -565,7 +653,6 @@ const AdminUserCreation = () => {
                   </div>
                   <h3 className="text-lg font-semibold text-slate-800 ">
                     Coding Profiles
-                    {/* <span className="text-sm font-normal text-slate-500 ml-2">(Optional)</span> */}
                   </h3>
                 </div>
                 
@@ -641,7 +728,7 @@ const AdminUserCreation = () => {
                   
                   <div>
                     <label htmlFor="atcoder" className="flex items-center text-sm font-medium text-slate-700 mb-2">
-                                            {platformIcons.atcoder}
+                      {platformIcons.atcoder}
                       <span className="ml-2">AtCoder Profile</span>
                     </label>
                     <div className="relative">
@@ -709,20 +796,6 @@ const AdminUserCreation = () => {
                   </div>
                 </div>
                 
-                {/* <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex">
-                    <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <div>
-                      <p className="text-sm text-blue-800 font-medium mb-1">Profile Scraping</p>
-                      <p className="text-xs text-blue-700">
-                        These URLs will be used by the backend web scraper to fetch student's coding activity and statistics. URLs should be in the format <span className="font-semibold">domain.com/username</span> or full URLs with https.
-                      </p>
-                    </div>
-                  </div>
-                </div> */}
-                
                 <div className="flex flex-col sm:flex-row justify-between gap-3 mt-8">
                   <button
                     type="button"
@@ -774,7 +847,7 @@ const AdminUserCreation = () => {
       </div>
       
       <div className="mt-6 text-center text-sm text-slate-500">
-        <p>After adding a student, a temporary password will be generated to share with them.</p>
+        <p>After adding a student, a temporary password will be generated and stored securely.</p>
       </div>
       
       {/* Add CSS for animations */}
