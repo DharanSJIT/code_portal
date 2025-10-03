@@ -1,7 +1,11 @@
+// contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   onAuthStateChanged, 
-  signOut 
+  signOut,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider
 } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -52,10 +56,52 @@ export const AuthProvider = ({ children }) => {
     return signOut(auth);
   };
 
+  // Change password function
+  const changePassword = async (currentPassword, newPassword) => {
+    if (!currentUser) {
+      throw new Error('No user is currently logged in');
+    }
+
+    try {
+      // Re-authenticate user before password change
+      const credential = EmailAuthProvider.credential(
+        currentUser.email, 
+        currentPassword
+      );
+      
+      await reauthenticateWithCredential(currentUser, credential);
+      
+      // Update to new password
+      await updatePassword(currentUser, newPassword);
+      
+      return { success: true, message: 'Password updated successfully!' };
+    } catch (error) {
+      console.error('Password change error:', error);
+      
+      let errorMessage = 'Failed to update password. ';
+      switch (error.code) {
+        case 'auth/wrong-password':
+          errorMessage += 'Current password is incorrect.';
+          break;
+        case 'auth/weak-password':
+          errorMessage += 'New password is too weak. Use at least 6 characters.';
+          break;
+        case 'auth/requires-recent-login':
+          errorMessage += 'Please log in again to change your password.';
+          break;
+        default:
+          errorMessage += 'Please try again.';
+      }
+      
+      throw new Error(errorMessage);
+    }
+  };
+
   const value = {
     currentUser,
     userData,
     logout,
+    changePassword,
     loading
   };
 

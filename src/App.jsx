@@ -26,6 +26,8 @@ import StudentList from './components/StudentList';
 import StudentDetails from './components/StudentDetails';
 import ScrapingStatus from './components/ScrapingStatus';
 import AdminLeaderboard from './components/AdminLeaderboard';
+import Profile from './components/Profile';
+import ChangePassword from './components/ChangePassword';
 
 // Auth Context
 import { AuthProvider } from './contexts/AuthContext';
@@ -175,7 +177,7 @@ function App() {
           
           {/* Legacy home route - redirect to dashboard */}
           <Route path="/home" element={<Navigate to="/dashboard" replace />} />
-          
+          <Route path="/settings" element={<Profile />} />
           {/* Leaderboard Page Route */}
           <Route path="/leaderboard" element={
             <ProtectedRoute>
