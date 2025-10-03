@@ -1,4 +1,3 @@
-// src/components/SignIn.jsx
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -40,7 +39,9 @@ const SignIn = ({ isOpen, onClose }) => {
           }
           
           // Backend verification successful, user is a student
-          handleClose();
+          if (onClose && typeof onClose === 'function') {
+            onClose();
+          }
           navigate('/home');
           return;
         } catch (backendError) {
@@ -71,7 +72,9 @@ const SignIn = ({ isOpen, onClose }) => {
           }
           
           // Firestore says user is a student, proceed
-          handleClose();
+          if (onClose && typeof onClose === 'function') {
+            onClose();
+          }
           navigate('/home');
         }
       }
@@ -118,7 +121,9 @@ const SignIn = ({ isOpen, onClose }) => {
           }
           
           // Backend verification successful, user is a student
-          handleClose();
+          if (onClose && typeof onClose === 'function') {
+            onClose();
+          }
           navigate('/home');
           return;
         } catch (backendError) {
@@ -151,7 +156,9 @@ const SignIn = ({ isOpen, onClose }) => {
           }
           
           // Firestore says user is a student, proceed
-          handleClose();
+          if (onClose && typeof onClose === 'function') {
+            onClose();
+          }
           navigate('/home');
         }
       }
@@ -166,10 +173,16 @@ const SignIn = ({ isOpen, onClose }) => {
     setEmail('');
     setPassword('');
     setAuthError(null);
-    onClose();
+    // Safe check for onClose function
+    if (onClose && typeof onClose === 'function') {
+      onClose();
+    }
   };
   
   const goToAdminLogin = () => {
+    if (onClose && typeof onClose === 'function') {
+      onClose();
+    }
     navigate('/admin/signin');
   };
 
