@@ -1,8 +1,12 @@
-
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getDashboardStats, logOutEnhanced, getCurrentUser, getUserById } from '../firebase';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  getDashboardStats,
+  logOutEnhanced,
+  getCurrentUser,
+  getUserById,
+} from "../firebase";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Custom hook for a count-up number animation
 const useCountUp = (end, duration = 1500) => {
@@ -15,7 +19,7 @@ const useCountUp = (end, duration = 1500) => {
       setCount(0);
       return;
     }
-    
+
     let frame = 0;
     const counter = setInterval(() => {
       frame++;
@@ -36,30 +40,41 @@ const useCountUp = (end, duration = 1500) => {
 };
 
 // Radial Progress Card Component
-const RadialProgressCard = ({ name, value, maxValue, percentage, color, icon, bgColor, borderColor, isMounted }) => {
+const RadialProgressCard = ({
+  name,
+  value,
+  maxValue,
+  percentage,
+  color,
+  icon,
+  bgColor,
+  borderColor,
+  isMounted,
+}) => {
   const animatedValue = useCountUp(value);
   const radius = 52;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (percentage / 100) * circumference;
 
   return (
-    <motion.div 
+    <motion.div
       className={`${bgColor} border ${borderColor} rounded-xl p-6 flex flex-col items-center justify-center text-center shadow-md transition-all duration-300`}
-      whileHover={{ 
-        y: -5, 
-        boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+      whileHover={{
+        y: -5,
+        boxShadow:
+          "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
       }}
     >
-      <motion.div 
+      <motion.div
         className="mb-3"
         whileHover={{ scale: 1.1, rotate: 5 }}
         transition={{ type: "spring", stiffness: 400, damping: 10 }}
       >
         {icon}
       </motion.div>
-      
+
       <h3 className={`font-bold text-lg mb-4 ${color}`}>{name}</h3>
-      
+
       <div className="relative w-32 h-32">
         <svg className="w-full h-full" viewBox="0 0 120 120">
           <circle
@@ -85,19 +100,19 @@ const RadialProgressCard = ({ name, value, maxValue, percentage, color, icon, bg
             initial={{ strokeDashoffset: circumference }}
             animate={{ strokeDashoffset: offset }}
             transition={{ duration: 1.5, ease: "easeOut" }}
-            style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
+            style={{ transform: "rotate(-90deg)", transformOrigin: "50% 50%" }}
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center flex-col">
-          <motion.span 
+          <motion.span
             className="text-3xl font-bold text-slate-800"
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ 
+            transition={{
               delay: 0.5,
               type: "spring",
               stiffness: 300,
-              damping: 20
+              damping: 20,
             }}
           >
             {animatedValue}
@@ -105,7 +120,7 @@ const RadialProgressCard = ({ name, value, maxValue, percentage, color, icon, bg
           <span className="text-xs text-slate-500">out of {maxValue}</span>
         </div>
       </div>
-      
+
       <p className="mt-4 text-sm text-slate-600">{percentage}% coverage</p>
     </motion.div>
   );
@@ -122,10 +137,10 @@ const AdminDashboard = () => {
       codeforces: 0,
       atcoder: 0,
       github: 0,
-      hackerrank: 0
-    }
+      hackerrank: 0,
+    },
   });
-  
+
   const [loading, setLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState([]);
   const [error, setError] = useState(null);
@@ -138,100 +153,107 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     verifyAdminAndFetchData();
-    
+
     // Set mounted after a slight delay to allow for animations
     setTimeout(() => {
       setIsMounted(true);
     }, 100);
-    
+
     // Update time every minute
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 60000);
-    
+
     // Keep sidebar closed by default on all screen sizes
     const handleResize = () => {
       if (window.innerWidth < 1024) {
         setSidebarOpen(false);
       }
     };
-    
+
     // Initial check
     handleResize();
-    
+
     // Add resize listener
-    window.addEventListener('resize', handleResize);
-    
+    window.addEventListener("resize", handleResize);
+
     return () => {
       clearInterval(timer);
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
     };
   }, []);
 
   const verifyAdminAndFetchData = async () => {
     try {
-      console.log('AdminDashboard: Verifying admin access...');
-      
-      const storedAdmin = localStorage.getItem('adminUser');
+      console.log("AdminDashboard: Verifying admin access...");
+
+      const storedAdmin = localStorage.getItem("adminUser");
       if (storedAdmin) {
         const adminData = JSON.parse(storedAdmin);
-        console.log('AdminDashboard: Found admin in localStorage:', adminData);
+        console.log("AdminDashboard: Found admin in localStorage:", adminData);
         setAdminInfo(adminData);
       }
-      
+
       const user = getCurrentUser();
-      
+
       if (!user) {
-        console.error('AdminDashboard: No user signed in');
-        setError('Please sign in to access the dashboard');
+        console.error("AdminDashboard: No user signed in");
+        setError("Please sign in to access the dashboard");
         setTimeout(() => {
-          navigate('/admin/signin');
+          navigate("/admin/signin");
         }, 2000);
         return;
       }
-      
-      console.log('AdminDashboard: Current user:', user.email);
-      
+
+      console.log("AdminDashboard: Current user:", user.email);
+
       const { user: userDoc, error: userError } = await getUserById(user.uid);
-      
+
       if (userError || !userDoc) {
-        console.error('AdminDashboard: Error fetching user profile:', userError);
-        setError('User profile not found');
+        console.error(
+          "AdminDashboard: Error fetching user profile:",
+          userError
+        );
+        setError("User profile not found");
         setTimeout(() => {
-          navigate('/admin/signin');
+          navigate("/admin/signin");
         }, 2000);
         return;
       }
-      
-      console.log('AdminDashboard: User profile:', userDoc);
-      
-      const isAdmin = userDoc.role === 'admin' || userDoc.isAdmin === true;
-      
+
+      console.log("AdminDashboard: User profile:", userDoc);
+
+      const isAdmin = userDoc.role === "admin" || userDoc.isAdmin === true;
+
       if (!isAdmin) {
-        console.error('AdminDashboard: User is not admin. Role:', userDoc.role, 'isAdmin:', userDoc.isAdmin);
-        setError('Access denied. Admin privileges required.');
+        console.error(
+          "AdminDashboard: User is not admin. Role:",
+          userDoc.role,
+          "isAdmin:",
+          userDoc.isAdmin
+        );
+        setError("Access denied. Admin privileges required.");
         setTimeout(() => {
-          navigate('/admin/signin');
+          navigate("/admin/signin");
         }, 2000);
         return;
       }
-      
-      console.log('AdminDashboard: Admin access verified!');
-      
+
+      console.log("AdminDashboard: Admin access verified!");
+
       setAdminInfo({
         uid: user.uid,
         email: user.email,
         name: userDoc.displayName || userDoc.name || user.email,
-        role: 'admin'
+        role: "admin",
       });
 
       await fetchStats();
-      
     } catch (error) {
-      console.error('AdminDashboard: Verification error:', error);
-      setError('Authentication failed. Redirecting to login...');
+      console.error("AdminDashboard: Verification error:", error);
+      setError("Authentication failed. Redirecting to login...");
       setTimeout(() => {
-        navigate('/admin/signin');
+        navigate("/admin/signin");
       }, 2000);
     }
   };
@@ -240,16 +262,20 @@ const AdminDashboard = () => {
     try {
       setLoading(true);
       setIsRefreshing(true);
-      console.log('AdminDashboard: Fetching stats...');
-      
-      const { stats: dashboardStats, recentActivity: activity, error: statsError } = await getDashboardStats();
-      
+      console.log("AdminDashboard: Fetching stats...");
+
+      const {
+        stats: dashboardStats,
+        recentActivity: activity,
+        error: statsError,
+      } = await getDashboardStats();
+
       if (statsError) {
         throw new Error(statsError);
       }
-      
-      console.log('AdminDashboard: Stats fetched successfully');
-      
+
+      console.log("AdminDashboard: Stats fetched successfully");
+
       setStats({
         totalStudents: dashboardStats.totalStudents || 0,
         activeStudents: dashboardStats.activeStudents || 0,
@@ -259,15 +285,14 @@ const AdminDashboard = () => {
           codeforces: 0,
           atcoder: 0,
           github: 0,
-          hackerrank: 0
-        }
+          hackerrank: 0,
+        },
       });
-      
+
       setRecentActivity(activity || []);
-      
     } catch (error) {
-      console.error('AdminDashboard: Error fetching stats:', error);
-      setError('Failed to load dashboard data');
+      console.error("AdminDashboard: Error fetching stats:", error);
+      setError("Failed to load dashboard data");
     } finally {
       setLoading(false);
       setTimeout(() => setIsRefreshing(false), 500);
@@ -276,15 +301,15 @@ const AdminDashboard = () => {
 
   const handleLogout = async () => {
     try {
-      console.log('AdminDashboard: Logging out...');
+      console.log("AdminDashboard: Logging out...");
       await logOutEnhanced();
-      localStorage.removeItem('adminUser');
-      localStorage.removeItem('isAdmin');
-      localStorage.removeItem('userEmail');
-      localStorage.removeItem('userId');
-      navigate('/admin/signin');
+      localStorage.removeItem("adminUser");
+      localStorage.removeItem("isAdmin");
+      localStorage.removeItem("userEmail");
+      localStorage.removeItem("userId");
+      navigate("/admin/signin");
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error);
     }
   };
 
@@ -298,39 +323,48 @@ const AdminDashboard = () => {
 
   if (error) {
     return (
-      <motion.div 
+      <motion.div
         className="flex items-center justify-center h-screen bg-slate-100"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        <motion.div 
+        <motion.div
           className="text-center bg-white p-8 rounded-2xl shadow-xl max-w-md"
           initial={{ scale: 0.9 }}
           animate={{ scale: 1 }}
-          transition={{ 
+          transition={{
             type: "spring",
             stiffness: 260,
-            damping: 20
+            damping: 20,
           }}
         >
-          <motion.div 
+          <motion.div
             className="w-16 h-16 mx-auto mb-5 flex items-center justify-center bg-red-100 rounded-full text-red-600"
-            animate={{ 
+            animate={{
               scale: [1, 1.1, 1],
               rotate: [0, 10, -10, 0],
             }}
-            transition={{ 
+            transition={{
               repeat: Infinity,
               repeatType: "reverse",
-              duration: 3
+              duration: 3,
             }}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-8 w-8"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                clipRule="evenodd"
+              />
             </svg>
           </motion.div>
-          <motion.div 
+          <motion.div
             className="text-red-600 text-xl font-semibold mb-4"
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -338,8 +372,8 @@ const AdminDashboard = () => {
           >
             {error}
           </motion.div>
-          <motion.button 
-            onClick={() => navigate('/admin/signin')}
+          <motion.button
+            onClick={() => navigate("/admin/signin")}
             className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors duration-300 font-medium shadow-lg hover:shadow-xl"
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -356,35 +390,35 @@ const AdminDashboard = () => {
 
   if (loading && !isRefreshing) {
     return (
-      <motion.div 
+      <motion.div
         className="flex items-center justify-center h-full min-h-screen bg-slate-100"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
       >
         <div className="text-center">
-          <motion.div 
+          <motion.div
             className="h-20 w-20 mx-auto mb-4 relative"
             animate={{ rotate: 360 }}
-            transition={{ 
+            transition={{
               repeat: Infinity,
               duration: 1.5,
-              ease: "linear"
+              ease: "linear",
             }}
           >
             <div className="absolute top-0 left-0 h-full w-full border-4 border-blue-100 rounded-full"></div>
             <div className="absolute top-0 left-0 h-full w-full border-4 border-blue-600 rounded-full border-t-transparent"></div>
           </motion.div>
-          <motion.p 
+          <motion.p
             className="text-slate-600 font-medium text-xl"
             animate={{ opacity: [0.5, 1, 0.5] }}
-            transition={{ 
+            transition={{
               repeat: Infinity,
-              duration: 2
+              duration: 2,
             }}
           >
             Loading dashboard...
           </motion.p>
-          <motion.p 
+          <motion.p
             className="text-slate-400 text-sm mt-2"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -411,7 +445,7 @@ const AdminDashboard = () => {
       // borderColor: "border-emerald-200",
       borderColor: "border-blue-200",
       hoverColor: "hover:bg-emerald-100",
-      action: () => navigate('/admin/add-student')
+      action: () => navigate("/admin/add-student"),
     },
     {
       title: "View Students",
@@ -425,8 +459,9 @@ const AdminDashboard = () => {
       bgColor: "bg-white-100/50",
       borderColor: "border-blue-200",
       hoverColor: "hover:bg-blue-100",
-      action: () => navigate('/admin/students')
+      action: () => navigate("/admin/students"),
     },
+
     {
       title: "Scraping Status",
       description: "Monitor data collection",
@@ -440,7 +475,7 @@ const AdminDashboard = () => {
       borderColor: "border-blue-200",
       // borderColor: "border-amber-200",
       hoverColor: "hover:bg-amber-100",
-      action: () => navigate('/admin/scraping-status')
+      action: () => navigate("/admin/scraping-status"),
     },
     {
       title: "Leaderboard",
@@ -455,7 +490,7 @@ const AdminDashboard = () => {
       // borderColor: "border-purple-200",
       borderColor: "border-blue-200",
       hoverColor: "hover:bg-purple-100",
-      action: () => navigate('/admin/leaderboard')
+      action: () => navigate("/admin/leaderboard"),
     },
   ];
 
@@ -522,111 +557,133 @@ const AdminDashboard = () => {
       // ),
       color: "text-purple-600",
       bgColor: "bg-blue-50",
-    }
+    },
   ];
 
   // Platform data with calculated percentages
   const platformData = [
-    { 
-      name: 'LeetCode', 
+    {
+      name: "LeetCode",
       value: stats.platformStats.leetcode,
       maxValue: stats.totalStudents,
-      percentage: stats.totalStudents > 0 ? Math.round((stats.platformStats.leetcode / stats.totalStudents) * 100) : 0,
-      color: 'text-yellow-500',
-      bgColor: 'bg-yellow-50',
-      borderColor: 'border-yellow-200',
+      percentage:
+        stats.totalStudents > 0
+          ? Math.round(
+              (stats.platformStats.leetcode / stats.totalStudents) * 100
+            )
+          : 0,
+      color: "text-yellow-500",
+      bgColor: "bg-yellow-50",
+      borderColor: "border-yellow-200",
       icon: (
         <svg className="w-8 h-8" fill="#FFA116" viewBox="0 0 24 24">
-          <path d="M13.483 0a1.374 1.374 0 0 0-.961.438L7.116 6.226l-3.854 4.126a5.266 5.266 0 0 0-1.209 2.104 5.35 5.35 0 0 0-.125.513 5.527 5.527 0 0 0 .062 2.362 5.83 5.83 0 0 0 .349 1.017 5.938 5.938 0 0 0 1.271 1.818l4.277 4.193.039.038c2.248 2.165 5.852 2.133 8.063-.074l2.396-2.392c.54-.54.54-1.414.003-1.955a1.378 1.378 0 0 0-1.951-.003l-2.396 2.392a3.021 3.021 0 0 1-4.205.038l-.02-.019-4.276-4.193c-.652-.64-.972-1.469-.948-2.263a2.68 2.68 0 0 1 .066-.523 2.545 2.545 0 0 1 .619-1.164L9.13 8.114c1.058-1.134 3.204-1.27 4.43-.278l3.501 2.831c.593.48 1.461.387 1.94-.207a1.384 1.384 0 0 0-.207-1.943l-3.5-2.831c-.8-.647-1.766-1.045-2.774-1.202l2.015-2.158A1.384 1.384 0 0 0 13.483 0zm-2.866 12.815a1.38 1.38 0 0 0-1.38 1.382 1.38 1.38 0 0 0 1.38 1.382H20.79a1.38 1.38 0 0 0 1.38-1.382 1.38 1.38 0 0 0-1.38-1.382z"/>
-        </svg>
-      )
-    },
-    { 
-      name: 'Codeforces', 
-      value: stats.platformStats.codeforces,
-      maxValue: stats.totalStudents,
-      percentage: stats.totalStudents > 0 ? Math.round((stats.platformStats.codeforces / stats.totalStudents) * 100) : 0,
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200',
-      icon: (
-        <svg className="w-8 h-8" fill="#1F8ACB" viewBox="0 0 24 24">
-          <path d="M4.5 7.5C5.328 7.5 6 8.172 6 9v10.5c0 .828-.672 1.5-1.5 1.5h-3C.672 21 0 20.328 0 19.5V9c0-.828.672-1.5 1.5-1.5h3zm9-4.5c.828 0 1.5.672 1.5 1.5v15c0 .828-.672 1.5-1.5 1.5h-3c-.828 0-1.5-.672-1.5-1.5v-15c0-.828.672-1.5 1.5-1.5h3zm9 7.5c.828 0 1.5.672 1.5 1.5v7.5c0 .828-.672 1.5-1.5 1.5h-3c-.828 0-1.5-.672-1.5-1.5V12c0-.828.672-1.5 1.5-1.5h3z"/>
-        </svg>
-      )
-    },
-    { 
-      name: 'AtCoder',
-      value: stats.platformStats.atcoder,
-      maxValue: stats.totalStudents,
-      percentage: stats.totalStudents > 0 ? Math.round((stats.platformStats.atcoder / stats.totalStudents) * 100) : 0, 
-      color: 'text-slate-700',
-      bgColor: 'bg-slate-50',
-      borderColor: 'border-slate-200',
-      icon: (
-        <svg className="w-8 h-8" fill="#000000" viewBox="0 0 24 24">
-          <path d="M12 0l-8 4v8l8 4 8-4V4l-8-4zm0 2.208L17.385 5 12 7.792 6.615 5 12 2.208zM5 6.5l6 3v7l-6-3v-7zm8 10v-7l6-3v7l-6 3zm-1-12.5l5 2.5-5 2.5-5-2.5 5-2.5z"/>
-        </svg>
-      )
-    },
-    
-    { 
-      name: 'HackerRank', 
-      value: stats.platformStats.hackerrank,
-      maxValue: stats.totalStudents,
-      percentage: stats.totalStudents > 0 ? Math.round((stats.platformStats.hackerrank / stats.totalStudents) * 100) : 0,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200',
-      icon: (
-        <svg className="w-8 h-8" fill="#00EA64" viewBox="0 0 24 24">
-          <path d="M12 0c1.285 0 9.75 4.886 10.392 6 .645 1.115.645 10.885 0 12S13.287 24 12 24s-9.75-4.885-10.395-6c-.641-1.115-.641-10.885 0-12C2.25 4.886 10.715 0 12 0zm2.295 6.799c-.141 0-.258.115-.258.258v3.875H9.963V6.908c0-.141-.116-.258-.258-.258H8.279c-.141 0-.258.115-.258.258v10.018c0 .143.117.258.258.258h1.426c.142 0 .258-.115.258-.258v-4.09h4.074v4.09c0 .143.116.258.258.258h1.426c.141 0 .258-.115.258-.258V6.908c0-.141-.117-.258-.258-.258h-1.426z"/>
+          <path d="M13.483 0a1.374 1.374 0 0 0-.961.438L7.116 6.226l-3.854 4.126a5.266 5.266 0 0 0-1.209 2.104 5.35 5.35 0 0 0-.125.513 5.527 5.527 0 0 0 .062 2.362 5.83 5.83 0 0 0 .349 1.017 5.938 5.938 0 0 0 1.271 1.818l4.277 4.193.039.038c2.248 2.165 5.852 2.133 8.063-.074l2.396-2.392c.54-.54.54-1.414.003-1.955a1.378 1.378 0 0 0-1.951-.003l-2.396 2.392a3.021 3.021 0 0 1-4.205.038l-.02-.019-4.276-4.193c-.652-.64-.972-1.469-.948-2.263a2.68 2.68 0 0 1 .066-.523 2.545 2.545 0 0 1 .619-1.164L9.13 8.114c1.058-1.134 3.204-1.27 4.43-.278l3.501 2.831c.593.48 1.461.387 1.94-.207a1.384 1.384 0 0 0-.207-1.943l-3.5-2.831c-.8-.647-1.766-1.045-2.774-1.202l2.015-2.158A1.384 1.384 0 0 0 13.483 0zm-2.866 12.815a1.38 1.38 0 0 0-1.38 1.382 1.38 1.38 0 0 0 1.38 1.382H20.79a1.38 1.38 0 0 0 1.38-1.382 1.38 1.38 0 0 0-1.38-1.382z" />
         </svg>
       ),
-      
     },
-    { 
-      name: 'GitHub',
+    {
+      name: "Codeforces",
+      value: stats.platformStats.codeforces,
+      maxValue: stats.totalStudents,
+      percentage:
+        stats.totalStudents > 0
+          ? Math.round(
+              (stats.platformStats.codeforces / stats.totalStudents) * 100
+            )
+          : 0,
+      color: "text-blue-500",
+      bgColor: "bg-blue-50",
+      borderColor: "border-blue-200",
+      icon: (
+        <svg className="w-8 h-8" fill="#1F8ACB" viewBox="0 0 24 24">
+          <path d="M4.5 7.5C5.328 7.5 6 8.172 6 9v10.5c0 .828-.672 1.5-1.5 1.5h-3C.672 21 0 20.328 0 19.5V9c0-.828.672-1.5 1.5-1.5h3zm9-4.5c.828 0 1.5.672 1.5 1.5v15c0 .828-.672 1.5-1.5 1.5h-3c-.828 0-1.5-.672-1.5-1.5v-15c0-.828.672-1.5 1.5-1.5h3zm9 7.5c.828 0 1.5.672 1.5 1.5v7.5c0 .828-.672 1.5-1.5 1.5h-3c-.828 0-1.5-.672-1.5-1.5V12c0-.828.672-1.5 1.5-1.5h3z" />
+        </svg>
+      ),
+    },
+    {
+      name: "AtCoder",
+      value: stats.platformStats.atcoder,
+      maxValue: stats.totalStudents,
+      percentage:
+        stats.totalStudents > 0
+          ? Math.round(
+              (stats.platformStats.atcoder / stats.totalStudents) * 100
+            )
+          : 0,
+      color: "text-slate-700",
+      bgColor: "bg-slate-50",
+      borderColor: "border-slate-200",
+      icon: (
+        <svg className="w-8 h-8" fill="#000000" viewBox="0 0 24 24">
+          <path d="M12 0l-8 4v8l8 4 8-4V4l-8-4zm0 2.208L17.385 5 12 7.792 6.615 5 12 2.208zM5 6.5l6 3v7l-6-3v-7zm8 10v-7l6-3v7l-6 3zm-1-12.5l5 2.5-5 2.5-5-2.5 5-2.5z" />
+        </svg>
+      ),
+    },
+
+    {
+      name: "HackerRank",
+      value: stats.platformStats.hackerrank,
+      maxValue: stats.totalStudents,
+      percentage:
+        stats.totalStudents > 0
+          ? Math.round(
+              (stats.platformStats.hackerrank / stats.totalStudents) * 100
+            )
+          : 0,
+      color: "text-green-600",
+      bgColor: "bg-green-50",
+      borderColor: "border-green-200",
+      icon: (
+        <svg className="w-8 h-8" fill="#00EA64" viewBox="0 0 24 24">
+          <path d="M12 0c1.285 0 9.75 4.886 10.392 6 .645 1.115.645 10.885 0 12S13.287 24 12 24s-9.75-4.885-10.395-6c-.641-1.115-.641-10.885 0-12C2.25 4.886 10.715 0 12 0zm2.295 6.799c-.141 0-.258.115-.258.258v3.875H9.963V6.908c0-.141-.116-.258-.258-.258H8.279c-.141 0-.258.115-.258.258v10.018c0 .143.117.258.258.258h1.426c.142 0 .258-.115.258-.258v-4.09h4.074v4.09c0 .143.116.258.258.258h1.426c.141 0 .258-.115.258-.258V6.908c0-.141-.117-.258-.258-.258h-1.426z" />
+        </svg>
+      ),
+    },
+    {
+      name: "GitHub",
       value: stats.platformStats.github,
       maxValue: stats.totalStudents,
-      percentage: stats.totalStudents > 0 ? Math.round((stats.platformStats.github / stats.totalStudents) * 100) : 0,
-      color: 'text-slate-900',
-      bgColor: 'bg-slate-50',
-      borderColor: 'border-slate-200',
+      percentage:
+        stats.totalStudents > 0
+          ? Math.round((stats.platformStats.github / stats.totalStudents) * 100)
+          : 0,
+      color: "text-slate-900",
+      bgColor: "bg-slate-50",
+      borderColor: "border-slate-200",
       icon: (
         <svg className="w-8 h-8" fill="#181717" viewBox="0 0 24 24">
-          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
         </svg>
-      )
+      ),
     },
   ];
 
   const fadeInUp = {
     initial: { opacity: 0, y: 30 },
     animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.5 }
+    transition: { duration: 0.5 },
   };
 
   // Sidebar variants for animations
   const sidebarVariants = {
-    open: { 
+    open: {
       x: 0,
       boxShadow: "10px 0 25px -15px rgba(0, 0, 0, 0.3)",
-      transition: { 
-        type: "spring", 
-        stiffness: 400, 
-        damping: 30 
-      }
+      transition: {
+        type: "spring",
+        stiffness: 400,
+        damping: 30,
+      },
     },
-    closed: { 
+    closed: {
       x: "-100%",
       boxShadow: "none",
-      transition: { 
-        type: "spring", 
-        stiffness: 400, 
-        damping: 30 
-      }
-    }
+      transition: {
+        type: "spring",
+        stiffness: 400,
+        damping: 30,
+      },
+    },
   };
 
   return (
@@ -634,7 +691,7 @@ const AdminDashboard = () => {
       {/* Overlay when sidebar is open on mobile */}
       <AnimatePresence>
         {sidebarOpen && (
-          <motion.div 
+          <motion.div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -643,9 +700,9 @@ const AdminDashboard = () => {
           />
         )}
       </AnimatePresence>
-      
+
       {/* Side Navigation - With toggle functionality */}
-      <motion.nav 
+      <motion.nav
         className="fixed left-0 top-0 h-screen bg-white shadow-md pt-8 z-40 w-72 overflow-auto"
         initial="closed"
         animate={sidebarOpen ? "open" : "closed"}
@@ -654,9 +711,11 @@ const AdminDashboard = () => {
         <div className="px-6 mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Portal</h1>
-            <p className="text-slate-500 text-sm mt-1">Student Progress Tracker</p>
+            <p className="text-slate-500 text-sm mt-1">
+              Student Progress Tracker
+            </p>
           </div>
-          <motion.button 
+          <motion.button
             onClick={toggleSidebar}
             className="text-slate-500 p-2 rounded-md hover:bg-slate-100"
             whileHover={{ scale: 1.1 }}
@@ -676,108 +735,211 @@ const AdminDashboard = () => {
             </motion.svg> */}
           </motion.button>
         </div>
-        
+
         <div className="mb-8 px-6">
-          <p className="text-xs text-slate-400 uppercase tracking-wider mb-3">Main Menu</p>
+          <p className="text-xs text-slate-400 uppercase tracking-wider mb-3">
+            Main Menu
+          </p>
           <ul className="space-y-1">
             <li>
-              <motion.a 
+              <motion.a
                 href="#"
                 className="flex items-center px-4 py-3 text-blue-600 bg-blue-50 rounded-lg font-medium"
                 whileHover={{ x: 5, backgroundColor: "#EFF6FF" }}
                 transition={{ type: "spring", stiffness: 300, damping: 10 }}
               >
-                <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                <svg
+                  className="w-5 h-5 mr-3"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                  />
                 </svg>
                 Dashboard
               </motion.a>
             </li>
             <li>
-              <motion.a 
-                onClick={() => navigate('/admin/students')}
+              <motion.a
+                onClick={() => navigate("/admin/students")}
                 className="flex items-center px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-lg font-medium cursor-pointer"
                 whileHover={{ x: 5, backgroundColor: "#F8FAFC" }}
                 transition={{ type: "spring", stiffness: 300, damping: 10 }}
               >
-                <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                <svg
+                  className="w-5 h-5 mr-3"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                  />
                 </svg>
                 Students
               </motion.a>
             </li>
             <li>
-              <motion.a 
-                onClick={() => navigate('/admin/leaderboard')}
+              <motion.a
+                onClick={() => navigate("/admin/leaderboard")}
                 className="flex items-center px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-lg font-medium cursor-pointer"
                 whileHover={{ x: 5, backgroundColor: "#F8FAFC" }}
                 transition={{ type: "spring", stiffness: 300, damping: 10 }}
               >
-                <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                <svg
+                  className="w-5 h-5 mr-3"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  />
                 </svg>
                 Leaderboard
               </motion.a>
             </li>
             <li>
-              <motion.a 
-                onClick={() => navigate('/admin/scraping-status')}
+              <motion.a
+                onClick={() => navigate("/admin/scraping-status")}
                 className="flex items-center px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-lg font-medium cursor-pointer"
                 whileHover={{ x: 5, backgroundColor: "#F8FAFC" }}
                 transition={{ type: "spring", stiffness: 300, damping: 10 }}
               >
-                <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                <svg
+                  className="w-5 h-5 mr-3"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                  />
                 </svg>
                 Scraping Status
               </motion.a>
             </li>
-          </ul>
-        </div>
-        
-        <div className="px-6">
-          <p className="text-xs text-slate-400 uppercase tracking-wider mb-3">Account</p>
-          <ul className="space-y-1">
+
             <li>
-              <motion.a 
+              <motion.a
+                onClick={() => navigate("/admin/passwords")}
                 className="flex items-center px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-lg font-medium cursor-pointer"
                 whileHover={{ x: 5, backgroundColor: "#F8FAFC" }}
                 transition={{ type: "spring", stiffness: 300, damping: 10 }}
               >
-                <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <svg
+                  className="w-5 h-5 mr-3"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect
+                    x="3"
+                    y="11"
+                    width="18"
+                    height="11"
+                    rx="2"
+                    ry="2"
+                  ></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                Password Manager
+              </motion.a>
+            </li>
+          </ul>
+        </div>
+
+        <div className="px-6">
+          <p className="text-xs text-slate-400 uppercase tracking-wider mb-3">
+            Account
+          </p>
+          <ul className="space-y-1">
+            <li>
+              <motion.a
+               onClick={() => navigate("/admin/setting")}
+                className="flex items-center px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-lg font-medium cursor-pointer"
+                whileHover={{ x: 5, backgroundColor: "#F8FAFC" }}
+                transition={{ type: "spring", stiffness: 300, damping: 10 }}
+              >
+                <svg
+                  className="w-5 h-5 mr-3"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
                 </svg>
                 Settings
               </motion.a>
             </li>
             <li>
-              <motion.button 
+              <motion.button
                 onClick={handleLogout}
                 className="w-full flex items-center px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg font-medium"
                 whileHover={{ x: 5, backgroundColor: "#FEF2F2" }}
                 whileTap={{ scale: 0.98 }}
                 transition={{ type: "spring", stiffness: 300, damping: 10 }}
               >
-                <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                <svg
+                  className="w-5 h-5 mr-3"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
                 </svg>
                 Logout
               </motion.button>
             </li>
           </ul>
         </div>
-        
+
         <div className="mt-auto px-6 pb-8 pt-20 absolute bottom-0 w-full">
           {adminInfo && (
-            <motion.div 
+            <motion.div
               className="flex items-center p-4 bg-slate-50 rounded-xl"
               whileHover={{ scale: 1.03 }}
               transition={{ type: "spring", stiffness: 400, damping: 10 }}
-              animate={{ 
-                boxShadow: ["0 0 0 rgba(0,0,0,0)", "0 4px 20px rgba(0,0,0,0.1)", "0 0 0 rgba(0,0,0,0)"],
+              animate={{
+                boxShadow: [
+                  "0 0 0 rgba(0,0,0,0)",
+                  "0 4px 20px rgba(0,0,0,0.1)",
+                  "0 0 0 rgba(0,0,0,0)",
+                ],
               }}
-              transition={{ 
+              transition={{
                 repeat: Infinity,
                 duration: 5,
               }}
@@ -786,8 +948,12 @@ const AdminDashboard = () => {
                 {adminInfo.name.charAt(0).toUpperCase()}
               </div>
               <div className="ml-3">
-                <p className="text-sm font-semibold text-slate-800 truncate max-w-[120px]">{adminInfo.name}</p>
-                <p className="text-xs text-slate-500 truncate max-w-[120px]">{adminInfo.email}</p>
+                <p className="text-sm font-semibold text-slate-800 truncate max-w-[120px]">
+                  {adminInfo.name}
+                </p>
+                <p className="text-xs text-slate-500 truncate max-w-[120px]">
+                  {adminInfo.email}
+                </p>
               </div>
             </motion.div>
           )}
@@ -795,9 +961,13 @@ const AdminDashboard = () => {
       </motion.nav>
 
       {/* Main Content */}
-      <div className={`${sidebarOpen ? 'lg:ml-72' : ''} transition-all duration-300 ease-in-out`}>
+      <div
+        className={`${
+          sidebarOpen ? "lg:ml-72" : ""
+        } transition-all duration-300 ease-in-out`}
+      >
         {/* Top Header */}
-        <motion.header 
+        <motion.header
           className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10"
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -806,7 +976,7 @@ const AdminDashboard = () => {
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center">
               {/* Mobile Menu Toggle Button */}
-              <motion.button 
+              <motion.button
                 onClick={toggleSidebar}
                 className="mr-3 text-slate-500 hover:text-slate-700 p-2 rounded-md hover:bg-slate-100"
                 whileHover={{ scale: 1.1, rotate: sidebarOpen ? 0 : 180 }}
@@ -814,21 +984,44 @@ const AdminDashboard = () => {
                 animate={sidebarOpen ? { rotate: 0 } : { rotate: 180 }}
                 transition={{ duration: 0.3 }}
               >
-                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  className="w-6 h-6"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   {sidebarOpen ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 19l-7-7 7-7"
+                    />
                   ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
                   )}
                 </svg>
               </motion.button>
-              
+
               <div>
-                <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">Admin Dashboard</h1>
-                <p className="text-sm text-slate-500">{currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">
+                  Admin Dashboard
+                </h1>
+                <p className="text-sm text-slate-500">
+                  {currentTime.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-3">
               <motion.button
                 onClick={handleRefresh}
@@ -837,41 +1030,65 @@ const AdminDashboard = () => {
                 whileTap={{ scale: 0.9 }}
                 disabled={isRefreshing}
               >
-                <motion.svg 
-                  className={`w-5 h-5 ${isRefreshing ? 'text-blue-600' : ''}`} 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
+                <motion.svg
+                  className={`w-5 h-5 ${isRefreshing ? "text-blue-600" : ""}`}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
                   strokeWidth="2"
                   animate={{ rotate: isRefreshing ? 360 : 0 }}
-                  transition={{ 
-                    duration: 1, 
+                  transition={{
+                    duration: 1,
                     repeat: isRefreshing ? Infinity : 0,
-                    ease: "linear"
+                    ease: "linear",
                   }}
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
                 </motion.svg>
               </motion.button>
-              
-              <motion.button 
+
+              <motion.button
                 className="p-2 text-slate-600 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors"
                 whileHover={{ scale: 1.1, backgroundColor: "#EFF6FF" }}
                 whileTap={{ scale: 0.9 }}
               >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                <svg
+                  className="w-5 h-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                  />
                 </svg>
               </motion.button>
-              
-              <motion.button 
+
+              <motion.button
                 onClick={handleLogout}
                 className="md:flex hidden items-center px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg"
                 whileHover={{ scale: 1.05, backgroundColor: "#FEF2F2" }}
                 whileTap={{ scale: 0.95 }}
               >
-                <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                <svg
+                  className="w-4 h-4 mr-2"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
                 </svg>
                 Logout
               </motion.button>
@@ -884,30 +1101,35 @@ const AdminDashboard = () => {
           {/* Stats Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {statCards.map((card, index) => (
-              <motion.div 
+              <motion.div
                 key={card.title}
                 className={`${card.bgColor} border border-slate-200 rounded-xl overflow-hidden shadow-sm`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1, duration: 0.5 }}
-                whileHover={{ 
+                whileHover={{
                   y: -5,
-                  boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+                  boxShadow:
+                    "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
                 }}
               >
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-sm font-semibold text-slate-600">{card.title}</h3>
-                    <div className={`w-12 h-12 rounded-lg ${card.color} bg-opacity-20 flex items-center justify-center`}>
+                    <h3 className="text-sm font-semibold text-slate-600">
+                      {card.title}
+                    </h3>
+                    <div
+                      className={`w-12 h-12 rounded-lg ${card.color} bg-opacity-20 flex items-center justify-center`}
+                    >
                       <motion.div
-                        animate={{ 
+                        animate={{
                           scale: [1, 1.1, 1],
                           rotate: [0, 5, -5, 0],
                         }}
-                        transition={{ 
+                        transition={{
                           repeat: Infinity,
                           repeatType: "reverse",
-                          duration: 3
+                          duration: 3,
                         }}
                       >
                         {card.icon}
@@ -917,10 +1139,14 @@ const AdminDashboard = () => {
                   <motion.div
                     initial={{ opacity: 0, scale: 0.5 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.2 + (index * 0.1) }}
+                    transition={{ delay: 0.2 + index * 0.1 }}
                   >
-                    <p className="text-3xl font-bold text-slate-800">{card.value}</p>
-                    <p className="text-sm text-slate-500 mt-1">{card.description}</p>
+                    <p className="text-3xl font-bold text-slate-800">
+                      {card.value}
+                    </p>
+                    <p className="text-sm text-slate-500 mt-1">
+                      {card.description}
+                    </p>
                   </motion.div>
                 </div>
               </motion.div>
@@ -928,19 +1154,23 @@ const AdminDashboard = () => {
           </div>
 
           {/* Platform Distribution with Radial Progress Cards */}
-          <motion.div 
+          <motion.div
             className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
             initial={fadeInUp.initial}
             animate={fadeInUp.animate}
             transition={{ ...fadeInUp.transition, delay: 0.3 }}
-            whileHover={{ boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" }}
+            whileHover={{
+              boxShadow:
+                "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+            }}
           >
             <div className="p-6 border-b border-slate-100">
               <h2 className="text-xl font-bold text-slate-800 flex items-center">
-                
                 Platform Distribution
               </h2>
-              <p className="text-slate-500 text-sm mt-1">Overview of student participation across coding platforms</p>
+              <p className="text-slate-500 text-sm mt-1">
+                Overview of student participation across coding platforms
+              </p>
             </div>
             <div className="p-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
@@ -973,7 +1203,6 @@ const AdminDashboard = () => {
           >
             <div className="p-6 border-b border-slate-100">
               <h2 className="text-xl font-bold text-slate-800 flex items-center">
-                
                 Quick Actions
               </h2>
               <p className="text-slate-500 text-sm mt-1">
