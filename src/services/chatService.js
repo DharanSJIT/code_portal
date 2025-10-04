@@ -155,7 +155,33 @@ export const chatService = {
         },
         (payload) => {
           console.log('🆕 Real-time message received:', payload.new)
-          callback(payload.new)
+          callback({type: 'INSERT', data: payload.new})
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        (payload) => {
+          console.log('🗑️ Real-time message deleted:', payload.old)
+          callback({type: 'DELETE', data: payload.old})
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        (payload) => {
+          console.log('✏️ Real-time message updated:', payload.new)
+          callback({type: 'UPDATE', data: payload.new})
         }
       )
       .subscribe()
@@ -241,8 +267,8 @@ export const chatService = {
     }
   },
 
-  // Delete specific messages by their IDs
-  async deleteMessages(messageIds) {
+  // Delete specific messages
+  async deleteMessages(conversationId, messageIds) {
     try {
       console.log('🗑️ Deleting messages:', messageIds)
 
@@ -262,19 +288,8 @@ export const chatService = {
 
       console.log(`✅ ${messageIds.length} messages deleted successfully`)
 
-      // Update the conversation's last message if needed
-      if (messageIds.length > 0) {
-        // Get the conversation ID from the first message (assuming all messages are from same conversation)
-        const { data: messageData } = await supabase
-          .from('messages')
-          .select('conversation_id')
-          .in('id', [messageIds[0]])
-          .single()
-
-        if (messageData) {
-          await this.updateConversationLastMessage(messageData.conversation_id)
-        }
-      }
+      // Update the conversation's last message
+      await this.updateConversationLastMessage(conversationId)
 
       return { data: { success: true }, error: null }
 
@@ -423,6 +438,89 @@ export const chatService = {
     } catch (error) {
       console.error('💥 Error in getUnreadMessageCount:', error)
       return { data: 0, error: null }
+    }
+  },
+  
+  // Get conversations for a specific student
+  async getStudentConversations(studentId) {
+    try {
+      console.log('🔍 Getting conversations for student:', studentId)
+      
+      const { data, error } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('student_id', studentId)
+        .order('last_message_at', { ascending: false })
+        
+      if (error) {
+        console.error('❌ Error getting student conversations:', error)
+        return { data: null, error }
+      }
+      
+      console.log(`✅ Retrieved ${data?.length || 0} conversations for student`)
+      return { data, error: null }
+      
+    } catch (error) {
+      console.error('💥 Error in getStudentConversations:', error)
+      return { data: null, error }
+    }
+  },
+  
+  // Pin/unpin important conversations
+  async togglePinnedConversation(conversationId, isPinned) {
+    try {
+      console.log(`${isPinned ? '📌' : '🔄'} ${isPinned ? 'Pinning' : 'Unpinning'} conversation:`, conversationId)
+      
+      const { error } = await supabase
+        .from('conversations')
+        .update({
+          is_pinned: isPinned,
+          pinned_at: isPinned ? new Date().toISOString() : null
+        })
+        .eq('id', conversationId)
+        
+      if (error) {
+        console.error(`❌ Error ${isPinned ? 'pinning' : 'unpinning'} conversation:`, error)
+        throw error
+      }
+      
+      console.log(`✅ Conversation successfully ${isPinned ? 'pinned' : 'unpinned'}`)
+      return { data: { success: true }, error: null }
+      
+    } catch (error) {
+      console.error('💥 Error in togglePinnedConversation:', error)
+      return { data: null, error }
+    }
+  },
+  
+  // Add support for message archiving
+  async archiveMessages(messageIds, isArchived = true) {
+    try {
+      console.log(`${isArchived ? '📦' : '🔄'} ${isArchived ? 'Archiving' : 'Unarchiving'} messages:`, messageIds)
+      
+      if (!messageIds || messageIds.length === 0) {
+        return { data: { success: true }, error: null }
+      }
+      
+      const { error } = await supabase
+        .from('messages')
+        .update({
+          is_archived: isArchived,
+          archived_at: isArchived ? new Date().toISOString() : null
+        })
+        .in('id', messageIds)
+        
+      if (error) {
+        console.error(`❌ Error ${isArchived ? 'archiving' : 'unarchiving'} messages:`, error)
+        throw error
+      }
+      
+      console.log(`✅ ${messageIds.length} messages ${isArchived ? 'archived' : 'unarchived'} successfully`)
+      return { data: { success: true }, error: null }
+      
+    } catch (error) {
+      console.error('💥 Error in archiveMessages:', error)
+      return { data: null, error }
     }
   }
 }

@@ -1,7 +1,99 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Send, Paperclip, Smile, Loader, MessageCircle, User, RefreshCw, Clock, CheckCircle, XCircle, ChevronDown, Shield } from 'lucide-react'
+import { 
+  Send, Paperclip, Smile, Loader, MessageCircle, User, RefreshCw, Clock, 
+  CheckCircle, XCircle, ChevronDown, Shield, Trash2, MoreVertical, X, Trash
+} from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { chatService } from '../../services/chatService'
+
+const scrollbarStyles = `
+  /* Custom scrollbar styles */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #c5c5c5;
+    border-radius: 10px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
+
+  @keyframes progress {
+    0% { width: 0%; }
+    50% { width: 70%; }
+    100% { width: 100%; }
+  }
+
+  .animate-progress {
+    animation: progress 2s ease-in-out infinite;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-slide-down {
+    animation: slideDown 0.3s ease-in-out;
+  }
+  
+  .message-deleted {
+    animation: fadeOut 0.5s ease forwards;
+  }
+  
+  @keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; transform: translateY(10px); height: 0; margin: 0; padding: 0; }
+  }
+
+  /* Fixed layout to prevent whole page scrolling */
+  .chat-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    overflow: hidden;
+  }
+
+  .chat-header {
+    flex-shrink: 0;
+  }
+
+  .chat-messages {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .chat-input {
+    flex-shrink: 0;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    padding: 1rem;
+  }
+`;
 
 const StudentChatPage = () => {
   const { currentUser, userData } = useAuth()
@@ -13,11 +105,19 @@ const StudentChatPage = () => {
   const [error, setError] = useState('')
   const [isOnline, setIsOnline] = useState(true)
   const [showScrollButton, setShowScrollButton] = useState(false)
+  const [deletingMessageIds, setDeletingMessageIds] = useState([])
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [selectedMessages, setSelectedMessages] = useState([])
+  const [showOptions, setShowOptions] = useState(false)
+  const [showConfirmClear, setShowConfirmClear] = useState(false)
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false)
+  const [actionInProgress, setActionInProgress] = useState(false)
   
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const subscriptionRef = useRef(null)
   const sentMessageTimestampsRef = useRef(new Set())
+  const optionsMenuRef = useRef(null)
 
   const studentUser = {
     id: currentUser?.uid,
@@ -57,6 +157,21 @@ const StudentChatPage = () => {
     
     return () => {
       messagesContainer?.removeEventListener('scroll', handleScroll)
+    }
+  }, [])
+
+  useEffect(() => {
+    // Close options menu when clicking outside
+    const handleClickOutside = (event) => {
+      if (optionsMenuRef.current && !optionsMenuRef.current.contains(event.target)) {
+        setShowOptions(false)
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside)
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [])
 
@@ -107,38 +222,70 @@ const StudentChatPage = () => {
         subscriptionRef.current.unsubscribe()
       }
 
-      subscriptionRef.current = chatService.subscribeToMessages(conversationId, (newMessage) => {
-        console.log('🆕 Real-time message received in student:', newMessage)
+      subscriptionRef.current = chatService.subscribeToMessages(conversationId, (payload) => {
+        console.log('🔄 Real-time message event:', payload)
         setIsOnline(true)
         
-        // Create message signature for our own sent messages
-        const messageKey = `${newMessage.sender_id}-${newMessage.message}-${Math.floor(new Date(newMessage.created_at).getTime() / 1000)}`
-        
-        // Only skip if this is OUR message that we just sent
-        if (newMessage.sender_id === studentUser.id && sentMessageTimestampsRef.current.has(messageKey)) {
-          console.log('🚫 Ignoring real-time update for our own message')
-          return
-        }
-        
-        setMessages(prev => {
-          // Check if message already exists by ID (most reliable check)
-          const messageExists = prev.some(msg => msg.id === newMessage.id)
-          if (messageExists) {
-            console.log('📝 Message already exists by ID, skipping...')
-            return prev
+        if (typeof payload === 'object' && payload !== null && 'type' in payload) {
+          // New format with type and data
+          if (payload.type === 'INSERT') {
+            handleNewMessage(payload.data)
+          } else if (payload.type === 'DELETE') {
+            handleDeletedMessage(payload.data)
           }
-          
-          console.log('➕ Adding new message to student chat')
-          return [...prev, newMessage].sort((a, b) => 
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          )
-        })
+        } else {
+          // Legacy format - direct message object
+          handleNewMessage(payload)
+        }
       })
 
     } catch (error) {
       console.error('❌ Error setting up real-time subscription:', error)
       setIsOnline(false)
     }
+  }
+  
+  const handleNewMessage = (newMessage) => {
+    // Create message signature for our own sent messages
+    const messageKey = `${newMessage.sender_id}-${newMessage.message}-${Math.floor(new Date(newMessage.created_at).getTime() / 1000)}`
+    
+    // Only skip if this is OUR message that we just sent
+    if (newMessage.sender_id === studentUser.id && sentMessageTimestampsRef.current.has(messageKey)) {
+      console.log('🚫 Ignoring real-time update for our own message')
+      return
+    }
+    
+    setMessages(prev => {
+      // Check if message already exists by ID (most reliable check)
+      const messageExists = prev.some(msg => msg.id === newMessage.id)
+      if (messageExists) {
+        console.log('📝 Message already exists by ID, skipping...')
+        return prev
+      }
+      
+      console.log('➕ Adding new message to student chat')
+      return [...prev, newMessage].sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      )
+    })
+  }
+  
+  const handleDeletedMessage = (deletedMessage) => {
+    console.log('🗑️ Handling deleted message in student chat:', deletedMessage)
+    
+    // First mark the message as being deleted (for animation)
+    setDeletingMessageIds(prev => [...prev, deletedMessage.id])
+    
+    // Then remove it after animation completes
+    setTimeout(() => {
+      setMessages(prev => 
+        prev.filter(msg => msg.id !== deletedMessage.id)
+      )
+      // Clean up the deleting IDs array
+      setDeletingMessageIds(prev => 
+        prev.filter(id => id !== deletedMessage.id)
+      )
+    }, 500) // Match this with your animation duration
   }
 
   const sendMessage = async (e) => {
@@ -240,6 +387,90 @@ const StudentChatPage = () => {
     }
   }
 
+  const enterSelectionMode = () => {
+    setIsSelectionMode(true)
+    setSelectedMessages([])
+    setShowOptions(false)
+  }
+
+  const exitSelectionMode = () => {
+    setIsSelectionMode(false)
+    setSelectedMessages([])
+  }
+
+  const toggleMessageSelection = (messageId, studentOnly = true) => {
+    if (!isSelectionMode) return
+
+    // If studentOnly is true, only allow selection of student's own messages
+    if (studentOnly) {
+      const msg = messages.find(m => m.id === messageId)
+      if (msg && msg.sender_id !== studentUser.id) {
+        return
+      }
+    }
+    
+    setSelectedMessages(prev => {
+      if (prev.includes(messageId)) {
+        return prev.filter(id => id !== messageId)
+      } else {
+        return [...prev, messageId]
+      }
+    })
+  }
+
+  const handleDeleteSelected = async () => {
+    if (selectedMessages.length === 0) return
+    
+    setActionInProgress(true)
+    try {
+      console.log('🗑️ Deleting selected messages:', selectedMessages)
+      
+      const { error } = await chatService.deleteMessages(
+        conversation.id, 
+        selectedMessages
+      )
+      
+      if (error) {
+        throw new Error(error)
+      }
+      
+      // We'll let the real-time subscription handle the actual removal
+      setShowConfirmDelete(false)
+      setIsSelectionMode(false)
+      setSelectedMessages([])
+      
+    } catch (error) {
+      console.error('Failed to delete messages:', error)
+      setError('Failed to delete selected messages. Please try again.')
+    } finally {
+      setActionInProgress(false)
+    }
+  }
+
+  const handleClearChat = async () => {
+    if (!conversation) return
+    
+    setActionInProgress(true)
+    try {
+      console.log('🧹 Clearing all messages from conversation:', conversation.id)
+      
+      const { error } = await chatService.clearConversation(conversation.id)
+      
+      if (error) {
+        throw new Error(error)
+      }
+      
+      setMessages([])
+      setShowConfirmClear(false)
+      
+    } catch (error) {
+      console.error('Failed to clear chat:', error)
+      setError('Failed to clear conversation. Please try again.')
+    } finally {
+      setActionInProgress(false)
+    }
+  }
+
   // Group messages by date
   const getMessageGroups = () => {
     const groups = [];
@@ -280,17 +511,26 @@ const StudentChatPage = () => {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     
+    let dayLabel;
+    
     if (date.toDateString() === today.toDateString()) {
-      return 'Today';
+      dayLabel = 'Today';
     } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
+      dayLabel = 'Yesterday';
     } else {
-      return date.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        month: 'short', 
-        day: 'numeric' 
-      });
+      // Get day of week
+      const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
+      dayLabel = weekday;
     }
+    
+    // Format date as MM/DD/YY
+    const formattedDate = date.toLocaleDateString('en-US', { 
+      month: 'numeric', 
+      day: 'numeric',
+      year: '2-digit'
+    });
+    
+    return `${dayLabel}, ${formattedDate}`;
   };
 
   if (loading) {
@@ -314,182 +554,325 @@ const StudentChatPage = () => {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Connection Status Bar - minimal version */}
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 flex justify-between items-center">
-        <div className="flex items-center text-sm">
-          <div className={`flex items-center ${isOnline ? 'text-green-600' : 'text-yellow-600'}`}>
-            <span className={`inline-block w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-yellow-500'} mr-2 animate-pulse`}></span>
-            <span className="font-medium">{isOnline ? 'Connected' : 'Connecting...'}</span>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={checkForNewMessages}
-            className="text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-colors flex items-center text-xs"
-          >
-            <RefreshCw className="w-3.5 h-3.5 mr-1" />
-            <span>Refresh</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border-b border-red-100 px-4 py-2.5 flex justify-between items-center animate-slide-down">
-          <div className="flex items-center">
-            <XCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" />
-            <p className="text-red-700 text-sm">{error}</p>
-          </div>
-          <button 
-            onClick={retryConnection}
-            className="text-red-600 hover:text-red-800 text-sm font-medium px-3 py-1 rounded hover:bg-red-100 ml-3 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      )}
-
-      {/* Messages */}
-      <div 
-        ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4 bg-gray-50"
-      >
-        <div className="max-w-2xl mx-auto space-y-6">
-          {messages.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <MessageCircle className="w-10 h-10 text-blue-400" />
+    <>
+      <style>{scrollbarStyles}</style>
+      <div className="chat-layout">
+        {/* Connection Status Bar - with options menu */}
+        <header className="chat-header bg-gray-50 border-b border-gray-200 px-4 py-2 flex justify-between items-center z-30 mt-[70px]">
+          <div className="flex items-center text-sm">
+            {isSelectionMode ? (
+              <div className="flex items-center text-gray-700">
+                <button
+                  onClick={exitSelectionMode}
+                  className="p-1.5 rounded-full hover:bg-gray-200 mr-2"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <span className="font-medium">{selectedMessages.length} selected</span>
               </div>
-              <h3 className="text-lg font-medium text-gray-800 mb-2">No messages yet</h3>
-              <p className="text-gray-500 text-sm mb-6">Start a conversation with the admin team!</p>
-              <div className="inline-flex items-center justify-center bg-blue-50 text-blue-600 px-4 py-2 rounded-full text-sm">
-                <Shield className="w-4 h-4 mr-2" />
-                <span>Support team is available</span>
+            ) : (
+              <div className={`flex items-center ${isOnline ? 'text-green-600' : 'text-yellow-600'}`}>
+                <span className={`inline-block w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-yellow-500'} mr-2 animate-pulse`}></span>
+                <span className="font-medium">{isOnline ? 'Connected' : 'Connecting...'}</span>
               </div>
-            </div>
-          ) : (
-            getMessageGroups().map((group, groupIndex) => (
-              <div key={`group-${groupIndex}`} className="space-y-4">
-                <div className="flex justify-center">
-                  <div className="inline-block bg-white px-3 py-1 text-xs font-medium text-gray-500 rounded-full shadow-sm border border-gray-100">
-                    {formatDate(group.date)}
-                  </div>
-                </div>
+            )}
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            {isSelectionMode ? (
+              selectedMessages.length > 0 && (
+                <button
+                  onClick={() => setShowConfirmDelete(true)}
+                  className="text-red-600 hover:bg-red-50 rounded-full p-1.5 transition-colors flex items-center text-xs"
+                  disabled={actionInProgress}
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1" />
+                  <span>Delete</span>
+                </button>
+              )
+            ) : (
+              <>
+                <button
+                  onClick={checkForNewMessages}
+                  className="text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-colors flex items-center text-xs"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                  <span>Refresh</span>
+                </button>
                 
-                {group.messages.map((msg, msgIndex) => {
-                  const isCurrentUser = msg.sender_id === studentUser.id;
-                  const showSender = !isCurrentUser && (
-                    msgIndex === 0 || 
-                    group.messages[msgIndex - 1]?.sender_id !== msg.sender_id
-                  );
+                <div className="relative" ref={optionsMenuRef}>
+                  <button
+                    onClick={() => setShowOptions(!showOptions)}
+                    className="text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-colors"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
                   
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div className={`flex ${!isCurrentUser && 'items-end'} max-w-xs lg:max-w-md ${showSender ? 'mt-4' : 'mt-1'}`}>
-                        {/* Admin Avatar (only show on first message in a sequence) */}
-                        {!isCurrentUser && showSender && (
-                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0">
-                            <Shield className="w-4 h-4 text-white" />
-                          </div>
-                        )}
-                        
-                        {/* Message Content with Spacing */}
-                        <div className={`flex flex-col ${!isCurrentUser && !showSender ? 'ml-10' : ''}`}>
-                          {/* Sender Name (only for admin and only on first message in sequence) */}
-                          {showSender && !isCurrentUser && (
-                            <span className="text-xs font-medium text-gray-600 mb-1 ml-1">
-                              {msg.sender_name || 'Admin Support'}
-                            </span>
+                  {showOptions && (
+                    <div className="absolute right-0 mt-1 w-44 bg-white rounded-md shadow-lg overflow-hidden z-20 border border-gray-200">
+                      <div className="py-1">
+                        <button
+                          onClick={enterSelectionMode}
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                        >
+                          <span>Select messages</span>
+                        </button>
+                        <button
+                          onClick={() => setShowConfirmClear(true)}
+                          className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+                        >
+                          <Trash className="w-4 h-4 mr-2" />
+                          <span>Clear chat</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </header>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border-b border-red-100 px-4 py-2.5 flex justify-between items-center animate-slide-down">
+            <div className="flex items-center">
+              <XCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" />
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+            <button 
+              onClick={retryConnection}
+              className="text-red-600 hover:text-red-800 text-sm font-medium px-3 py-1 rounded hover:bg-red-100 ml-3 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Messages Container - with scrollbar */}
+        <div 
+          ref={messagesContainerRef}
+          className="chat-messages custom-scrollbar bg-gray-50"
+          style={{ minHeight: "calc(90vh - 120px)" }}
+        >
+          <div className="max-w-2xl mx-auto space-y-6">
+            {messages.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <MessageCircle className="w-10 h-10 text-blue-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-800 mb-2">No messages yet</h3>
+                <p className="text-gray-500 text-sm mb-6">Start a conversation with the admin team!</p>
+                <div className="inline-flex items-center justify-center bg-blue-50 text-blue-600 px-4 py-2 rounded-full text-sm">
+                  <Shield className="w-4 h-4 mr-2" />
+                  <span>Support team is available</span>
+                </div>
+              </div>
+            ) : (
+              getMessageGroups().map((group, groupIndex) => (
+                <div key={`group-${groupIndex}`} className="space-y-4">
+                  <div className="flex justify-center">
+                    <div className="inline-block bg-white px-3 py-1 text-xs font-medium text-gray-500 rounded-full shadow-sm border border-gray-100">
+                      {formatDate(group.date)}
+                    </div>
+                  </div>
+                  
+                  {group.messages.map((msg, msgIndex) => {
+                    const isCurrentUser = msg.sender_id === studentUser.id;
+                    const showSender = !isCurrentUser && (
+                      msgIndex === 0 || 
+                      group.messages[msgIndex - 1]?.sender_id !== msg.sender_id
+                    );
+                    const isBeingDeleted = deletingMessageIds.includes(msg.id);
+                    const isSelected = selectedMessages.includes(msg.id);
+                    const isSelectable = !isSelectionMode || isCurrentUser;
+                    
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} ${isBeingDeleted ? 'message-deleted' : ''}`}
+                        onClick={() => toggleMessageSelection(msg.id, true)}
+                      >
+                        <div className={`flex ${!isCurrentUser && 'items-end'} max-w-xs lg:max-w-md ${showSender ? 'mt-4' : 'mt-1'}`}>
+                          {/* Admin Avatar (only show on first message in a sequence) */}
+                          {!isCurrentUser && showSender && (
+                            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0">
+                              <Shield className="w-4 h-4 text-white" />
+                            </div>
                           )}
                           
-                          {/* Message Bubble */}
-                          <div
-                            className={`rounded-2xl px-4 py-2.5 ${
-                              isCurrentUser
-                                ? 'bg-blue-600 text-white rounded-br-none shadow-sm'
-                                : 'bg-white text-gray-800 rounded-bl-none shadow-sm border border-gray-100'
-                            } ${msg.isTemp ? 'opacity-70' : ''}`}
-                          >
-                            <p className="text-sm whitespace-pre-wrap break-words leading-snug">{msg.message}</p>
-                            <div className={`flex items-center text-xs mt-1 ${
-                              isCurrentUser ? 'text-blue-100 justify-end' : 'text-gray-400'
-                            }`}>
-                              {msg.isTemp ? (
-                                <div className="flex items-center">
-                                  <Clock className="w-3 h-3 mr-1" />
-                                  <span>Sending...</span>
-                                </div>
-                              ) : (
-                                <>
-                                  {new Date(msg.created_at).toLocaleTimeString([], { 
-                                    hour: '2-digit', minute: '2-digit' 
-                                  })}
-                                  {isCurrentUser && (
-                                    <CheckCircle className="w-3 h-3 ml-1" />
-                                  )}
-                                </>
-                              )}
+                          {/* Message Content with Spacing */}
+                          <div className={`flex flex-col ${!isCurrentUser && !showSender ? 'ml-10' : ''}`}>
+                            {/* Sender Name (only for admin and only on first message in sequence) */}
+                            {showSender && !isCurrentUser && (
+                              <span className="text-xs font-medium text-gray-600 mb-1 ml-1">
+                                {msg.sender_name || 'Admin Support'}
+                              </span>
+                            )}
+                            
+                            {/* Message Bubble */}
+                            <div
+                              className={`rounded-2xl px-4 py-2.5 ${
+                                isCurrentUser
+                                  ? `bg-blue-600 text-white rounded-br-none shadow-sm ${isSelectionMode ? 'cursor-pointer' : ''}`
+                                  : `bg-white text-gray-800 rounded-bl-none shadow-sm border border-gray-100 ${isSelectionMode ? 'opacity-70' : ''}`
+                              } ${msg.isTemp ? 'opacity-70' : ''} ${isSelected ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}
+                            >
+                              <p className="text-sm whitespace-pre-wrap break-words leading-snug">{msg.message}</p>
+                              <div className={`flex items-center text-xs mt-1 ${
+                                isCurrentUser ? 'text-blue-100 justify-end' : 'text-gray-400'
+                              }`}>
+                                {msg.isTemp ? (
+                                  <div className="flex items-center">
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    <span>Sending...</span>
+                                  </div>
+                                ) : (
+                                  <>
+                                    {new Date(msg.created_at).toLocaleTimeString([], { 
+                                      hour: '2-digit', minute: '2-digit' 
+                                    })}
+                                    {isCurrentUser && (
+                                      <CheckCircle className="w-3 h-3 ml-1" />
+                                    )}
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ))
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Scroll to Bottom Button */}
-        {showScrollButton && (
-          <button
-            onClick={() => scrollToBottom()}
-            className="fixed bottom-20 right-6 bg-white shadow-lg rounded-full p-2.5 z-10 hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 border border-gray-200"
-          >
-            <ChevronDown className="w-5 h-5 text-gray-600" />
-          </button>
-        )}
-      </div>
-
-      {/* Message Input */}
-      <div className="bg-white border-t border-gray-200 p-4">
-        <form onSubmit={sendMessage} className="flex items-center space-x-2 max-w-2xl mx-auto">
-          <div className="flex-1 relative">
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Type a message..."
-              disabled={sending || !conversation}
-              className="w-full rounded-full py-3 px-4 pl-5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 disabled:opacity-50 transition-all duration-200 border border-gray-200 focus:border-transparent shadow-sm"
-            />
+                    );
+                  })}
+                </div>
+              ))
+            )}
+            <div ref={messagesEndRef} />
           </div>
 
-          <button
-            type="submit"
-            disabled={!message.trim() || sending || !conversation}
-            className={`p-3 rounded-full transition-all duration-200 ${
-              message.trim() && !sending && conversation
-                ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700 transform hover:scale-105' 
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            {sending ? (
-              <Loader className="w-5 h-5 animate-spin" />
-            ) : (
-              <Send className="w-5 h-5" />
-            )}
-          </button>
-        </form>
+          {/* Scroll to Bottom Button */}
+          {showScrollButton && (
+            <button
+              onClick={() => scrollToBottom()}
+              className="fixed bottom-24 right-6 bg-white shadow-lg rounded-full p-2.5 z-10 hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 border border-gray-200"
+            >
+              <ChevronDown className="w-5 h-5 text-gray-600" />
+            </button>
+          )}
+        </div>
+
+        {/* Fixed Message Input at Bottom */}
+        <footer className="chat-input shadow-md z-20">
+          <form onSubmit={sendMessage} className="flex items-center space-x-2 max-w-2xl mx-auto">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Type a message..."
+                disabled={sending || !conversation || isSelectionMode}
+                className="w-full rounded-full py-3 px-4 pl-5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 disabled:opacity-50 transition-all duration-200 border border-gray-200 focus:border-transparent shadow-sm"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={!message.trim() || sending || !conversation || isSelectionMode}
+              className={`p-3 rounded-full transition-all duration-200 ${
+                message.trim() && !sending && conversation && !isSelectionMode
+                  ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700 transform hover:scale-105' 
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              {sending ? (
+                <Loader className="w-5 h-5 animate-spin" />
+              ) : (
+                <Send className="w-5 h-5" />
+              )}
+            </button>
+          </form>
+        </footer>
+
+        {/* Clear Chat Confirmation Modal */}
+        {showConfirmClear && (
+          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 m-4 max-w-sm w-full animate-fade-in">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Clear entire chat?</h3>
+              <p className="text-gray-500 mb-5">
+                This will permanently delete all messages in this conversation. This action cannot be undone.
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowConfirmClear(false)}
+                  className="px-4 py-2 rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium"
+                  disabled={actionInProgress}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleClearChat}
+                  className="px-4 py-2 rounded-md text-white bg-red-600 hover:bg-red-700 font-medium flex items-center"
+                  disabled={actionInProgress}
+                >
+                  {actionInProgress ? (
+                    <>
+                      <Loader className="w-4 h-4 mr-2 animate-spin" />
+                      Clearing...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Clear Chat
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Messages Confirmation Modal */}
+        {showConfirmDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 m-4 max-w-sm w-full animate-fade-in">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Delete {selectedMessages.length} {selectedMessages.length === 1 ? 'message' : 'messages'}?
+              </h3>
+              <p className="text-gray-500 mb-5">
+                This action cannot be undone.
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowConfirmDelete(false)}
+                  className="px-4 py-2 rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium"
+                  disabled={actionInProgress}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteSelected}
+                  className="px-4 py-2 rounded-md text-white bg-red-600 hover:bg-red-700 font-medium flex items-center"
+                  disabled={actionInProgress}
+                >
+                  {actionInProgress ? (
+                    <>
+                      <Loader className="w-4 h-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </>
   )
 }
 
