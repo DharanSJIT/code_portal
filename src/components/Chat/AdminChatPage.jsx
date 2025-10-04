@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Search, MessageCircle, Send, Loader, User } from 'lucide-react'
+import { Search, MessageCircle, Send, Loader, User, Trash2, MoreVertical, CheckCheck, Check } from 'lucide-react'
 import { chatService } from '../../services/chatService'
 
 const AdminChatPage = () => {
@@ -11,9 +11,32 @@ const AdminChatPage = () => {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [showConversationMenu, setShowConversationMenu] = useState(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [selectedMessages, setSelectedMessages] = useState([])
+  const [multiSelectMode, setMultiSelectMode] = useState(false)
+  
   const messagesEndRef = useRef(null)
   const subscriptionRef = useRef(null)
   const sentMessageTimestampsRef = useRef(new Set())
+  const conversationMenuRef = useRef(null)
+  const deleteModalRef = useRef(null)
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (conversationMenuRef.current && !conversationMenuRef.current.contains(event.target)) {
+        setShowConversationMenu(null)
+      }
+      if (deleteModalRef.current && !deleteModalRef.current.contains(event.target)) {
+        setShowDeleteConfirm(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   useEffect(() => {
     initializeAdminChat()
@@ -29,6 +52,12 @@ const AdminChatPage = () => {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  useEffect(() => {
+    // Exit multi-select mode when conversation changes
+    setMultiSelectMode(false)
+    setSelectedMessages([])
+  }, [selectedConversation])
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -67,6 +96,8 @@ const AdminChatPage = () => {
       setMessages([])
       setError('')
       sentMessageTimestampsRef.current.clear()
+      setMultiSelectMode(false)
+      setSelectedMessages([])
       
       const { data: convMessages, error: messagesError } = await chatService.getMessages(conversation.id)
       if (messagesError) {
@@ -200,6 +231,106 @@ const AdminChatPage = () => {
     }
   }
 
+  // Delete entire conversation
+  const deleteConversation = async () => {
+    if (!selectedConversation) return
+    
+    try {
+      setDeleting(true)
+      console.log('🗑️ Deleting conversation:', selectedConversation.id)
+      
+      const { error } = await chatService.deleteConversation(selectedConversation.id)
+      
+      if (error) {
+        throw error
+      }
+      
+      // Remove from conversations list
+      setConversations(prev => prev.filter(conv => conv.id !== selectedConversation.id))
+      
+      // Clear current selection
+      setSelectedConversation(null)
+      setMessages([])
+      setShowDeleteConfirm(false)
+      
+      console.log('✅ Conversation deleted successfully')
+      
+    } catch (error) {
+      console.error('❌ Failed to delete conversation:', error)
+      setError('Failed to delete conversation. Please try again.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  // Delete selected messages
+  const deleteSelectedMessages = async () => {
+    if (selectedMessages.length === 0) return
+    
+    try {
+      setDeleting(true)
+      console.log('🗑️ Deleting messages:', selectedMessages)
+      
+      const { error } = await chatService.deleteMessages(selectedMessages)
+      
+      if (error) {
+        throw error
+      }
+      
+      // Remove messages from local state
+      setMessages(prev => prev.filter(msg => !selectedMessages.includes(msg.id)))
+      
+      // Exit multi-select mode
+      setMultiSelectMode(false)
+      setSelectedMessages([])
+      
+      console.log('✅ Messages deleted successfully')
+      
+    } catch (error) {
+      console.error('❌ Failed to delete messages:', error)
+      setError('Failed to delete messages. Please try again.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  // Toggle message selection in multi-select mode
+  const toggleMessageSelection = (messageId) => {
+    setSelectedMessages(prev => 
+      prev.includes(messageId) 
+        ? prev.filter(id => id !== messageId)
+        : [...prev, messageId]
+    )
+  }
+
+  // Clear entire chat (all messages) for current conversation
+  const clearChat = async () => {
+    if (!selectedConversation) return
+    
+    try {
+      setDeleting(true)
+      console.log('🧹 Clearing chat for conversation:', selectedConversation.id)
+      
+      const { error } = await chatService.clearConversation(selectedConversation.id)
+      
+      if (error) {
+        throw error
+      }
+      
+      // Clear messages from local state
+      setMessages([])
+      setShowDeleteConfirm(false)
+      
+      console.log('✅ Chat cleared successfully')
+      
+    } catch (error) {
+      console.error('❌ Failed to clear chat:', error)
+      setError('Failed to clear chat. Please try again.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const filteredConversations = conversations.filter(conv =>
     conv.student_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     conv.student_email?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -210,6 +341,14 @@ const AdminChatPage = () => {
       return msg.sender_name || 'Admin Support'
     }
     return msg.sender_name || selectedConversation?.student_name || 'Student'
+  }
+
+  const getDeliveryStatus = (msg) => {
+    if (msg.isTemp) return 'sending'
+    if (msg.sender_role === 'admin') {
+      return msg.read_at ? 'read' : 'delivered'
+    }
+    return null
   }
 
   if (loading) {
@@ -289,19 +428,90 @@ const AdminChatPage = () => {
           <>
             {/* Chat Header */}
             <div className="bg-white border-b border-gray-200 px-6 py-4">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
-                  <span className="text-white font-semibold text-lg">
-                    {selectedConversation.student_name?.charAt(0).toUpperCase() || 'S'}
-                  </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                    <span className="text-white font-semibold text-lg">
+                      {selectedConversation.student_name?.charAt(0).toUpperCase() || 'S'}
+                    </span>
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-800">
+                      {selectedConversation.student_name || 'Student'}
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      {selectedConversation.student_email || 'No email'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-800">
-                    {selectedConversation.student_name || 'Student'}
-                  </h2>
-                  <p className="text-sm text-gray-500">
-                    {selectedConversation.student_email || 'No email'}
-                  </p>
+                
+                {/* Chat Actions */}
+                <div className="flex items-center space-x-2" ref={conversationMenuRef}>
+                  {multiSelectMode ? (
+                    <div className="flex items-center space-x-3">
+                      <span className="text-sm text-gray-600">
+                        {selectedMessages.length} selected
+                      </span>
+                      <button
+                        onClick={deleteSelectedMessages}
+                        disabled={deleting || selectedMessages.length === 0}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                        title="Delete selected messages"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setMultiSelectMode(false)
+                          setSelectedMessages([])
+                        }}
+                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowConversationMenu(selectedConversation.id)}
+                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <MoreVertical className="w-5 h-5" />
+                      </button>
+                      
+                      {showConversationMenu === selectedConversation.id && (
+                        <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+                          <button
+                            onClick={() => {
+                              setMultiSelectMode(true)
+                              setShowConversationMenu(null)
+                            }}
+                            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            Select Messages
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowDeleteConfirm(true)
+                              setShowConversationMenu(null)
+                            }}
+                            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            Delete Conversation
+                          </button>
+                          <button
+                            onClick={() => {
+                              clearChat()
+                              setShowConversationMenu(null)
+                            }}
+                            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            Clear Chat
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -319,13 +529,20 @@ const AdminChatPage = () => {
                   messages.map((msg) => {
                     const isAdmin = msg.sender_role === 'admin' || msg.sender_id === 'admin_1'
                     const displayName = getMessageDisplayName(msg)
+                    const isSelected = selectedMessages.includes(msg.id)
+                    const deliveryStatus = getDeliveryStatus(msg)
                     
                     return (
                       <div
                         key={msg.id}
-                        className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}
+                        className={`flex ${isAdmin ? 'justify-end' : 'justify-start'} ${
+                          multiSelectMode ? 'cursor-pointer' : ''
+                        }`}
+                        onClick={() => multiSelectMode && toggleMessageSelection(msg.id)}
                       >
-                        <div className="flex flex-col max-w-xs lg:max-w-md">
+                        <div className={`flex flex-col max-w-xs lg:max-w-md transition-all duration-200 ${
+                          isSelected ? 'ring-2 ring-blue-500 rounded-lg' : ''
+                        }`}>
                           {!isAdmin && (
                             <span className="text-xs font-medium text-gray-600 mb-1 ml-3">
                               {displayName}
@@ -336,16 +553,33 @@ const AdminChatPage = () => {
                               isAdmin
                                 ? 'bg-blue-500 text-white rounded-br-none'
                                 : 'bg-gray-200 text-gray-800 rounded-bl-none'
-                            } ${msg.isTemp ? 'opacity-70' : ''}`}
+                            } ${msg.isTemp ? 'opacity-70' : ''} ${
+                              multiSelectMode ? 'hover:opacity-80' : ''
+                            }`}
                           >
                             <p className="text-sm break-words">{msg.message}</p>
-                            <p className={`text-xs mt-1 ${
-                              isAdmin ? 'text-blue-100' : 'text-gray-500'
-                            }`}>
-                              {msg.isTemp ? 'Sending...' : new Date(msg.created_at).toLocaleTimeString([], { 
-                                hour: '2-digit', minute: '2-digit' 
-                              })}
-                            </p>
+                            <div className="flex items-center justify-between mt-1">
+                              <p className={`text-xs ${
+                                isAdmin ? 'text-blue-100' : 'text-gray-500'
+                              }`}>
+                                {msg.isTemp ? 'Sending...' : new Date(msg.created_at).toLocaleTimeString([], { 
+                                  hour: '2-digit', minute: '2-digit' 
+                                })}
+                              </p>
+                              {isAdmin && deliveryStatus && (
+                                <div className="ml-2">
+                                  {deliveryStatus === 'sending' && (
+                                    <Loader className="w-3 h-3 animate-spin text-blue-200" />
+                                  )}
+                                  {deliveryStatus === 'delivered' && (
+                                    <CheckCheck className="w-3 h-3 text-blue-200" />
+                                  )}
+                                  {deliveryStatus === 'read' && (
+                                    <CheckCheck className="w-3 h-3 text-white" />
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -370,14 +604,14 @@ const AdminChatPage = () => {
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Type a message..."
-                  disabled={sending}
+                  disabled={sending || multiSelectMode}
                   className="flex-1 rounded-full py-3 px-4 bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 disabled:opacity-50"
                 />
                 <button
                   type="submit"
-                  disabled={!message.trim() || sending}
+                  disabled={!message.trim() || sending || multiSelectMode}
                   className={`p-3 rounded-full transition-all duration-200 ${
-                    message.trim() && !sending
+                    message.trim() && !sending && !multiSelectMode
                       ? 'bg-blue-500 text-white hover:bg-blue-600 transform hover:scale-105' 
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   }`}
@@ -397,6 +631,40 @@ const AdminChatPage = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div 
+            ref={deleteModalRef}
+            className="bg-white rounded-lg p-6 max-w-md mx-4"
+          >
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">
+              Delete Conversation
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this conversation? This action cannot be undone and all messages will be permanently lost.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteConversation}
+                disabled={deleting}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center space-x-2"
+              >
+                {deleting && <Loader className="w-4 h-4 animate-spin" />}
+                <span>{deleting ? 'Deleting...' : 'Delete'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

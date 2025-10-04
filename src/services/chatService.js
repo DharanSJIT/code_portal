@@ -201,5 +201,228 @@ export const chatService = {
         }
       )
       .subscribe()
+  },
+
+  // Delete entire conversation and all its messages
+  async deleteConversation(conversationId) {
+    try {
+      console.log('🗑️ Deleting conversation:', conversationId)
+
+      // First delete all messages in the conversation
+      const { error: messagesError } = await supabase
+        .from('messages')
+        .delete()
+        .eq('conversation_id', conversationId)
+
+      if (messagesError) {
+        console.error('❌ Error deleting messages:', messagesError)
+        throw messagesError
+      }
+
+      console.log('✅ All messages deleted')
+
+      // Then delete the conversation itself
+      const { error: conversationError } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversationId)
+
+      if (conversationError) {
+        console.error('❌ Error deleting conversation:', conversationError)
+        throw conversationError
+      }
+
+      console.log('✅ Conversation deleted successfully')
+      return { data: { success: true }, error: null }
+
+    } catch (error) {
+      console.error('💥 Error in deleteConversation:', error)
+      return { data: null, error }
+    }
+  },
+
+  // Delete specific messages by their IDs
+  async deleteMessages(messageIds) {
+    try {
+      console.log('🗑️ Deleting messages:', messageIds)
+
+      if (!messageIds || messageIds.length === 0) {
+        return { data: { success: true }, error: null }
+      }
+
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .in('id', messageIds)
+
+      if (error) {
+        console.error('❌ Error deleting messages:', error)
+        throw error
+      }
+
+      console.log(`✅ ${messageIds.length} messages deleted successfully`)
+
+      // Update the conversation's last message if needed
+      if (messageIds.length > 0) {
+        // Get the conversation ID from the first message (assuming all messages are from same conversation)
+        const { data: messageData } = await supabase
+          .from('messages')
+          .select('conversation_id')
+          .in('id', [messageIds[0]])
+          .single()
+
+        if (messageData) {
+          await this.updateConversationLastMessage(messageData.conversation_id)
+        }
+      }
+
+      return { data: { success: true }, error: null }
+
+    } catch (error) {
+      console.error('💥 Error in deleteMessages:', error)
+      return { data: null, error }
+    }
+  },
+
+  // Clear all messages in a conversation (keep the conversation)
+  async clearConversation(conversationId) {
+    try {
+      console.log('🧹 Clearing conversation:', conversationId)
+
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .eq('conversation_id', conversationId)
+
+      if (error) {
+        console.error('❌ Error clearing conversation messages:', error)
+        throw error
+      }
+
+      // Update conversation to show it's empty
+      const { error: updateError } = await supabase
+        .from('conversations')
+        .update({
+          last_message: 'Chat cleared',
+          last_message_at: new Date().toISOString()
+        })
+        .eq('id', conversationId)
+
+      if (updateError) {
+        console.warn('⚠️ Could not update conversation after clearing:', updateError)
+      }
+
+      console.log('✅ Conversation cleared successfully')
+      return { data: { success: true }, error: null }
+
+    } catch (error) {
+      console.error('💥 Error in clearConversation:', error)
+      return { data: null, error }
+    }
+  },
+
+  // Helper method to update conversation's last message
+  async updateConversationLastMessage(conversationId) {
+    try {
+      console.log('🔄 Updating last message for conversation:', conversationId)
+
+      // Get the most recent message in the conversation
+      const { data: messages, error: messagesError } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      if (messagesError) {
+        console.error('❌ Error getting last message:', messagesError)
+        return
+      }
+
+      let lastMessage = 'No messages yet'
+      let lastMessageAt = new Date().toISOString()
+
+      if (messages && messages.length > 0) {
+        lastMessage = messages[0].message.length > 50 
+          ? messages[0].message.substring(0, 50) + '...' 
+          : messages[0].message
+        lastMessageAt = messages[0].created_at
+      }
+
+      // Update the conversation
+      const { error: updateError } = await supabase
+        .from('conversations')
+        .update({
+          last_message: lastMessage,
+          last_message_at: lastMessageAt
+        })
+        .eq('id', conversationId)
+
+      if (updateError) {
+        console.warn('⚠️ Could not update conversation last message:', updateError)
+      } else {
+        console.log('✅ Conversation last message updated')
+      }
+
+    } catch (error) {
+      console.error('💥 Error in updateConversationLastMessage:', error)
+    }
+  },
+
+  // Mark messages as read
+  async markMessagesAsRead(messageIds, readerId = 'admin_1') {
+    try {
+      console.log('👀 Marking messages as read:', messageIds)
+
+      if (!messageIds || messageIds.length === 0) {
+        return { data: { success: true }, error: null }
+      }
+
+      const { error } = await supabase
+        .from('messages')
+        .update({
+          read_at: new Date().toISOString(),
+          read_by: readerId
+        })
+        .in('id', messageIds)
+
+      if (error) {
+        console.error('❌ Error marking messages as read:', error)
+        throw error
+      }
+
+      console.log(`✅ ${messageIds.length} messages marked as read`)
+      return { data: { success: true }, error: null }
+
+    } catch (error) {
+      console.error('💥 Error in markMessagesAsRead:', error)
+      return { data: null, error }
+    }
+  },
+
+  // Get unread message count for admin
+  async getUnreadMessageCount(adminId = 'admin_1') {
+    try {
+      console.log('📊 Getting unread message count for admin')
+
+      const { data, error } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact' })
+        .neq('sender_id', adminId) // Messages not sent by admin
+        .is('read_at', null) // Not read yet
+
+      if (error) {
+        console.error('❌ Error getting unread message count:', error)
+        return { data: 0, error: null }
+      }
+
+      const count = data?.length || 0
+      console.log(`✅ Unread messages: ${count}`)
+      return { data: count, error: null }
+
+    } catch (error) {
+      console.error('💥 Error in getUnreadMessageCount:', error)
+      return { data: 0, error: null }
+    }
   }
 }
