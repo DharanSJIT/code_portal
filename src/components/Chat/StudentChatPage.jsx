@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { 
   Send, Paperclip, Smile, Loader, MessageCircle, User, RefreshCw, Clock, 
-  CheckCircle, XCircle, ChevronDown, Shield, Trash2, MoreVertical, X, Trash
+  CheckCircle, XCircle, ChevronDown, Shield, Trash2, MoreVertical, X, Trash, ArrowLeft
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { chatService } from '../../services/chatService'
@@ -67,9 +67,9 @@ const scrollbarStyles = `
   .chat-layout {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    height: calc(100% - 10vh);
     position: absolute;
-    top: 0;
+    top: 10vh;
     right: 0;
     bottom: 0;
     left: 0;
@@ -78,6 +78,15 @@ const scrollbarStyles = `
 
   .chat-header {
     flex-shrink: 0;
+    background: rgba(128, 128, 128, 0.15);
+
+    border-bottom: 1px solid #e5e7eb;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   }
 
   .chat-messages {
@@ -89,9 +98,11 @@ const scrollbarStyles = `
 
   .chat-input {
     flex-shrink: 0;
-    background: white;
+    background: rgba(128, 128, 128, 0.1);
+
     border-top: 1px solid #e5e7eb;
     padding: 1rem;
+    width: 100%;
   }
 `;
 
@@ -533,9 +544,17 @@ const StudentChatPage = () => {
     return `${dayLabel}, ${formattedDate}`;
   };
 
+  const goBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.location.href = '/dashboard';
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-white py-20">
+      <div className="absolute top-10vh left-0 right-0 bottom-0 flex flex-col items-center justify-center bg-white py-20">
         <div className="w-16 h-16 relative mb-6">
           <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center animate-pulse">
             <MessageCircle className="w-8 h-8 text-blue-500" />
@@ -557,95 +576,111 @@ const StudentChatPage = () => {
     <>
       <style>{scrollbarStyles}</style>
       <div className="chat-layout">
-        {/* Connection Status Bar - with options menu */}
-        <header className="chat-header bg-gray-50 border-b border-gray-200 px-4 py-2 flex justify-between items-center z-30 mt-[70px]">
-          <div className="flex items-center text-sm">
-            {isSelectionMode ? (
-              <div className="flex items-center text-gray-700">
-                <button
-                  onClick={exitSelectionMode}
-                  className="p-1.5 rounded-full hover:bg-gray-200 mr-2"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-                <span className="font-medium">{selectedMessages.length} selected</span>
-              </div>
-            ) : (
-              <div className={`flex items-center ${isOnline ? 'text-green-600' : 'text-yellow-600'}`}>
-                <span className={`inline-block w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-yellow-500'} mr-2 animate-pulse`}></span>
-                <span className="font-medium">{isOnline ? 'Connected' : 'Connecting...'}</span>
-              </div>
-            )}
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            {isSelectionMode ? (
-              selectedMessages.length > 0 && (
-                <button
-                  onClick={() => setShowConfirmDelete(true)}
-                  className="text-red-600 hover:bg-red-50 rounded-full p-1.5 transition-colors flex items-center text-xs"
-                  disabled={actionInProgress}
-                >
-                  <Trash2 className="w-3.5 h-3.5 mr-1" />
-                  <span>Delete</span>
-                </button>
-              )
-            ) : (
-              <>
-                <button
-                  onClick={checkForNewMessages}
-                  className="text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-colors flex items-center text-xs"
-                >
-                  <RefreshCw className="w-3.5 h-3.5 mr-1" />
-                  <span>Refresh</span>
-                </button>
+        {/* Chat Header - Below existing 10vh main header */}
+        <div className="chat-header">
+          <div className="max-w-3xl mx-auto w-full px-4 flex items-center justify-between">
+            <div className="flex items-center">
+              <button
+                onClick={goBack}
+                className="mr-3 p-1.5 rounded-full hover:bg-gray-100 text-gray-500"
+                aria-label="Go back"
+              >
+                <ArrowLeft size={20} />
+              </button>
+              
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center shadow-sm mr-3">
+                  <Shield className="w-5 h-5 text-white" />
+                </div>
                 
-                <div className="relative" ref={optionsMenuRef}>
+                <div>
+                  <h2 className="font-semibold text-gray-800 ">Welcome to Support Chat</h2>
+                  <div className={`flex items-center text-xs ${isOnline ? 'text-green-600' : 'text-yellow-500'}`}>
+                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-yellow-500'} mr-1 animate-pulse`}></span>
+                    <span>{isOnline ? 'Online' : 'Connecting...'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center">
+              {isSelectionMode ? (
+                <div className="flex items-center text-gray-700">
                   <button
-                    onClick={() => setShowOptions(!showOptions)}
-                    className="text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-colors"
+                    onClick={exitSelectionMode}
+                    className="p-1.5 rounded-full hover:bg-gray-200 mr-2"
                   >
-                    <MoreVertical className="w-4 h-4" />
+                    <X className="w-4 h-4" />
                   </button>
+                  <span className="font-medium">{selectedMessages.length} selected</span>
                   
-                  {showOptions && (
-                    <div className="absolute right-0 mt-1 w-44 bg-white rounded-md shadow-lg overflow-hidden z-20 border border-gray-200">
-                      <div className="py-1">
-                        <button
-                          onClick={enterSelectionMode}
-                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                        >
-                          <span>Select messages</span>
-                        </button>
-                        <button
-                          onClick={() => setShowConfirmClear(true)}
-                          className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
-                        >
-                          <Trash className="w-4 h-4 mr-2" />
-                          <span>Clear chat</span>
-                        </button>
-                      </div>
-                    </div>
+                  {selectedMessages.length > 0 && (
+                    <button
+                      onClick={() => setShowConfirmDelete(true)}
+                      className="ml-3 text-red-600 hover:bg-red-50 rounded-full p-1.5 transition-colors"
+                      disabled={actionInProgress}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   )}
                 </div>
-              </>
-            )}
+              ) : (
+                <div className="flex">
+                  <button
+                    onClick={checkForNewMessages}
+                    className="mr-2 text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-colors"
+                    title="Refresh messages"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                  
+                  <div className="relative" ref={optionsMenuRef}>
+                    <button
+                      onClick={() => setShowOptions(!showOptions)}
+                      className="text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-colors"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                    
+                    {showOptions && (
+                      <div className="absolute right-0 mt-1 w-44 bg-white rounded-md shadow-lg overflow-hidden z-20 border border-gray-200">
+                        <div className="py-1">
+                          <button
+                            onClick={enterSelectionMode}
+                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                          >
+                            <span>Select messages</span>
+                          </button>
+                          <button
+                            onClick={() => setShowConfirmClear(true)}
+                            className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+                          >
+                            <Trash className="w-4 h-4 mr-2" />
+                            <span>Clear chat</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </header>
+        </div>
 
         {/* Error Message */}
         {error && (
           <div className="bg-red-50 border-b border-red-100 px-4 py-2.5 flex justify-between items-center animate-slide-down">
-            <div className="flex items-center">
+            <div className="flex items-center max-w-2xl mx-auto w-full">
               <XCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" />
-              <p className="text-red-700 text-sm">{error}</p>
+              <p className="text-red-700 text-sm flex-1">{error}</p>
+              <button 
+                onClick={retryConnection}
+                className="text-red-600 hover:text-red-800 text-sm font-medium px-3 py-1 rounded hover:bg-red-100 ml-3 transition-colors"
+              >
+                Retry
+              </button>
             </div>
-            <button 
-              onClick={retryConnection}
-              className="text-red-600 hover:text-red-800 text-sm font-medium px-3 py-1 rounded hover:bg-red-100 ml-3 transition-colors"
-            >
-              Retry
-            </button>
           </div>
         )}
 
@@ -653,7 +688,6 @@ const StudentChatPage = () => {
         <div 
           ref={messagesContainerRef}
           className="chat-messages custom-scrollbar bg-gray-50"
-          style={{ minHeight: "calc(90vh - 120px)" }}
         >
           <div className="max-w-2xl mx-auto space-y-6">
             {messages.length === 0 ? (
@@ -762,37 +796,39 @@ const StudentChatPage = () => {
         </div>
 
         {/* Fixed Message Input at Bottom */}
-        <footer className="chat-input shadow-md z-20">
-          <form onSubmit={sendMessage} className="flex items-center space-x-2 max-w-2xl mx-auto">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Type a message..."
-                disabled={sending || !conversation || isSelectionMode}
-                className="w-full rounded-full py-3 px-4 pl-5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 disabled:opacity-50 transition-all duration-200 border border-gray-200 focus:border-transparent shadow-sm"
-              />
-            </div>
+        <div className="chat-input shadow-md z-20">
+          <div className="max-w-2xl mx-auto">
+            <form onSubmit={sendMessage} className="flex items-center space-x-2">
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Type a message..."
+                  disabled={sending || !conversation || isSelectionMode}
+                  className="w-full rounded-full py-3 px-4 pl-5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 disabled:opacity-50 transition-all duration-200 border border-gray-200 focus:border-transparent shadow-sm"
+                />
+              </div>
 
-            <button
-              type="submit"
-              disabled={!message.trim() || sending || !conversation || isSelectionMode}
-              className={`p-3 rounded-full transition-all duration-200 ${
-                message.trim() && !sending && conversation && !isSelectionMode
-                  ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700 transform hover:scale-105' 
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              {sending ? (
-                <Loader className="w-5 h-5 animate-spin" />
-              ) : (
-                <Send className="w-5 h-5" />
-              )}
-            </button>
-          </form>
-        </footer>
+              <button
+                type="submit"
+                disabled={!message.trim() || sending || !conversation || isSelectionMode}
+                className={`p-3 rounded-full transition-all duration-200 ${
+                  message.trim() && !sending && conversation && !isSelectionMode
+                    ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700 transform hover:scale-105' 
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {sending ? (
+                  <Loader className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Send className="w-5 h-5" />
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
 
         {/* Clear Chat Confirmation Modal */}
         {showConfirmClear && (
