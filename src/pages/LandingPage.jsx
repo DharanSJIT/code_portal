@@ -1542,8 +1542,8 @@ const socialLinks = [
                     transition={{ delay: 0.4 }}
                     viewport={{ once: true }}
                   >
-                    Join thousands of developers who have transformed their
-                    coding journey with our all-in-one platform.
+
+Learning Data Structures and Algorithms (DSA) strengthens problem-solving skills, boosts placement performance by preparing you for coding interviews, and helps you write efficient, optimized code essential for real-world software development.
                   </motion.p>
                 </div>
               </motion.div>
