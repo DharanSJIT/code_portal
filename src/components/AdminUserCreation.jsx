@@ -212,9 +212,9 @@ const AdminUserCreation = () => {
       console.log('Firestore document created successfully');
       
       // Show success message with password in a more prominent way
-      toast.success(`🎉 Student added successfully!`, {
-        autoClose: 5000
-      });
+      // toast.success(`🎉 Student added successfully!`, {
+      //   autoClose: 5000
+      // });
       
       // Show password in a custom alert for easy copying
       setTimeout(() => {
@@ -382,30 +382,7 @@ const AdminUserCreation = () => {
           </div>
           
           {/* Step markers overlaid on the line */}
-          <div className="w-full absolute flex justify-between px-1">
-            <button 
-              onClick={() => setFormStep(1)}
-              className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition-all duration-300 ${
-                formStep >= 1 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-white border-2 border-slate-300 text-slate-500'
-              }`}
-              type="button"
-            >
-              1
-            </button>
-            <button 
-              onClick={() => validateForm() && setFormStep(2)}
-              className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition-all duration-300 ${
-                formStep >= 2 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-white border-2 border-slate-300 text-slate-500'
-              }`}
-              type="button"
-            >
-              2
-            </button>
-          </div>
+          
         </div>
       </div>
       
@@ -441,11 +418,11 @@ const AdminUserCreation = () => {
             {formStep === 1 && (
               <div className="space-y-6 animate-fade-in ">
                 <div className="flex items-center mb-4 pb-1 border-b border-slate-200 mb-10">
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold mr-3">
+                  {/* <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold mr-3">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
-                  </div>
+                  </div> */}
                   <h3 className="text-lg font-semibold text-slate-800">Personal Information</h3>
                 </div>
 

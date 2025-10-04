@@ -392,39 +392,7 @@ const AdminLeaderboard = () => {
           </p>
         </motion.div>
 
-        {/* Auto-scraping Status */}
-        {autoScraping && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                  className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center"
-                >
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </motion.div>
-                
-              </div>
-              <div className="w-48 bg-blue-200 rounded-full h-2">
-                <motion.div
-                  className="bg-blue-600 h-2 rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ 
-                    width: `${(scrapingProgress.completed / scrapingProgress.total) * 100}%` 
-                  }}
-                  transition={{ duration: 0.5 }}
-                />
-              </div>
-            </div>
-          </motion.div>
-        )}
+        
 
         {/* Last Updated Info */}
         {lastScraped && !autoScraping && (
