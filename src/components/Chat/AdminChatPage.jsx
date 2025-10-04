@@ -173,37 +173,6 @@ const scrollbarStyles = `
   .new-conversation {
     animation: highlightNew 2s ease-out;
   }
-
-  /* Unread badge animations */
-  @keyframes badgePop {
-    from { 
-      opacity: 0;
-      transform: scale(0.5);
-    }
-    to { 
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-
-  .unread-badge {
-    animation: badgePop 0.3s ease-out;
-  }
-
-  @keyframes badgePulse {
-    0%, 100% { 
-      transform: scale(1);
-      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-    }
-    50% { 
-      transform: scale(1.05);
-      box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
-    }
-  }
-
-  .unread-badge.pulse {
-    animation: badgePulse 2s ease-in-out infinite;
-  }
 `
 
 const AdminChatPage = () => {
@@ -236,7 +205,6 @@ const AdminChatPage = () => {
   const [studentProfiles, setStudentProfiles] = useState({})
   const [removingStudents, setRemovingStudents] = useState([])
   const [newConversationIds, setNewConversationIds] = useState([])
-  const [unreadCounts, setUnreadCounts] = useState({}) // New state for unread counts
   
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
@@ -249,7 +217,6 @@ const AdminChatPage = () => {
   const emojiPickerRef = useRef(null)
   const inputRef = useRef(null)
   const processedConversationIds = useRef(new Set())
-  const lastSeenMessages = useRef({}) // Track last seen message for each conversation
 
   const adminUser = {
     id: 'admin_1',
@@ -326,69 +293,6 @@ const AdminChatPage = () => {
       return () => clearTimeout(timer)
     }
   }, [newConversationIds])
-
-  // Function to calculate unread messages count for a conversation
-  const calculateUnreadCount = async (conversationId) => {
-    try {
-      const { data: msgs, error } = await chatService.getMessages(conversationId)
-      if (error || !msgs || msgs.length === 0) {
-        return 0
-      }
-      
-      const lastSeenTimestamp = lastSeenMessages.current[conversationId] || 0
-      
-      // Count messages from students (not admin) that are newer than last seen
-      const unreadCount = msgs.filter(msg => 
-        msg.sender_role === 'student' && 
-        msg.sender_id !== adminUser.id &&
-        new Date(msg.created_at).getTime() > lastSeenTimestamp
-      ).length
-      
-      return unreadCount
-    } catch (error) {
-      console.error('Error calculating unread count:', error)
-      return 0
-    }
-  }
-
-  // Update unread counts for all conversations
-  const updateUnreadCounts = async (conversations) => {
-    const counts = {}
-    
-    for (const conv of conversations) {
-      const count = await calculateUnreadCount(conv.id)
-      if (count > 0) {
-        counts[conv.id] = count
-      }
-    }
-    
-    setUnreadCounts(counts)
-  }
-
-  // Mark conversation as read when selected
-  const markConversationAsRead = (conversationId) => {
-    lastSeenMessages.current[conversationId] = Date.now()
-    setUnreadCounts(prev => {
-      const updated = { ...prev }
-      delete updated[conversationId]
-      return updated
-    })
-    
-    // Store in localStorage for persistence
-    localStorage.setItem('adminChatLastSeen', JSON.stringify(lastSeenMessages.current))
-  }
-
-  // Load last seen timestamps from localStorage
-  const loadLastSeenFromStorage = () => {
-    try {
-      const stored = localStorage.getItem('adminChatLastSeen')
-      if (stored) {
-        lastSeenMessages.current = JSON.parse(stored)
-      }
-    } catch (error) {
-      console.error('Error loading last seen data:', error)
-    }
-  }
 
   // Function to check if a conversation has real messages
   const hasRealMessages = async (conversationId) => {
@@ -501,9 +405,6 @@ const AdminChatPage = () => {
       }
       
       setStudentProfiles(profiles)
-      
-      // Update unread counts after fetching profiles
-      await updateUnreadCounts(validConversations)
     } catch (error) {
       console.error('Error fetching student profiles:', error)
     }
@@ -532,9 +433,6 @@ const AdminChatPage = () => {
     try {
       setLoading(true)
       setError('')
-      
-      // Load last seen timestamps from storage
-      loadLastSeenFromStorage()
       
       console.log('Initializing admin chat...')
       
@@ -626,9 +524,6 @@ const AdminChatPage = () => {
           if (newMessage.sender_role === 'student' && newMessage.sender_id !== adminUser.id) {
             console.log('New student message detected:', newMessage)
             
-            // Update unread count for this conversation
-            await updateSingleConversationUnreadCount(newMessage.conversation_id)
-            
             // Check if we already have this conversation
             const existsInList = conversations.some(conv => conv.id === newMessage.conversation_id)
             
@@ -654,25 +549,6 @@ const AdminChatPage = () => {
     } catch (error) {
       console.error('Error setting up global message subscription:', error)
     }
-  }
-
-  // Update unread count for a single conversation
-  const updateSingleConversationUnreadCount = async (conversationId) => {
-    // Don't count unread for currently selected conversation
-    if (selectedConversation?.id === conversationId) {
-      return
-    }
-    
-    const count = await calculateUnreadCount(conversationId)
-    setUnreadCounts(prev => {
-      const updated = { ...prev }
-      if (count > 0) {
-        updated[conversationId] = count
-      } else {
-        delete updated[conversationId]
-      }
-      return updated
-    })
   }
 
   // Handle new conversation created from a student message
@@ -724,9 +600,6 @@ const AdminChatPage = () => {
         }))
       }
     }
-
-    // Update unread count for the new conversation
-    await updateSingleConversationUnreadCount(conversation.id)
   }
 
   const handleNewConversation = async (newConversation) => {
@@ -778,9 +651,6 @@ const AdminChatPage = () => {
         }))
       }
     }
-
-    // Update unread count for the new conversation
-    await updateSingleConversationUnreadCount(newConversation.id)
   }
 
   const handleUpdatedConversation = async (updatedConversation) => {
@@ -842,9 +712,6 @@ const AdminChatPage = () => {
         )
       )
     }
-
-    // Update unread count
-    await updateSingleConversationUnreadCount(updatedConversation.id)
     
     if (selectedConversation && selectedConversation.id === updatedConversation.id) {
       setSelectedConversation(updatedConversation)
@@ -858,13 +725,6 @@ const AdminChatPage = () => {
     )
     
     processedConversationIds.current.delete(deletedConversation.id)
-    
-    // Remove unread count for deleted conversation
-    setUnreadCounts(prev => {
-      const updated = { ...prev }
-      delete updated[deletedConversation.id]
-      return updated
-    })
     
     if (selectedConversation && selectedConversation.id === deletedConversation.id) {
       setSelectedConversation(null)
@@ -881,9 +741,6 @@ const AdminChatPage = () => {
       setMessages([])
       setError('')
       sentMessageTimestampsRef.current.clear()
-      
-      // Mark conversation as read
-      markConversationAsRead(conversation.id)
       
       if (window.innerWidth < 768) {
         setShowSidebar(false)
@@ -974,11 +831,6 @@ const AdminChatPage = () => {
     
     if (selectedConversation && newMessage.conversation_id === selectedConversation.id) {
       updateConversationInList(selectedConversation.id, newMessage.message, newMessage.created_at)
-      
-      // If it's a student message and the conversation is currently selected, mark as read immediately
-      if (newMessage.sender_role === 'student' && newMessage.sender_id !== adminUser.id) {
-        markConversationAsRead(selectedConversation.id)
-      }
     }
   }
 
@@ -1026,7 +878,8 @@ const AdminChatPage = () => {
     if (e) e.preventDefault()
     
     if (!message.trim() || !selectedConversation || sending) return
-        const text = message.trim()
+
+    const text = message.trim()
     const tempId = `temp-${Date.now()}-${Math.random()}`
     const now = new Date()
     
@@ -1190,7 +1043,7 @@ const AdminChatPage = () => {
       const { error } = await chatService.clearConversation(selectedConversation.id)
       
       if (error) throw new Error(error)
-      
+              
       setMessages([])
       updateConversationInList(
         selectedConversation.id, 
@@ -1237,11 +1090,6 @@ const AdminChatPage = () => {
         setStudentProfiles(prev => {
           const updated = { ...prev }
           delete updated[studentId]
-          return updated
-        })
-        setUnreadCounts(prev => {
-          const updated = { ...prev }
-          delete updated[selectedConversation.id]
           return updated
         })
         setRemovingStudents(prev => prev.filter(id => id !== studentId))
@@ -1415,16 +1263,6 @@ const AdminChatPage = () => {
     return name.charAt(0).toUpperCase()
   }
 
-  // Get unread count for a conversation
-  const getUnreadCount = (conversationId) => {
-    return unreadCounts[conversationId] || 0
-  }
-
-  // Get total unread count
-  const getTotalUnreadCount = () => {
-    return Object.values(unreadCounts).reduce((total, count) => total + count, 0)
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -1433,7 +1271,7 @@ const AdminChatPage = () => {
             <MessageCircle className="w-8 h-8 text-white" />
           </div>
           <p className="text-gray-600 font-medium">Loading admin chat...</p>
-          <p className="text-sm text-gray-500 mt-2">Setting up real-time notifications</p>
+          <p className="text-sm text-gray-500 mt-2">Setting up real-time filtering</p>
         </div>
       </div>
     )
@@ -1447,15 +1285,7 @@ const AdminChatPage = () => {
         <div className={`${showSidebar ? 'flex' : 'hidden'} md:flex w-full md:w-80 lg:w-96 bg-white border-r border-gray-200 flex-col absolute md:relative z-20 h-full sidebar-mobile ${showSidebar ? 'open' : ''}`}>
           <div className="p-4 border-b border-gray-200 bg-white">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <h1 className="text-xl font-bold text-gray-800">Live Student Chats</h1>
-                {/* Total unread count */}
-                {getTotalUnreadCount() > 0 && (
-                  <div className="bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center animate-pulse">
-                    {getTotalUnreadCount()}
-                  </div>
-                )}
-              </div>
+              <h1 className="text-xl font-bold text-gray-800">Live Student Chats</h1>
               <div className="flex items-center space-x-2">
                 <div className="flex items-center">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -1477,7 +1307,7 @@ const AdminChatPage = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search conversations..."
+                placeholder="Search real-time conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-gray-100 rounded-lg focus:outline-none focus:bg-white focus:ring-2 focus:ring-green-500 transition-all duration-200"
@@ -1496,7 +1326,7 @@ const AdminChatPage = () => {
                     <p className="font-medium text-green-800 mb-2">🔥 Real-time Features:</p>
                     <ul className="text-green-700 space-y-1 text-left">
                       <li>• Instant new student detection</li>
-                      <li>• Live unread message counters</li>
+                      <li>• Live message monitoring</li>
                       <li>• Auto-conversation creation</li>
                       <li>• Smart filtering system</li>
                     </ul>
@@ -1505,7 +1335,7 @@ const AdminChatPage = () => {
                     <p className="font-medium text-blue-800 mb-2">📊 Status:</p>
                     <p className="text-blue-700">Conversations loaded: {conversations.length}</p>
                     <p className="text-blue-700">After filtering: {filteredConversations.length}</p>
-                    <p className="text-blue-700">Total unread: {getTotalUnreadCount()}</p>
+                    <p className="text-blue-700 mt-2 text-xs">System is monitoring for new messages</p>
                   </div>
                 </div>
               </div>
@@ -1513,18 +1343,15 @@ const AdminChatPage = () => {
               filteredConversations.map((conversation) => {
                 const isRemoving = removingStudents.includes(conversation.student_id)
                 const isNewConversation = newConversationIds.includes(conversation.id)
-                const unreadCount = getUnreadCount(conversation.id)
-                const hasUnread = unreadCount > 0
-                
                 return (
                   <div
                     key={conversation.id}
                     onClick={() => !isRemoving && selectConversation(conversation)}
-                    className={`p-3 border-b border-gray-100 cursor-pointer transition-all duration-200 hover:bg-gray-50 group relative ${
+                    className={`p-3 border-b border-gray-100 cursor-pointer transition-all duration-200 hover:bg-gray-50 group ${
                       selectedConversation?.id === conversation.id ? 'bg-green-50 border-l-4 border-l-green-500' : ''
                     } ${isRemoving ? 'student-removing pointer-events-none' : ''} ${
                       isNewConversation ? 'new-conversation bg-green-100' : ''
-                    } ${hasUnread ? 'bg-blue-50 hover:bg-blue-100' : ''}`}
+                    }`}
                   >
                     <div className="flex items-center space-x-3">
                       <div className="relative">
@@ -1541,28 +1368,20 @@ const AdminChatPage = () => {
                         {isNewConversation && (
                           <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
                         )}
-                        {/* Unread messages badge */}
-                        {hasUnread && (
-                          <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-5 h-5 flex items-center justify-center px-1 unread-badge pulse shadow-lg">
-                            {unreadCount > 99 ? '99+' : unreadCount}
-                          </div>
-                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <h3 className={`font-semibold truncate text-sm ${hasUnread ? 'text-gray-900' : 'text-gray-800'}`}>
+                          <h3 className="font-semibold text-gray-800 truncate text-sm">
                             {getStudentDisplayName(conversation)}
                             {isNewConversation && (
                               <span className="ml-1 text-xs bg-green-500 text-white px-1.5 py-0.5 rounded-full">NEW</span>
                             )}
                           </h3>
-                          <div className="flex items-center space-x-1 flex-shrink-0 ml-2">
-                            <span className={`text-xs ${hasUnread ? 'text-gray-600' : 'text-gray-400'}`}>
-                              {conversation.last_message_at ? formatTime(conversation.last_message_at) : ''}
-                            </span>
-                          </div>
+                          <span className="text-xs text-gray-400 flex-shrink-0 ml-2">
+                            {conversation.last_message_at ? formatTime(conversation.last_message_at) : ''}
+                          </span>
                         </div>
-                        <p className={`text-xs truncate mt-1 ${hasUnread ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>
+                        <p className="text-xs text-gray-500 truncate mt-1">
                           {conversation.last_message || 'No messages yet'}
                         </p>
                       </div>
@@ -1876,7 +1695,7 @@ const AdminChatPage = () => {
                   </div>
                 </div>
 
-              {/* Scroll to Bottom Button */}
+                {/* Scroll to Bottom Button */}
                 {showScrollButton && (
                   <button
                     onClick={() => scrollToBottom()}
@@ -1886,9 +1705,6 @@ const AdminChatPage = () => {
                   </button>
                 )}
               </div>
- 
-
-               
 
               {/* Message Input */}
               <div className="bg-white border-t border-gray-200 p-3 sticky bottom-0">
