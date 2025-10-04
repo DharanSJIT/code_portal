@@ -3,10 +3,12 @@ import {
   Search, MessageCircle, Send, Loader, User, RefreshCw, Clock, 
   CheckCircle, XCircle, ChevronDown, Shield, Trash2, MoreVertical, 
   X, Trash, Paperclip, Smile, Mic, Video, Phone, Info, Archive, 
-  Reply, Forward, Star, Download, Image as ImageIcon, File, Ban 
+  Reply, Forward, Star, Download, Image as ImageIcon, File, Ban, UserX 
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { chatService } from '../../services/chatService'
+import { collection, query, where, getDocs, doc, deleteDoc, onSnapshot, getDoc } from 'firebase/firestore'
+import { db } from '../../firebase'
 
 const scrollbarStyles = `
   /* Custom scrollbar styles */
@@ -137,6 +139,24 @@ const scrollbarStyles = `
     min-height: 40px;
     max-height: 120px;
   }
+
+  /* Student removal animation */
+  @keyframes slideOut {
+    from { 
+      opacity: 1;
+      transform: translateX(0);
+      max-height: 100px;
+    }
+    to { 
+      opacity: 0;
+      transform: translateX(-100%);
+      max-height: 0;
+    }
+  }
+
+  .student-removing {
+    animation: slideOut 0.3s ease-in-out forwards;
+  }
 `
 
 const AdminChatPage = () => {
@@ -156,6 +176,7 @@ const AdminChatPage = () => {
   const [showOptions, setShowOptions] = useState(false)
   const [showConfirmClear, setShowConfirmClear] = useState(false)
   const [showConfirmDelete, setShowConfirmDelete] = useState(false)
+  const [showConfirmDeleteStudent, setShowConfirmDeleteStudent] = useState(false)
   const [actionInProgress, setActionInProgress] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isTyping, setIsTyping] = useState(false)
@@ -165,6 +186,8 @@ const AdminChatPage = () => {
   const [replyingTo, setReplyingTo] = useState(null)
   const [forwardMessage, setForwardMessage] = useState(null)
   const [attachments, setAttachments] = useState([])
+  const [studentProfiles, setStudentProfiles] = useState({})
+  const [removingStudents, setRemovingStudents] = useState([])
   
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
@@ -200,7 +223,7 @@ const AdminChatPage = () => {
   }, [])
 
   useEffect(() => {
-    scrollToBottom('auto') // Use 'auto' for instant scroll when messages load
+    scrollToBottom('auto')
   }, [messages, isTyping])
 
   useEffect(() => {
@@ -218,7 +241,6 @@ const AdminChatPage = () => {
   }, [])
 
   useEffect(() => {
-    // Handle responsive sidebar
     const handleResize = () => {
       if (window.innerWidth < 768) {
         setShowSidebar(!selectedConversation)
@@ -232,13 +254,127 @@ const AdminChatPage = () => {
     return () => window.removeEventListener('resize', handleResize)
   }, [selectedConversation])
 
-  // Auto-resize textarea
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.style.height = 'auto'
       inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px'
     }
   }, [message])
+
+  // Function to check if a conversation has real messages
+  const hasRealMessages = async (conversationId) => {
+    try {
+      const { data: msgs, error } = await chatService.getMessages(conversationId)
+      if (error || !msgs || msgs.length === 0) {
+        return false
+      }
+      
+      // Check if there are any real messages (not system messages)
+      const realMessages = msgs.filter(msg => 
+        msg.message && 
+        msg.message.trim() !== '' &&
+        msg.message !== 'Conversation created' &&
+        msg.message !== 'Chat cleared' &&
+        msg.sender_role !== 'system'
+      )
+      
+      return realMessages.length > 0
+    } catch (error) {
+      console.error('Error checking messages:', error)
+      return false
+    }
+  }
+
+  // Function to determine if a conversation should be shown
+  const shouldShowConversation = (conversation) => {
+    if (!conversation) return false
+    
+    // Debug logging
+    console.log('Checking conversation:', {
+      id: conversation.id,
+      student_id: conversation.student_id,
+      last_message: conversation.last_message,
+      created_at: conversation.created_at,
+      last_message_at: conversation.last_message_at
+    })
+    
+    // Must have a student_id
+    if (!conversation.student_id) return false
+    
+    // Must have a meaningful last message
+    if (!conversation.last_message || 
+        conversation.last_message.trim() === '' ||
+        conversation.last_message === 'Conversation created' ||
+        conversation.last_message === 'Chat cleared' ||
+        conversation.last_message === 'Welcome message' ||
+        conversation.last_message.includes('joined the chat') ||
+        conversation.last_message.includes('created account')) {
+      return false
+    }
+    
+    // Check if last_message_at exists and is different from created_at
+    // This helps identify auto-created conversations
+    if (conversation.created_at && conversation.last_message_at) {
+      const createdTime = new Date(conversation.created_at).getTime()
+      const lastMessageTime = new Date(conversation.last_message_at).getTime()
+      
+      // If they're the same or very close (within 1 second), it's likely auto-created
+      if (Math.abs(lastMessageTime - createdTime) < 1000) {
+        return false
+      }
+    }
+    
+    return true
+  }
+
+  // Only fetch student profiles for conversations with real messages
+  const fetchStudentProfiles = async (conversations) => {
+    try {
+      const profiles = {}
+      
+      // Filter conversations more strictly
+      const validConversations = []
+      
+      for (const conv of conversations) {
+        if (shouldShowConversation(conv)) {
+          // Double-check by looking at actual messages
+          const hasReal = await hasRealMessages(conv.id)
+          if (hasReal) {
+            validConversations.push(conv)
+          }
+        }
+      }
+      
+      console.log('Valid conversations after filtering:', validConversations.length)
+      
+      const studentIds = validConversations.map(conv => conv.student_id).filter(id => id)
+      
+      if (studentIds.length > 0) {
+        for (const studentId of studentIds) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', studentId))
+            if (userDoc.exists()) {
+              const data = userDoc.data()
+              profiles[studentId] = {
+                id: studentId,
+                name: data.name || data.displayName || data.firstName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.email?.split('@')[0] || 'Student',
+                email: data.email || '',
+                avatar: data.photoURL || data.avatar || null,
+                isOnline: data.isOnline || false,
+                lastSeen: data.lastSeen || null
+              }
+            }
+          } catch (error) {
+            console.warn(`Could not fetch profile for student ${studentId}:`, error)
+          }
+        }
+      }
+      
+      setStudentProfiles(profiles)
+    } catch (error) {
+      console.error('Error fetching student profiles:', error)
+    }
+  }
 
   const scrollToBottom = (behavior = 'smooth') => {
     setTimeout(() => {
@@ -250,7 +386,6 @@ const AdminChatPage = () => {
     }, 100)
   }
 
-  // Force scroll to bottom when conversation is selected
   const forceScrollToBottom = () => {
     setTimeout(() => {
       const messagesContainer = messagesContainerRef.current
@@ -265,16 +400,49 @@ const AdminChatPage = () => {
       setLoading(true)
       setError('')
       
+      console.log('Initializing admin chat...')
+      
+      // Get existing conversations first
       const { data: convs, error: convError } = await chatService.getAdminConversations()
       if (convError) {
         setError('Failed to load conversations')
+        console.error('Conversation error:', convError)
       } else {
-        setConversations(convs || [])
+        console.log('Raw conversations from database:', convs?.length || 0)
+        
+        // Apply strict filtering
+        const validConversations = []
+        
+        if (convs && convs.length > 0) {
+          for (const conv of convs) {
+            if (shouldShowConversation(conv)) {
+              // Double-check with actual messages
+              const hasReal = await hasRealMessages(conv.id)
+              if (hasReal) {
+                validConversations.push(conv)
+              } else {
+                console.log('Filtered out conversation with no real messages:', conv.id)
+              }
+            } else {
+              console.log('Filtered out conversation:', conv.id, conv.last_message)
+            }
+          }
+        }
+        
+        console.log('Valid conversations after filtering:', validConversations.length)
+        setConversations(validConversations)
+        
+        // Fetch student profiles only for valid conversations
+        if (validConversations.length > 0) {
+          await fetchStudentProfiles(validConversations)
+        }
+        
         setupConversationSubscription()
       }
 
       setLoading(false)
     } catch (error) {
+      console.error('Error initializing admin chat:', error)
       setError('Failed to initialize admin chat')
       setLoading(false)
     }
@@ -287,6 +455,8 @@ const AdminChatPage = () => {
       }
 
       conversationSubscriptionRef.current = chatService.subscribeToConversations((payload) => {
+        console.log('Conversation subscription event:', payload.eventType, payload)
+        
         if (payload.eventType === 'INSERT') {
           handleNewConversation(payload.new)
         } else if (payload.eventType === 'UPDATE') {
@@ -300,7 +470,24 @@ const AdminChatPage = () => {
     }
   }
 
-  const handleNewConversation = (newConversation) => {
+  const handleNewConversation = async (newConversation) => {
+    console.log('New conversation received:', newConversation)
+    
+    // Strict filtering for new conversations
+    if (!shouldShowConversation(newConversation)) {
+      console.log('Rejected new conversation - failed shouldShowConversation')
+      return
+    }
+    
+    // Check if it has real messages
+    const hasReal = await hasRealMessages(newConversation.id)
+    if (!hasReal) {
+      console.log('Rejected new conversation - no real messages')
+      return
+    }
+
+    console.log('Accepting new conversation:', newConversation.id)
+
     setConversations(prev => {
       const exists = prev.some(conv => conv.id === newConversation.id)
       if (exists) return prev
@@ -309,9 +496,54 @@ const AdminChatPage = () => {
         new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
       )
     })
+
+    // Fetch profile for the new student
+    if (newConversation.student_id && !studentProfiles[newConversation.student_id]) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', newConversation.student_id))
+        if (userDoc.exists()) {
+          const data = userDoc.data()
+          setStudentProfiles(prev => ({
+            ...prev,
+            [newConversation.student_id]: {
+              id: newConversation.student_id,
+              name: data.name || data.displayName || data.firstName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.email?.split('@')[0] || 'Student',
+              email: data.email || '',
+              avatar: data.photoURL || data.avatar || null,
+              isOnline: data.isOnline || false,
+              lastSeen: data.lastSeen || null
+            }
+          }))
+        }
+      } catch (error) {
+        console.warn('Could not fetch new student profile:', error)
+      }
+    }
   }
 
-  const handleUpdatedConversation = (updatedConversation) => {
+  const handleUpdatedConversation = async (updatedConversation) => {
+    console.log('Updated conversation received:', updatedConversation)
+    
+    // Check if the updated conversation should still be shown
+    if (!shouldShowConversation(updatedConversation)) {
+      console.log('Removing updated conversation - failed shouldShowConversation')
+      // Remove from conversations if it no longer qualifies
+      setConversations(prev => 
+        prev.filter(conv => conv.id !== updatedConversation.id)
+      )
+      return
+    }
+    
+    // Double-check with messages
+    const hasReal = await hasRealMessages(updatedConversation.id)
+    if (!hasReal) {
+      console.log('Removing updated conversation - no real messages')
+      setConversations(prev => 
+        prev.filter(conv => conv.id !== updatedConversation.id)
+      )
+      return
+    }
+
     setConversations(prev => 
       prev.map(conv => 
         conv.id === updatedConversation.id ? updatedConversation : conv
@@ -326,6 +558,7 @@ const AdminChatPage = () => {
   }
 
   const handleDeletedConversation = (deletedConversation) => {
+    console.log('Deleted conversation:', deletedConversation)
     setConversations(prev => 
       prev.filter(conv => conv.id !== deletedConversation.id)
     )
@@ -346,7 +579,6 @@ const AdminChatPage = () => {
       setError('')
       sentMessageTimestampsRef.current.clear()
       
-      // Hide sidebar on mobile when conversation is selected
       if (window.innerWidth < 768) {
         setShowSidebar(false)
       }
@@ -361,7 +593,6 @@ const AdminChatPage = () => {
         }));
         setMessages(processedMessages || [])
         
-        // Force scroll to bottom after messages are loaded
         setTimeout(() => {
           forceScrollToBottom()
         }, 200)
@@ -572,7 +803,6 @@ const AdminChatPage = () => {
         }));
         setMessages(processedMessages)
         
-        // Scroll to bottom after refreshing messages
         setTimeout(() => {
           forceScrollToBottom()
         }, 100)
@@ -667,6 +897,57 @@ const AdminChatPage = () => {
     }
   }
 
+  // Delete chat and remove student profile from messenger only (keep Firebase account)
+  const handleDeleteStudentFromChat = async () => {
+    if (!selectedConversation) return
+    
+    setActionInProgress(true)
+    try {
+      const studentId = selectedConversation.student_id
+      
+      // Add student to removing list for animation
+      setRemovingStudents(prev => [...prev, studentId])
+      
+      // Delete all messages in the conversation
+      const { error: messagesError } = await chatService.clearConversation(selectedConversation.id)
+      if (messagesError) throw new Error('Failed to delete messages')
+      
+      // Delete the conversation from chat system
+      const { error: convError } = await chatService.deleteConversation(selectedConversation.id)
+      if (convError) throw new Error('Failed to delete conversation')
+      
+      // Remove from local state (this removes them from the messenger interface)
+      setTimeout(() => {
+        setConversations(prev => 
+          prev.filter(conv => conv.student_id !== studentId)
+        )
+        setStudentProfiles(prev => {
+          const updated = { ...prev }
+          delete updated[studentId]
+          return updated
+        })
+        setRemovingStudents(prev => prev.filter(id => id !== studentId))
+        
+        // Clear selected conversation if it was the deleted one
+        if (selectedConversation.student_id === studentId) {
+          setSelectedConversation(null)
+          setMessages([])
+          if (window.innerWidth < 768) {
+            setShowSidebar(true)
+          }
+        }
+      }, 300)
+      
+      setShowConfirmDeleteStudent(false)
+      
+    } catch (error) {
+      setError('Failed to remove student from chat: ' + error.message)
+      setRemovingStudents(prev => prev.filter(id => id !== selectedConversation?.student_id))
+    } finally {
+      setActionInProgress(false)
+    }
+  }
+
   const getMessageGroups = () => {
     const groups = [];
     let currentDate = '';
@@ -735,16 +1016,24 @@ const AdminChatPage = () => {
     }
   };
 
+  // Apply final filtering to conversations shown in UI
   const filteredConversations = conversations.filter(conv => {
-    const studentName = (conv.student_name || '').toLowerCase();
-    const studentEmail = (conv.student_email || '').toLowerCase();
-    const lastMessage = (conv.last_message || '').toLowerCase();
-    const query = searchQuery.toLowerCase();
+    // Double-check filtering at render time
+    if (!shouldShowConversation(conv)) {
+      return false
+    }
+
+    // Apply search filter
+    const studentProfile = studentProfiles[conv.student_id]
+    const studentName = studentProfile?.name || conv.student_name || 'Student'
+    const studentEmail = studentProfile?.email || conv.student_email || ''
+    const lastMessage = (conv.last_message || '').toLowerCase()
+    const query = searchQuery.toLowerCase()
     
-    return studentName.includes(query) || 
-           studentEmail.includes(query) ||
-           lastMessage.includes(query);
-  });
+    return studentName.toLowerCase().includes(query) || 
+           studentEmail.toLowerCase().includes(query) ||
+           lastMessage.includes(query)
+  })
 
   const addEmoji = (emoji) => {
     setMessage(prev => prev + emoji)
@@ -755,7 +1044,6 @@ const AdminChatPage = () => {
   const handleFileUpload = (event) => {
     const files = Array.from(event.target.files)
     setAttachments(prev => [...prev, ...files])
-    // Here you would typically upload files to your storage service
   }
 
   const findMessageById = (messageId) => {
@@ -782,12 +1070,30 @@ const AdminChatPage = () => {
   const toggleSidebar = () => {
     setShowSidebar(!showSidebar)
   }
-
-  const goBackToConversations = () => {
+    const goBackToConversations = () => {
     setSelectedConversation(null)
     if (window.innerWidth < 768) {
       setShowSidebar(true)
     }
+  }
+
+  // Get display name for student - prioritize Firebase profile data
+  const getStudentDisplayName = (conversation) => {
+    const studentProfile = studentProfiles[conversation.student_id]
+    return studentProfile?.name || conversation.student_name || 'Student'
+  }
+
+  // Get student email
+  const getStudentEmail = (conversation) => {
+    const studentProfile = studentProfiles[conversation.student_id]
+    return studentProfile?.email || conversation.student_email || 'No email'
+  }
+
+  // Get student avatar initial
+  const getStudentAvatarInitial = (conversation) => {
+    const studentProfile = studentProfiles[conversation.student_id]
+    const name = studentProfile?.name || conversation.student_name || 'Student'
+    return name.charAt(0).toUpperCase()
   }
 
   if (loading) {
@@ -798,7 +1104,7 @@ const AdminChatPage = () => {
             <MessageCircle className="w-8 h-8 text-white" />
           </div>
           <p className="text-gray-600 font-medium">Loading admin chat...</p>
-          <p className="text-sm text-gray-500 mt-2">Setting up conversations</p>
+          <p className="text-sm text-gray-500 mt-2">Filtering active conversations</p>
         </div>
       </div>
     )
@@ -812,11 +1118,12 @@ const AdminChatPage = () => {
         <div className={`${showSidebar ? 'flex' : 'hidden'} md:flex w-full md:w-80 lg:w-96 bg-white border-r border-gray-200 flex-col absolute md:relative z-20 h-full sidebar-mobile ${showSidebar ? 'open' : ''}`}>
           <div className="p-4 border-b border-gray-200 bg-white">
             <div className="flex items-center justify-between mb-4">
-              <h1 className="text-xl font-bold text-gray-800">Chats</h1>
+              <h1 className="text-xl font-bold text-gray-800">Active Chats</h1>
               <div className="flex items-center space-x-2">
                 <button 
                   onClick={initializeAdminChat}
                   className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                  title="Refresh and filter conversations"
                 >
                   <RefreshCw className="w-5 h-5 text-gray-600" />
                 </button>
@@ -829,7 +1136,7 @@ const AdminChatPage = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search students..."
+                placeholder="Search active conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-gray-100 rounded-lg focus:outline-none focus:bg-white focus:ring-2 focus:ring-green-500 transition-all duration-200"
@@ -841,43 +1148,63 @@ const AdminChatPage = () => {
             {filteredConversations.length === 0 ? (
               <div className="text-center text-gray-500 py-12">
                 <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                <p className="text-lg font-medium mb-2">No conversations</p>
-                <p className="text-sm">When students message you, they'll appear here.</p>
-              </div>
-            ) : (
-              filteredConversations.map((conversation) => (
-                <div
-                  key={conversation.id}
-                  onClick={() => selectConversation(conversation)}
-                  className={`p-3 border-b border-gray-100 cursor-pointer transition-all duration-200 hover:bg-gray-50 group ${
-                    selectedConversation?.id === conversation.id ? 'bg-green-50 border-l-4 border-l-green-500' : ''
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="relative">
-                      <div className="w-12 h-12 bg-green-400 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
-                        <span className="text-white font-semibold text-sm">
-                          {conversation.student_name?.charAt(0).toUpperCase() || 'S'}
-                        </span>
-                      </div>
-                      {/* <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white"></div> */}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-gray-800 truncate text-sm">
-                          {conversation.student_name || 'Student'}
-                        </h3>
-                        <span className="text-xs text-gray-400 flex-shrink-0 ml-2">
-                          {conversation.last_message_at ? formatTime(conversation.last_message_at) : ''}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 truncate mt-1">
-                        {conversation.last_message || 'No messages yet'}
-                      </p>
-                    </div>
+                <p className="text-lg font-medium mb-2">No active conversations</p>
+                <p className="text-sm mb-4">Students appear here only when they send real messages.</p>
+                <div className="mt-6 text-xs text-gray-400 space-y-2 px-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="font-medium text-blue-800 mb-2">🔍 Debug Info:</p>
+                    <p className="text-blue-700">Total conversations loaded: {conversations.length}</p>
+                    <p className="text-blue-700">After filtering: {filteredConversations.length}</p>
+                    <p className="text-blue-700 mt-2 text-xs">Check browser console for detailed filtering logs</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p>💡 Only real student messages are shown</p>
+                    <p>🚫 Auto-created conversations are hidden</p>
+                    <p>📱 System messages are filtered out</p>
+                    <p>⏱️ Empty conversations don't appear</p>
                   </div>
                 </div>
-              ))
+              </div>
+            ) : (
+              filteredConversations.map((conversation) => {
+                const isRemoving = removingStudents.includes(conversation.student_id)
+                return (
+                  <div
+                    key={conversation.id}
+                    onClick={() => !isRemoving && selectConversation(conversation)}
+                    className={`p-3 border-b border-gray-100 cursor-pointer transition-all duration-200 hover:bg-gray-50 group ${
+                      selectedConversation?.id === conversation.id ? 'bg-green-50 border-l-4 border-l-green-500' : ''
+                    } ${isRemoving ? 'student-removing pointer-events-none' : ''}`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="relative">
+                        <div className="w-12 h-12 bg-green-400 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
+                          <span className="text-white font-semibold text-sm">
+                            {getStudentAvatarInitial(conversation)}
+                          </span>
+                        </div>
+                        {/* Online status indicator */}
+                        {studentProfiles[conversation.student_id]?.isOnline && (
+                          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white"></div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold text-gray-800 truncate text-sm">
+                            {getStudentDisplayName(conversation)}
+                          </h3>
+                          <span className="text-xs text-gray-400 flex-shrink-0 ml-2">
+                            {conversation.last_message_at ? formatTime(conversation.last_message_at) : ''}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 truncate mt-1">
+                          {conversation.last_message || 'No messages yet'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })
             )}
           </div>
         </div>
@@ -899,23 +1226,24 @@ const AdminChatPage = () => {
                     <div className="relative">
                       <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center shadow-sm">
                         <span className="text-white font-semibold text-sm">
-                          {selectedConversation.student_name?.charAt(0).toUpperCase() || 'S'}
+                          {getStudentAvatarInitial(selectedConversation)}
                         </span>
                       </div>
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
+                      {studentProfiles[selectedConversation.student_id]?.isOnline && (
+                        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
+                      )}
                     </div>
                     <div className="flex-1">
                       <h2 className="font-semibold text-gray-800 text-sm">
-                        {selectedConversation.student_name || 'Student'}
+                        {getStudentDisplayName(selectedConversation)}
                       </h2>
                       <p className="text-xs text-gray-500">
-                        {isOnline ? 'Online' : 'Offline'} • {selectedConversation.student_email || 'No email'}
+                        {studentProfiles[selectedConversation.student_id]?.isOnline ? 'Online' : 'Offline'} • {getStudentEmail(selectedConversation)}
                       </p>
                     </div>
                   </div>
                   
                   <div className="flex items-center space-x-1">
-                    {/* Contact Info Button */}
                     {isSelectionMode ? (
                       <div className="flex items-center text-gray-700 ml-2">
                         <button
@@ -964,10 +1292,18 @@ const AdminChatPage = () => {
                               </button>
                               <button
                                 onClick={() => setShowConfirmClear(true)}
-                                className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+                                className="flex items-center px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 w-full text-left"
                               >
                                 <Trash2 className="w-4 h-4 mr-2" />
                                 <span>Clear chat</span>
+                              </button>
+                              <hr className="my-1" />
+                              <button
+                                onClick={() => setShowConfirmDeleteStudent(true)}
+                                className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+                              >
+                                <UserX className="w-4 h-4 mr-2" />
+                                <span>Remove from chat</span>
                               </button>
                             </div>
                           </div>
@@ -1027,7 +1363,7 @@ const AdminChatPage = () => {
                           <MessageCircle className="w-10 h-10 text-gray-400" />
                         </div>
                         <p className="text-lg font-medium text-gray-600 mb-2">No messages yet</p>
-                        <p className="text-gray-500 text-sm">Start a conversation with the student!</p>
+                        <p className="text-gray-500 text-sm">Start a conversation with {getStudentDisplayName(selectedConversation)}!</p>
                       </div>
                     ) : (
                       getMessageGroups().map((group, groupIndex) => (
@@ -1059,7 +1395,7 @@ const AdminChatPage = () => {
                                   {!isAdmin && showSender && (
                                     <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0">
                                       <span className="text-white font-semibold text-xs">
-                                        {msg.sender_name?.charAt(0).toUpperCase() || 'S'}
+                                        {getStudentAvatarInitial(selectedConversation)}
                                       </span>
                                     </div>
                                   )}
@@ -1069,7 +1405,7 @@ const AdminChatPage = () => {
                                     {/* Sender Name */}
                                     {showSender && !isAdmin && (
                                       <span className="text-xs font-medium text-gray-600 mb-1 ml-1">
-                                        {msg.sender_name || selectedConversation.student_name || 'Student'}
+                                        {getStudentDisplayName(selectedConversation)}
                                       </span>
                                     )}
                                     
@@ -1154,7 +1490,7 @@ const AdminChatPage = () => {
                         <div className="flex items-end max-w-xs lg:max-w-md mt-1 px-2 py-1">
                           <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0">
                             <span className="text-white font-semibold text-xs">
-                              {selectedConversation.student_name?.charAt(0).toUpperCase() || 'S'}
+                              {getStudentAvatarInitial(selectedConversation)}
                             </span>
                           </div>
                           <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 shadow-sm border border-gray-200">
@@ -1186,16 +1522,6 @@ const AdminChatPage = () => {
               {/* Message Input */}
               <div className="bg-white border-t border-gray-200 p-3 sticky bottom-0">
                 <form onSubmit={sendMessage} className="flex items-end space-x-2 max-w-3xl mx-auto">
-                  {/* Attachment Button */}
-                  
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    multiple
-                  />
-
                   {/* Emoji Picker */}
                   <div className="relative" ref={emojiPickerRef}>
                     <button
@@ -1263,25 +1589,30 @@ const AdminChatPage = () => {
                 <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                   <MessageCircle className="w-12 h-12 text-green-500" />
                 </div>
-                <h3 className="text-2xl font-semibold mb-3 text-gray-700">Welcome to Admin Chat</h3>
-                <p className="text-gray-600 mb-6">Select a conversation from the sidebar to start chatting with students.</p>
+                <h3 className="text-2xl font-semibold mb-3 text-gray-700">Smart Student Chat Filter</h3>
+                <p className="text-gray-600 mb-6">Only students who actively send messages will appear here. Auto-created conversations are automatically filtered out.</p>
                 <div className="space-y-2 text-sm text-gray-500">
-                  <p>💬 Reply to specific messages</p>
+                  <p>💬 Reply to real student messages</p>
                   <p>📎 Share files and documents</p>
                   <p>😊 Use emojis to express yourself</p>
-                  <p>🔍 Search through conversations</p>
+                  <p>🔍 Search through active conversations</p>
+                  <p>🎯 Smart filtering removes empty chats</p>
+                  <p>⏱️ Students appear only when they message first</p>
+                </div>
+                <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-yellow-800 text-sm font-medium">🔧 Debugging Mode Active</p>
+                  <p className="text-yellow-700 text-xs mt-1">Check browser console for detailed filtering information</p>
                 </div>
               </div>
             </div>
           )}
 
-         
           {/* Clear Chat Confirmation Modal */}
           {showConfirmClear && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full animate-fade-in">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Trash2 className="w-6 h-6 text-red-500" />
+                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Trash2 className="w-6 h-6 text-orange-500" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center">Clear entire chat?</h3>
                 <p className="text-gray-500 text-sm text-center mb-6">
@@ -1297,7 +1628,7 @@ const AdminChatPage = () => {
                   </button>
                   <button
                     onClick={handleClearChat}
-                    className="flex-1 px-4 py-2.5 rounded-lg text-white bg-red-500 hover:bg-red-600 font-medium transition-colors flex items-center justify-center"
+                    className="flex-1 px-4 py-2.5 rounded-lg text-white bg-orange-500 hover:bg-orange-600 font-medium transition-colors flex items-center justify-center"
                     disabled={actionInProgress}
                   >
                     {actionInProgress ? (
@@ -1347,6 +1678,55 @@ const AdminChatPage = () => {
                       </>
                     ) : (
                       'Delete'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Remove Student from Chat Confirmation Modal */}
+          {showConfirmDeleteStudent && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full animate-fade-in">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <UserX className="w-6 h-6 text-red-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center">
+                  Remove {getStudentDisplayName(selectedConversation)} from chat?
+                </h3>
+                <p className="text-gray-500 text-sm text-center mb-6">
+                  This will remove the student from your chat interface and delete all conversation history. The student's account will remain active and they can start a new conversation if needed.
+                </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <p className="text-blue-800 text-xs font-medium">ℹ️ Note: This action will:</p>
+                  <ul className="text-blue-700 text-xs mt-1 space-y-1">
+                    <li>• Remove student from your active chat list</li>
+                    <li>• Delete all chat messages permanently</li>
+                    <li>• Keep student's account active in the system</li>
+                    <li>• Allow student to start a new conversation later</li>
+                  </ul>
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setShowConfirmDeleteStudent(false)}
+                    className="flex-1 px-4 py-2.5 rounded-lg text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium transition-colors"
+                    disabled={actionInProgress}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteStudentFromChat}
+                    className="flex-1 px-4 py-2.5 rounded-lg text-white bg-red-500 hover:bg-red-600 font-medium transition-colors flex items-center justify-center"
+                    disabled={actionInProgress}
+                  >
+                    {actionInProgress ? (
+                      <>
+                        <Loader className="w-4 h-4 mr-2 animate-spin" />
+                        Removing...
+                      </>
+                    ) : (
+                      'Remove from Chat'
                     )}
                   </button>
                 </div>
