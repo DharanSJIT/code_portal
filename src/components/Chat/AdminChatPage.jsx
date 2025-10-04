@@ -13,7 +13,7 @@ const AdminChatPage = () => {
   const [error, setError] = useState('')
   const messagesEndRef = useRef(null)
   const subscriptionRef = useRef(null)
-  const sentMessageTimestampsRef = useRef(new Set()) // Track timestamps of sent messages
+  const sentMessageTimestampsRef = useRef(new Set())
 
   useEffect(() => {
     initializeAdminChat()
@@ -96,37 +96,27 @@ const AdminChatPage = () => {
       subscriptionRef.current = chatService.subscribeToMessages(conversationId, (newMessage) => {
         console.log('🆕 Real-time message received in admin:', newMessage)
         
-        // Create a unique key from message content and approximate timestamp
+        // Create message signature for our own sent messages
         const messageKey = `${newMessage.sender_id}-${newMessage.message}-${Math.floor(new Date(newMessage.created_at).getTime() / 1000)}`
         
-        // Check if we just sent this message (within last 5 seconds)
-        if (sentMessageTimestampsRef.current.has(messageKey)) {
-          console.log('🚫 Ignoring real-time update for message we just sent')
+        // Only skip if this is OUR message that we just sent (admin_1)
+        if (newMessage.sender_id === 'admin_1' && sentMessageTimestampsRef.current.has(messageKey)) {
+          console.log('🚫 Ignoring real-time update for our own message')
           return
         }
         
         setMessages(prev => {
-          // Check if message already exists by ID
+          // Check if message already exists by ID (most reliable check)
           const messageExists = prev.some(msg => msg.id === newMessage.id)
           if (messageExists) {
-            console.log('📝 Message already exists, skipping...')
-            return prev
-          }
-          
-          // Also check for duplicate by content and time (in case IDs differ)
-          const duplicateExists = prev.some(msg => 
-            msg.message === newMessage.message && 
-            msg.sender_id === newMessage.sender_id &&
-            Math.abs(new Date(msg.created_at).getTime() - new Date(newMessage.created_at).getTime()) < 2000
-          )
-          
-          if (duplicateExists) {
-            console.log('📝 Duplicate message detected, skipping...')
+            console.log('📝 Message already exists by ID, skipping...')
             return prev
           }
           
           console.log('➕ Adding new message to admin chat')
-          return [...prev, newMessage]
+          return [...prev, newMessage].sort((a, b) => 
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          )
         })
       })
 
@@ -148,14 +138,12 @@ const AdminChatPage = () => {
     const now = new Date()
     console.log('🚀 Admin sending message:', text)
     
-    // Create a key to track this message
     const messageKey = `admin_1-${text}-${Math.floor(now.getTime() / 1000)}`
     sentMessageTimestampsRef.current.add(messageKey)
     
-    // Clean up old timestamps after 5 seconds
     setTimeout(() => {
       sentMessageTimestampsRef.current.delete(messageKey)
-    }, 5000)
+    }, 3000)
     
     const tempMessage = {
       id: tempId,
@@ -188,7 +176,6 @@ const AdminChatPage = () => {
 
       console.log('✅ Admin message sent successfully:', result.data)
       
-      // Replace temp message with real message
       setMessages(prev => 
         prev.map(msg => 
           msg.id === tempId ? { ...result.data, isTemp: false } : msg
@@ -214,9 +201,16 @@ const AdminChatPage = () => {
   }
 
   const filteredConversations = conversations.filter(conv =>
-    conv.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    conv.student_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     conv.student_email?.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  const getMessageDisplayName = (msg) => {
+    if (msg.sender_role === 'admin') {
+      return msg.sender_name || 'Admin Support'
+    }
+    return msg.sender_name || selectedConversation?.student_name || 'Student'
+  }
 
   if (loading) {
     return (
@@ -249,36 +243,43 @@ const AdminChatPage = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {filteredConversations.map((conversation) => (
-            <div
-              key={conversation.id}
-              onClick={() => selectConversation(conversation)}
-              className={`p-4 border-b border-gray-100 cursor-pointer transition-all duration-200 hover:bg-gray-50 ${
-                selectedConversation?.id === conversation.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
-              }`}
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
-                  <span className="text-white font-semibold">
-                    {conversation.student_name.charAt(0)}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-800 truncate">
-                    {conversation.student_name}
-                  </h3>
-                  <p className="text-sm text-gray-500 truncate">
-                    {conversation.last_message}
-                  </p>
-                </div>
-                <div className="text-xs text-gray-400">
-                  {new Date(conversation.last_message_at).toLocaleTimeString([], {
-                    hour: '2-digit', minute: '2-digit'
-                  })}
+          {filteredConversations.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">No conversations found</p>
+            </div>
+          ) : (
+            filteredConversations.map((conversation) => (
+              <div
+                key={conversation.id}
+                onClick={() => selectConversation(conversation)}
+                className={`p-4 border-b border-gray-100 cursor-pointer transition-all duration-200 hover:bg-gray-50 ${
+                  selectedConversation?.id === conversation.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-semibold text-lg">
+                      {conversation.student_name?.charAt(0).toUpperCase() || 'S'}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-800 truncate">
+                      {conversation.student_name || 'Student'}
+                    </h3>
+                    <p className="text-sm text-gray-500 truncate">
+                      {conversation.last_message || 'No messages yet'}
+                    </p>
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {conversation.last_message_at ? new Date(conversation.last_message_at).toLocaleTimeString([], {
+                      hour: '2-digit', minute: '2-digit'
+                    }) : ''}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
@@ -290,15 +291,17 @@ const AdminChatPage = () => {
             <div className="bg-white border-b border-gray-200 px-6 py-4">
               <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
-                  <span className="text-white font-semibold">
-                    {selectedConversation.student_name.charAt(0)}
+                  <span className="text-white font-semibold text-lg">
+                    {selectedConversation.student_name?.charAt(0).toUpperCase() || 'S'}
                   </span>
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-800">
-                    {selectedConversation.student_name}
+                    {selectedConversation.student_name || 'Student'}
                   </h2>
-                  <p className="text-sm text-green-500">Online</p>
+                  <p className="text-sm text-gray-500">
+                    {selectedConversation.student_email || 'No email'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -306,29 +309,49 @@ const AdminChatPage = () => {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-6 bg-gray-50">
               <div className="max-w-3xl mx-auto space-y-4">
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.sender_id === 'admin_1' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`rounded-2xl px-4 py-2 max-w-xs lg:max-w-md transform transition-all duration-200 hover:scale-105 ${
-                        msg.sender_id === 'admin_1'
-                          ? 'bg-blue-500 text-white rounded-br-none'
-                          : 'bg-gray-200 text-gray-800 rounded-bl-none'
-                      } ${msg.isTemp ? 'opacity-70' : ''}`}
-                    >
-                      <p className="text-sm">{msg.message}</p>
-                      <p className={`text-xs mt-1 ${
-                        msg.sender_id === 'admin_1' ? 'text-blue-100' : 'text-gray-500'
-                      }`}>
-                        {msg.isTemp ? 'Sending...' : new Date(msg.created_at).toLocaleTimeString([], { 
-                          hour: '2-digit', minute: '2-digit' 
-                        })}
-                      </p>
-                    </div>
+                {messages.length === 0 ? (
+                  <div className="text-center text-gray-500 py-12">
+                    <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                    <p className="text-lg font-medium">No messages yet</p>
+                    <p className="text-sm mt-2">Start the conversation!</p>
                   </div>
-                ))}
+                ) : (
+                  messages.map((msg) => {
+                    const isAdmin = msg.sender_role === 'admin' || msg.sender_id === 'admin_1'
+                    const displayName = getMessageDisplayName(msg)
+                    
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div className="flex flex-col max-w-xs lg:max-w-md">
+                          {!isAdmin && (
+                            <span className="text-xs font-medium text-gray-600 mb-1 ml-3">
+                              {displayName}
+                            </span>
+                          )}
+                          <div
+                            className={`rounded-2xl px-4 py-2 transform transition-all duration-200 hover:scale-105 ${
+                              isAdmin
+                                ? 'bg-blue-500 text-white rounded-br-none'
+                                : 'bg-gray-200 text-gray-800 rounded-bl-none'
+                            } ${msg.isTemp ? 'opacity-70' : ''}`}
+                          >
+                            <p className="text-sm break-words">{msg.message}</p>
+                            <p className={`text-xs mt-1 ${
+                              isAdmin ? 'text-blue-100' : 'text-gray-500'
+                            }`}>
+                              {msg.isTemp ? 'Sending...' : new Date(msg.created_at).toLocaleTimeString([], { 
+                                hour: '2-digit', minute: '2-digit' 
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
                 <div ref={messagesEndRef} />
               </div>
             </div>

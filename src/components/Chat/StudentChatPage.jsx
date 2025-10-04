@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { chatService } from '../../services/chatService'
 
 const StudentChatPage = () => {
-  const auth = useAuth()
+  const { currentUser, userData } = useAuth()
   const [messages, setMessages] = useState([])
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
@@ -14,16 +14,18 @@ const StudentChatPage = () => {
   const [isOnline, setIsOnline] = useState(true)
   const messagesEndRef = useRef(null)
   const subscriptionRef = useRef(null)
-  const sentMessageTimestampsRef = useRef(new Set()) // Track timestamps of sent messages
+  const sentMessageTimestampsRef = useRef(new Set())
 
   const studentUser = {
-    id: auth?.currentUser?.uid,
-    name: auth?.currentUser?.displayName || 'Student',
-    email: auth?.currentUser?.email || 'student@example.com'
+    id: currentUser?.uid,
+    name: userData?.name || userData?.displayName || currentUser?.displayName || 'Student',
+    email: currentUser?.email || 'student@example.com'
   }
 
   useEffect(() => {
-    initializeChat()
+    if (studentUser.id) {
+      initializeChat()
+    }
     
     return () => {
       if (subscriptionRef.current) {
@@ -47,9 +49,13 @@ const StudentChatPage = () => {
     try {
       setLoading(true)
       setError('')
-      console.log('🎯 Initializing chat for student:', studentUser.id)
+      console.log('🎯 Initializing chat for student:', studentUser.id, studentUser.name)
       
-      const conv = await chatService.getOrCreateConversation(studentUser.id, studentUser.name, studentUser.email)
+      const conv = await chatService.getOrCreateConversation(
+        studentUser.id, 
+        studentUser.name, 
+        studentUser.email
+      )
       setConversation(conv)
       console.log('✅ Conversation ready:', conv.id)
 
@@ -84,37 +90,27 @@ const StudentChatPage = () => {
         console.log('🆕 Real-time message received in student:', newMessage)
         setIsOnline(true)
         
-        // Create a unique key from message content and approximate timestamp
+        // Create message signature for our own sent messages
         const messageKey = `${newMessage.sender_id}-${newMessage.message}-${Math.floor(new Date(newMessage.created_at).getTime() / 1000)}`
         
-        // Check if we just sent this message (within last 5 seconds)
-        if (sentMessageTimestampsRef.current.has(messageKey)) {
-          console.log('🚫 Ignoring real-time update for message we just sent')
+        // Only skip if this is OUR message that we just sent
+        if (newMessage.sender_id === studentUser.id && sentMessageTimestampsRef.current.has(messageKey)) {
+          console.log('🚫 Ignoring real-time update for our own message')
           return
         }
         
         setMessages(prev => {
-          // Check if message already exists by ID
+          // Check if message already exists by ID (most reliable check)
           const messageExists = prev.some(msg => msg.id === newMessage.id)
           if (messageExists) {
-            console.log('📝 Message already exists, skipping...')
-            return prev
-          }
-          
-          // Also check for duplicate by content and time (in case IDs differ)
-          const duplicateExists = prev.some(msg => 
-            msg.message === newMessage.message && 
-            msg.sender_id === newMessage.sender_id &&
-            Math.abs(new Date(msg.created_at).getTime() - new Date(newMessage.created_at).getTime()) < 2000
-          )
-          
-          if (duplicateExists) {
-            console.log('📝 Duplicate message detected, skipping...')
+            console.log('📝 Message already exists by ID, skipping...')
             return prev
           }
           
           console.log('➕ Adding new message to student chat')
-          return [...prev, newMessage]
+          return [...prev, newMessage].sort((a, b) => 
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          )
         })
       })
 
@@ -135,16 +131,14 @@ const StudentChatPage = () => {
     const text = message.trim()
     const tempId = `temp-${Date.now()}-${Math.random()}`
     const now = new Date()
-    console.log('🚀 Student sending message:', text)
+    console.log('🚀 Student sending message:', text, 'from:', studentUser.name)
     
-    // Create a key to track this message
     const messageKey = `${studentUser.id}-${text}-${Math.floor(now.getTime() / 1000)}`
     sentMessageTimestampsRef.current.add(messageKey)
     
-    // Clean up old timestamps after 5 seconds
     setTimeout(() => {
       sentMessageTimestampsRef.current.delete(messageKey)
-    }, 5000)
+    }, 3000)
     
     const tempMessage = {
       id: tempId,
@@ -177,7 +171,6 @@ const StudentChatPage = () => {
 
       console.log('✅ Student message sent successfully:', result.data)
       
-      // Replace temp message with real message
       setMessages(prev => 
         prev.map(msg => 
           msg.id === tempId ? { ...result.data, isTemp: false } : msg
@@ -267,8 +260,8 @@ const StudentChatPage = () => {
             >
               Refresh
             </button>
-            <div className="text-xs text-gray-500">
-              {conversation ? 'Connected' : 'Connecting...'}
+            <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+              {studentUser.name}
             </div>
           </div>
         </div>
@@ -299,32 +292,40 @@ const StudentChatPage = () => {
               <p className="text-gray-500">Start a conversation with the admin!</p>
             </div>
           ) : (
-            messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex ${msg.sender_id === studentUser.id ? 'justify-end' : 'justify-start'} animate-fade-in`}
-              >
+            messages.map((msg) => {
+              const isCurrentUser = msg.sender_id === studentUser.id
+              
+              return (
                 <div
-                  className={`rounded-2xl px-4 py-2 max-w-xs lg:max-w-md transform transition-all duration-200 ${
-                    msg.sender_id === studentUser.id
-                      ? 'bg-blue-500 text-white rounded-br-none shadow-lg' + (msg.isTemp ? ' opacity-70' : '')
-                      : 'bg-white text-gray-800 rounded-bl-none shadow-md border border-gray-200'
-                  }`}
+                  key={msg.id}
+                  className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} animate-fade-in`}
                 >
-                  {msg.sender_id !== studentUser.id && (
-                    <p className="text-xs font-semibold text-gray-500 mb-1">Admin Support</p>
-                  )}
-                  <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
-                  <p className={`text-xs mt-1 ${
-                    msg.sender_id === studentUser.id ? 'text-blue-100' : 'text-gray-500'
-                  }`}>
-                    {msg.isTemp ? 'Sending...' : new Date(msg.created_at).toLocaleTimeString([], { 
-                      hour: '2-digit', minute: '2-digit' 
-                    })}
-                  </p>
+                  <div className="flex flex-col max-w-xs lg:max-w-md">
+                    {!isCurrentUser && (
+                      <span className="text-xs font-medium text-gray-600 mb-1 ml-3">
+                        {msg.sender_name || 'Admin Support'}
+                      </span>
+                    )}
+                    <div
+                      className={`rounded-2xl px-4 py-2 transform transition-all duration-200 ${
+                        isCurrentUser
+                          ? 'bg-blue-500 text-white rounded-br-none shadow-lg' + (msg.isTemp ? ' opacity-70' : '')
+                          : 'bg-white text-gray-800 rounded-bl-none shadow-md border border-gray-200'
+                      }`}
+                    >
+                      <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
+                      <p className={`text-xs mt-1 ${
+                        isCurrentUser ? 'text-blue-100' : 'text-gray-500'
+                      }`}>
+                        {msg.isTemp ? 'Sending...' : new Date(msg.created_at).toLocaleTimeString([], { 
+                          hour: '2-digit', minute: '2-digit' 
+                        })}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
           <div ref={messagesEndRef} />
         </div>
