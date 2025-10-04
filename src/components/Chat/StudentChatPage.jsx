@@ -79,6 +79,7 @@ const scrollbarStyles = `
   .chat-header {
     flex-shrink: 0;
     background: rgba(128, 128, 128, 0.125);
+
     border-bottom: 1px solid #e5e7eb;
     width: 100%;
     display: flex;
@@ -98,6 +99,7 @@ const scrollbarStyles = `
   .chat-input {
     flex-shrink: 0;
     background: rgba(128, 128, 128, 0.1);
+
     border-top: 1px solid #e5e7eb;
     padding: 0.5rem;
     width: 100%;
@@ -157,6 +159,7 @@ const StudentChatPage = () => {
     const handleScroll = () => {
       if (!messagesContainer) return
       
+      // Show scroll button when user scrolls up more than 300px from bottom
       const isScrolledUp = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight > 300
       setShowScrollButton(isScrolledUp)
     }
@@ -169,6 +172,7 @@ const StudentChatPage = () => {
   }, [])
 
   useEffect(() => {
+    // Close options menu when clicking outside
     const handleClickOutside = (event) => {
       if (optionsMenuRef.current && !optionsMenuRef.current.contains(event.target)) {
         setShowOptions(false)
@@ -207,12 +211,7 @@ const StudentChatPage = () => {
         console.error('Error loading messages:', messagesError)
         setError('Failed to load messages')
       } else {
-        const processedMessages = existingMessages.map(msg => ({
-          ...msg,
-          created_at: ensureValidDate(msg.created_at)
-        }));
-        
-        setMessages(processedMessages || [])
+        setMessages(existingMessages || [])
         console.log('📨 Loaded', existingMessages?.length || 0, 'messages')
       }
 
@@ -223,18 +222,6 @@ const StudentChatPage = () => {
       console.error('💥 Failed to initialize chat:', error)
       setError('Failed to initialize chat. Please refresh the page.')
       setLoading(false)
-    }
-  }
-
-  const ensureValidDate = (dateStr) => {
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) {
-        return new Date().toISOString();
-      }
-      return dateStr;
-    } catch (e) {
-      return new Date().toISOString();
     }
   }
 
@@ -250,14 +237,16 @@ const StudentChatPage = () => {
         console.log('🔄 Real-time message event:', payload)
         setIsOnline(true)
         
-        // Handle the payload based on its structure
-        if (payload.eventType === 'INSERT' && payload.new) {
-          handleNewMessage(payload.new)
-        } else if (payload.eventType === 'DELETE' && payload.old) {
-          // Use old.id for DELETE events
-          handleDeletedMessageById(payload.old.id)
-        } else if (payload.eventType === 'UPDATE' && payload.new) {
-          handleUpdatedMessage(payload.new)
+        if (typeof payload === 'object' && payload !== null && 'type' in payload) {
+          // New format with type and data
+          if (payload.type === 'INSERT') {
+            handleNewMessage(payload.data)
+          } else if (payload.type === 'DELETE') {
+            handleDeletedMessage(payload.data)
+          }
+        } else {
+          // Legacy format - direct message object
+          handleNewMessage(payload)
         }
       })
 
@@ -268,16 +257,17 @@ const StudentChatPage = () => {
   }
   
   const handleNewMessage = (newMessage) => {
-    newMessage.created_at = ensureValidDate(newMessage.created_at);
-    
+    // Create message signature for our own sent messages
     const messageKey = `${newMessage.sender_id}-${newMessage.message}-${Math.floor(new Date(newMessage.created_at).getTime() / 1000)}`
     
+    // Only skip if this is OUR message that we just sent
     if (newMessage.sender_id === studentUser.id && sentMessageTimestampsRef.current.has(messageKey)) {
       console.log('🚫 Ignoring real-time update for our own message')
       return
     }
     
     setMessages(prev => {
+      // Check if message already exists by ID (most reliable check)
       const messageExists = prev.some(msg => msg.id === newMessage.id)
       if (messageExists) {
         console.log('📝 Message already exists by ID, skipping...')
@@ -291,28 +281,22 @@ const StudentChatPage = () => {
     })
   }
   
-  const handleUpdatedMessage = (updatedMessage) => {
-    updatedMessage.created_at = ensureValidDate(updatedMessage.created_at);
+  const handleDeletedMessage = (deletedMessage) => {
+    console.log('🗑️ Handling deleted message in student chat:', deletedMessage)
     
-    setMessages(prev => 
-      prev.map(msg => 
-        msg.id === updatedMessage.id ? updatedMessage : msg
-      )
-    )
-  }
-  
-  const handleDeletedMessageById = (messageId) => {
-    console.log('🗑️ Removing message by ID:', messageId);
+    // First mark the message as being deleted (for animation)
+    setDeletingMessageIds(prev => [...prev, deletedMessage.id])
     
-    setDeletingMessageIds(prev => {
-      if (prev.includes(messageId)) return prev;
-      return [...prev, messageId];
-    });
-    
+    // Then remove it after animation completes
     setTimeout(() => {
-      setMessages(prev => prev.filter(msg => msg.id !== messageId));
-      setDeletingMessageIds(prev => prev.filter(id => id !== messageId));
-    }, 500);
+      setMessages(prev => 
+        prev.filter(msg => msg.id !== deletedMessage.id)
+      )
+      // Clean up the deleting IDs array
+      setDeletingMessageIds(prev => 
+        prev.filter(id => id !== deletedMessage.id)
+      )
+    }, 500) // Match this with your animation duration
   }
 
   const sendMessage = async (e) => {
@@ -406,12 +390,7 @@ const StudentChatPage = () => {
       console.log('🔄 Manually checking for new messages...')
       const { data: newMessages, error } = await chatService.getMessages(conversation.id)
       if (!error && newMessages) {
-        const processedMessages = newMessages.map(msg => ({
-          ...msg,
-          created_at: ensureValidDate(msg.created_at)
-        }));
-        
-        setMessages(processedMessages)
+        setMessages(newMessages)
         console.log('✅ Manual refresh loaded', newMessages.length, 'messages')
       }
     } catch (error) {
@@ -433,6 +412,7 @@ const StudentChatPage = () => {
   const toggleMessageSelection = (messageId, studentOnly = true) => {
     if (!isSelectionMode) return
 
+    // If studentOnly is true, only allow selection of student's own messages
     if (studentOnly) {
       const msg = messages.find(m => m.id === messageId)
       if (msg && msg.sender_id !== studentUser.id) {
@@ -456,6 +436,7 @@ const StudentChatPage = () => {
     try {
       console.log('🗑️ Deleting selected messages:', selectedMessages)
       
+      // First mark the messages as being deleted (for animation)
       setDeletingMessageIds(prev => [...prev, ...selectedMessages])
       
       const { error } = await chatService.deleteMessages(
@@ -467,10 +448,12 @@ const StudentChatPage = () => {
         throw new Error(error)
       }
       
+      // Remove the messages from the state after animation
       setTimeout(() => {
         setMessages(prev => 
           prev.filter(msg => !selectedMessages.includes(msg.id))
         )
+        // Clean up the deleting IDs array
         setDeletingMessageIds(prev => 
           prev.filter(id => !selectedMessages.includes(id))
         )
@@ -483,6 +466,7 @@ const StudentChatPage = () => {
     } catch (error) {
       console.error('Failed to delete messages:', error)
       setError('Failed to delete selected messages. Please try again.')
+      // Remove the deleting animation state if there was an error
       setDeletingMessageIds(prev => 
         prev.filter(id => !selectedMessages.includes(id))
       )
@@ -515,29 +499,25 @@ const StudentChatPage = () => {
     }
   }
 
+  // Group messages by date
   const getMessageGroups = () => {
     const groups = [];
     let currentDate = '';
     let currentGroup = [];
     
     messages.forEach(message => {
-      try {
-        const messageDate = new Date(ensureValidDate(message.created_at)).toLocaleDateString();
-        
-        if (messageDate !== currentDate) {
-          if (currentGroup.length > 0) {
-            groups.push({
-              date: currentDate,
-              messages: currentGroup
-            });
-          }
-          currentDate = messageDate;
-          currentGroup = [message];
-        } else {
-          currentGroup.push(message);
+      const messageDate = new Date(message.created_at).toLocaleDateString();
+      
+      if (messageDate !== currentDate) {
+        if (currentGroup.length > 0) {
+          groups.push({
+            date: currentDate,
+            messages: currentGroup
+          });
         }
-      } catch (e) {
-        console.error("Error processing message date:", e);
+        currentDate = messageDate;
+        currentGroup = [message];
+      } else {
         currentGroup.push(message);
       }
     });
@@ -552,51 +532,34 @@ const StudentChatPage = () => {
     return groups;
   };
 
+  // Format date for display
   const formatDate = (dateString) => {
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return "Today";
-      }
-      
-      const today = new Date();
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-      
-      let dayLabel;
-      
-      if (date.toDateString() === today.toDateString()) {
-        dayLabel = 'Today';
-      } else if (date.toDateString() === yesterday.toDateString()) {
-        dayLabel = 'Yesterday';
-      } else {
-        const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
-        dayLabel = weekday;
-      }
-      
-      const formattedDate = date.toLocaleDateString('en-US', { 
-        month: 'numeric', 
-        day: 'numeric',
-        year: '2-digit'
-      });
-      
-      return `${dayLabel}, ${formattedDate}`;
-    } catch (e) {
-      return "Today";
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    let dayLabel;
+    
+    if (date.toDateString() === today.toDateString()) {
+      dayLabel = 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      dayLabel = 'Yesterday';
+    } else {
+      // Get day of week
+      const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
+      dayLabel = weekday;
     }
+    
+    // Format date as MM/DD/YY
+    const formattedDate = date.toLocaleDateString('en-US', { 
+      month: 'numeric', 
+      day: 'numeric',
+      year: '2-digit'
+    });
+    
+    return `${dayLabel}, ${formattedDate}`;
   };
-
-  const formatTime = (dateStr) => {
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) {
-        return 'Just now';
-      }
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch (e) {
-      return 'Just now';
-    }
-  }
 
   const goBack = () => {
     if (window.history.length > 1) {
@@ -630,6 +593,7 @@ const StudentChatPage = () => {
     <>
       <style>{scrollbarStyles}</style>
       <div className="chat-layout">
+        {/* Chat Header - Below existing 10vh main header */}
         <div className="chat-header">
           <div className="max-w-3xl mx-auto w-full px-4 flex items-center justify-between">
             <div className="flex items-center">
@@ -721,6 +685,7 @@ const StudentChatPage = () => {
           </div>
         </div>
 
+        {/* Error Message */}
         {error && (
           <div className="bg-red-50 border-b border-red-100 px-4 py-2.5 flex justify-between items-center animate-slide-down">
             <div className="flex items-center max-w-2xl mx-auto w-full">
@@ -736,6 +701,7 @@ const StudentChatPage = () => {
           </div>
         )}
 
+        {/* Messages Container - with scrollbar */}
         <div 
           ref={messagesContainerRef}
           className="chat-messages custom-scrollbar bg-gray-50"
@@ -779,19 +745,23 @@ const StudentChatPage = () => {
                         onClick={() => toggleMessageSelection(msg.id, true)}
                       >
                         <div className={`flex ${!isCurrentUser && 'items-end'} max-w-xs lg:max-w-md ${showSender ? 'mt-4' : 'mt-1'}`}>
+                          {/* Admin Avatar (only show on first message in a sequence) */}
                           {!isCurrentUser && showSender && (
                             <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0">
                               <Shield className="w-4 h-4 text-white" />
                             </div>
                           )}
                           
+                          {/* Message Content with Spacing */}
                           <div className={`flex flex-col ${!isCurrentUser && !showSender ? 'ml-10' : ''}`}>
+                            {/* Sender Name (only for admin and only on first message in sequence) */}
                             {showSender && !isCurrentUser && (
                               <span className="text-xs font-medium text-gray-600 mb-1 ml-1">
                                 {msg.sender_name || 'Admin Support'}
                               </span>
                             )}
                             
+                            {/* Message Bubble */}
                             <div
                               className={`rounded-2xl px-4 py-2.5 ${
                                 isCurrentUser
@@ -810,7 +780,9 @@ const StudentChatPage = () => {
                                   </div>
                                 ) : (
                                   <>
-                                    {formatTime(msg.created_at)}
+                                    {new Date(msg.created_at).toLocaleTimeString([], { 
+                                      hour: '2-digit', minute: '2-digit' 
+                                    })}
                                     {isCurrentUser && (
                                       <CheckCircle className="w-3 h-3 ml-1" />
                                     )}
@@ -829,6 +801,7 @@ const StudentChatPage = () => {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Scroll to Bottom Button */}
           {showScrollButton && (
             <button
               onClick={() => scrollToBottom()}
@@ -839,6 +812,7 @@ const StudentChatPage = () => {
           )}
         </div>
 
+        {/* Fixed Message Input at Bottom */}
         <div className="chat-input shadow-md z-20">
           <div className="max-w-2xl mx-auto">
             <form onSubmit={sendMessage} className="flex items-center space-x-2">
@@ -873,6 +847,7 @@ const StudentChatPage = () => {
           </div>
         </div>
 
+        {/* Clear Chat Confirmation Modal */}
         {showConfirmClear && (
           <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl p-6 m-4 max-w-sm w-full animate-fade-in">
@@ -910,6 +885,7 @@ const StudentChatPage = () => {
           </div>
         )}
 
+        {/* Delete Messages Confirmation Modal */}
         {showConfirmDelete && (
           <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl p-6 m-4 max-w-sm w-full animate-fade-in">
