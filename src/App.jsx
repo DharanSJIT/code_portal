@@ -15,6 +15,7 @@ import SignIn from './components/SignIn';
 import Leaderboard from './components/Leaderboard';
 import ActivityFeed from './components/ActivityFeed';
 import TaskTracker from './components/TaskTracker';
+import ScrollToTop from './components/ScrollToTop';
 
 // Admin Components
 import AdminSignIn from './components/AdminSignIn';
@@ -155,6 +156,7 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <ToastContainer 
           position="top-right" 
           autoClose={3000}
