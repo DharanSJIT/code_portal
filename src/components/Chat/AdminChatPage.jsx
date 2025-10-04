@@ -1,96 +1,143 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Search, MessageCircle, Send, Loader, User, RefreshCw, Clock, CheckCircle, XCircle, ChevronDown, Shield, Trash2, MoreVertical, X, Trash } from 'lucide-react'
+import { 
+  Search, MessageCircle, Send, Loader, User, RefreshCw, Clock, 
+  CheckCircle, XCircle, ChevronDown, Shield, Trash2, MoreVertical, 
+  X, Trash, Paperclip, Smile, Mic, Video, Phone, Info, Archive, 
+  Reply, Forward, Star, Download, Image as ImageIcon, File, Ban 
+} from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { chatService } from '../../services/chatService'
 
 const scrollbarStyles = `
   /* Custom scrollbar styles */
   .custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
+    width: 6px;
   }
   
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 10px;
+    background: transparent;
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #c5c5c5;
-    border-radius: 10px;
+    background: #cccccc;
+    border-radius: 3px;
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
+    background: #aaaaaa;
   }
 
-  @keyframes progress {
-    0% { width: 0%; }
-    50% { width: 70%; }
-    100% { width: 100%; }
-  }
-
-  .animate-progress {
-    animation: progress 2s ease-in-out infinite;
-  }
-
+  /* Animations */
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-2px); }
   }
 
   .animate-fade-in {
-    animation: fadeIn 0.3s ease-in-out;
+    animation: fadeIn 0.2s ease-out;
   }
 
-  @keyframes slideDown {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
+  .animate-slide-in {
+    animation: slideIn 0.2s ease-out;
   }
 
-  .animate-slide-down {
-    animation: slideDown 0.3s ease-in-out;
-  }
-  
-  .message-deleted {
-    animation: fadeOut 0.5s ease forwards;
-  }
-  
-  @keyframes fadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; transform: translateY(10px); height: 0; margin: 0; padding: 0; }
+  .animate-pulse-slow {
+    animation: pulse 2s ease-in-out infinite;
   }
 
-  /* Fixed layout to prevent whole page scrolling */
-  .chat-layout {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    overflow: hidden;
+  .animate-bounce-slow {
+    animation: bounce 1.5s ease-in-out infinite;
   }
 
-  .chat-header {
-    flex-shrink: 0;
+  /* Message animations */
+  @keyframes messageSlideIn {
+    from { 
+      opacity: 0;
+      transform: translateY(10px) scale(0.95);
+    }
+    to { 
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
 
-  .chat-messages {
-    flex-grow: 1;
-    overflow-y: auto;
-    padding: 1rem;
-    padding-bottom: 1.5rem;
+  .message-enter {
+    animation: messageSlideIn 0.2s ease-out;
   }
 
-  .chat-input {
-    flex-shrink: 0;
-    background: white;
-    border-top: 1px solid #e5e7eb;
-    padding: 1rem;
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    .chat-container {
+      height: 100vh;
+      height: 100dvh;
+    }
+    
+    .sidebar-mobile {
+      transform: translateX(-100%);
+      transition: transform 0.3s ease-in-out;
+    }
+    
+    .sidebar-mobile.open {
+      transform: translateX(0);
+    }
+    
+    .chat-area-mobile {
+      transform: translateX(0);
+      transition: transform 0.3s ease-in-out;
+    }
+    
+    .chat-area-mobile.hidden {
+      transform: translateX(100%);
+    }
   }
-`;
+
+  /* Selection styles */
+  .message-selected {
+    background-color: rgba(59, 130, 246, 0.1) !important;
+    border-radius: 8px;
+  }
+
+  /* Typing indicator */
+  .typing-dot {
+    animation: typingAnimation 1.4s infinite ease-in-out;
+  }
+
+  .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+  .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+  @keyframes typingAnimation {
+    0%, 80%, 100% { 
+      transform: scale(0.8);
+      opacity: 0.5;
+    }
+    40% { 
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* Textarea auto-resize */
+  .auto-resize {
+    resize: none;
+    min-height: 40px;
+    max-height: 120px;
+  }
+`
 
 const AdminChatPage = () => {
   const { currentUser, userData } = useAuth()
@@ -111,6 +158,13 @@ const AdminChatPage = () => {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false)
   const [actionInProgress, setActionInProgress] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [isTyping, setIsTyping] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [showSidebar, setShowSidebar] = useState(true)
+  const [showContactInfo, setShowContactInfo] = useState(false)
+  const [replyingTo, setReplyingTo] = useState(null)
+  const [forwardMessage, setForwardMessage] = useState(null)
+  const [attachments, setAttachments] = useState([])
   
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
@@ -118,12 +172,19 @@ const AdminChatPage = () => {
   const conversationSubscriptionRef = useRef(null)
   const sentMessageTimestampsRef = useRef(new Set())
   const optionsMenuRef = useRef(null)
+  const fileInputRef = useRef(null)
+  const emojiPickerRef = useRef(null)
+  const inputRef = useRef(null)
 
   const adminUser = {
     id: 'admin_1',
     name: 'Admin Support',
-    role: 'admin'
+    role: 'admin',
+    avatar: 'A'
   }
+
+  // Enhanced emoji list
+  const emojis = ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈', '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾', '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾']
 
   useEffect(() => {
     initializeAdminChat()
@@ -131,51 +192,53 @@ const AdminChatPage = () => {
     return () => {
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe()
-        console.log('🧹 Cleaned up admin message subscription')
       }
       if (conversationSubscriptionRef.current) {
         conversationSubscriptionRef.current.unsubscribe()
-        console.log('🧹 Cleaned up admin conversation subscription')
       }
     }
   }, [])
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages])
+  }, [messages, isTyping])
 
   useEffect(() => {
-    const messagesContainer = messagesContainerRef.current
-    
-    const handleScroll = () => {
-      if (!messagesContainer) return
-      
-      // Show scroll button when user scrolls up more than 300px from bottom
-      const isScrolledUp = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight > 300
-      setShowScrollButton(isScrolledUp)
-    }
-    
-    messagesContainer?.addEventListener('scroll', handleScroll)
-    
-    return () => {
-      messagesContainer?.removeEventListener('scroll', handleScroll)
-    }
-  }, [])
-
-  useEffect(() => {
-    // Close options menu when clicking outside
     const handleClickOutside = (event) => {
       if (optionsMenuRef.current && !optionsMenuRef.current.contains(event.target)) {
         setShowOptions(false)
       }
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
+        setShowEmojiPicker(false)
+      }
     }
     
     document.addEventListener('mousedown', handleClickOutside)
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  useEffect(() => {
+    // Handle responsive sidebar
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setShowSidebar(!selectedConversation)
+      } else {
+        setShowSidebar(true)
+      }
+    }
+
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [selectedConversation])
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto'
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px'
+    }
+  }, [message])
 
   const scrollToBottom = (behavior = 'smooth') => {
     setTimeout(() => {
@@ -187,60 +250,44 @@ const AdminChatPage = () => {
     try {
       setLoading(true)
       setError('')
-      console.log('🎯 Initializing admin chat...')
       
       const { data: convs, error: convError } = await chatService.getAdminConversations()
       if (convError) {
-        console.error('Error loading conversations:', convError)
         setError('Failed to load conversations')
       } else {
         setConversations(convs || [])
-        console.log('✅ Loaded', convs?.length || 0, 'conversations')
-        
-        // Set up subscription for new conversations
         setupConversationSubscription()
       }
 
       setLoading(false)
-
     } catch (error) {
-      console.error('💥 Error initializing admin chat:', error)
-      setError('Failed to initialize admin chat. Please refresh the page.')
+      setError('Failed to initialize admin chat')
       setLoading(false)
     }
   }
 
   const setupConversationSubscription = () => {
     try {
-      console.log('🔔 Setting up real-time subscription for conversations')
-      
       if (conversationSubscriptionRef.current) {
         conversationSubscriptionRef.current.unsubscribe()
       }
 
       conversationSubscriptionRef.current = chatService.subscribeToConversations((payload) => {
-        console.log('🔄 Real-time conversation event:', payload)
-        
         if (payload.eventType === 'INSERT') {
-          // New conversation
           handleNewConversation(payload.new)
         } else if (payload.eventType === 'UPDATE') {
-          // Updated conversation
           handleUpdatedConversation(payload.new)
         } else if (payload.eventType === 'DELETE') {
-          // Deleted conversation
           handleDeletedConversation(payload.old)
         }
       })
-
     } catch (error) {
-      console.error('❌ Error setting up conversation subscription:', error)
+      console.error('Error setting up conversation subscription:', error)
     }
   }
-  
+
   const handleNewConversation = (newConversation) => {
     setConversations(prev => {
-      // Check if conversation already exists
       const exists = prev.some(conv => conv.id === newConversation.id)
       if (exists) return prev
       
@@ -249,7 +296,7 @@ const AdminChatPage = () => {
       )
     })
   }
-  
+
   const handleUpdatedConversation = (updatedConversation) => {
     setConversations(prev => 
       prev.map(conv => 
@@ -259,18 +306,16 @@ const AdminChatPage = () => {
       )
     )
     
-    // If this is the selected conversation, update last_message property
     if (selectedConversation && selectedConversation.id === updatedConversation.id) {
       setSelectedConversation(updatedConversation)
     }
   }
-  
+
   const handleDeletedConversation = (deletedConversation) => {
     setConversations(prev => 
       prev.filter(conv => conv.id !== deletedConversation.id)
     )
     
-    // If this was the selected conversation, deselect it
     if (selectedConversation && selectedConversation.id === deletedConversation.id) {
       setSelectedConversation(null)
       setMessages([])
@@ -279,65 +324,49 @@ const AdminChatPage = () => {
 
   const selectConversation = async (conversation) => {
     try {
-      // Exit selection mode if active when switching conversations
-      if (isSelectionMode) {
-        exitSelectionMode()
-      }
+      if (isSelectionMode) exitSelectionMode()
+      if (replyingTo) setReplyingTo(null)
       
-      console.log('💬 Selecting conversation:', conversation.id)
       setSelectedConversation(conversation)
       setMessages([])
       setError('')
       sentMessageTimestampsRef.current.clear()
       
+      // Hide sidebar on mobile when conversation is selected
+      if (window.innerWidth < 768) {
+        setShowSidebar(false)
+      }
+
       const { data: convMessages, error: messagesError } = await chatService.getMessages(conversation.id)
       if (messagesError) {
-        console.error('Error loading messages:', messagesError)
         setError('Failed to load messages')
       } else {
-        // Ensure all messages have valid dates - fix for Invalid Date issue
         const processedMessages = convMessages.map(msg => ({
           ...msg,
-          // Ensure created_at is a valid date string
           created_at: ensureValidDate(msg.created_at)
         }));
-        
         setMessages(processedMessages || [])
-        console.log('📨 Loaded', convMessages?.length || 0, 'messages for conversation')
       }
 
       setupRealtimeSubscription(conversation.id)
-
     } catch (error) {
-      console.error('❌ Error selecting conversation:', error)
       setError('Failed to load conversation')
     }
   }
 
-  // Helper function to ensure valid date
   const ensureValidDate = (dateStr) => {
     try {
-      // Test if it's a valid date
       const date = new Date(dateStr);
-      if (isNaN(date.getTime())) {
-        // If invalid, return current time
-        return new Date().toISOString();
-      }
-      return dateStr;
+      return isNaN(date.getTime()) ? new Date().toISOString() : dateStr;
     } catch (e) {
-      // If any error occurs, return current time
       return new Date().toISOString();
     }
   }
-  
-  // Format time safely
+
   const formatTime = (dateStr) => {
     try {
       const date = new Date(dateStr);
-      if (isNaN(date.getTime())) {
-        return 'Just now'; // Fallback for invalid dates
-      }
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return isNaN(date.getTime()) ? 'Just now' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } catch (e) {
       return 'Just now';
     }
@@ -345,18 +374,14 @@ const AdminChatPage = () => {
 
   const setupRealtimeSubscription = (conversationId) => {
     try {
-      console.log('🔔 Setting up real-time subscription for:', conversationId)
-      
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe()
       }
 
       subscriptionRef.current = chatService.subscribeToMessages(conversationId, (payload) => {
-        console.log('🔄 Real-time message event:', payload)
         setIsOnline(true)
         
         if (typeof payload === 'object' && payload !== null && 'type' in payload) {
-          // New format with type and data
           if (payload.type === 'INSERT') {
             handleNewMessage(payload.data)
           } else if (payload.type === 'DELETE') {
@@ -365,52 +390,38 @@ const AdminChatPage = () => {
             handleUpdatedMessage(payload.data)
           }
         } else {
-          // Legacy format - direct message object
           handleNewMessage(payload)
         }
       })
-
     } catch (error) {
-      console.error('❌ Error setting up real-time subscription:', error)
       setIsOnline(false)
     }
   }
-  
+
   const handleNewMessage = (newMessage) => {
-    // Fix the date if it's invalid
     newMessage.created_at = ensureValidDate(newMessage.created_at);
     
-    // Create message signature for our own sent messages
     const messageKey = `${newMessage.sender_id}-${newMessage.message}-${Math.floor(new Date(newMessage.created_at).getTime() / 1000)}`
     
-    // Only skip if this is OUR message that we just sent
     if (newMessage.sender_id === adminUser.id && sentMessageTimestampsRef.current.has(messageKey)) {
-      console.log('🚫 Ignoring real-time update for our own message')
       return
     }
     
     setMessages(prev => {
-      // Check if message already exists by ID (most reliable check)
       const messageExists = prev.some(msg => msg.id === newMessage.id)
-      if (messageExists) {
-        console.log('📝 Message already exists by ID, skipping...')
-        return prev
-      }
+      if (messageExists) return prev
       
-      console.log('➕ Adding new message to admin chat')
       return [...prev, newMessage].sort((a, b) => 
         new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       )
     })
     
-    // Update conversation last message if needed
     if (selectedConversation && newMessage.conversation_id === selectedConversation.id) {
       updateConversationInList(selectedConversation.id, newMessage.message, newMessage.created_at)
     }
   }
-  
+
   const handleUpdatedMessage = (updatedMessage) => {
-    // Fix the date if it's invalid
     updatedMessage.created_at = ensureValidDate(updatedMessage.created_at);
     
     setMessages(prev => 
@@ -419,25 +430,20 @@ const AdminChatPage = () => {
       )
     )
   }
-  
+
   const handleDeletedMessage = (deletedMessage) => {
-    console.log('🗑️ Handling deleted message in admin chat:', deletedMessage)
-    
-    // First mark the message as being deleted (for animation)
     setDeletingMessageIds(prev => [...prev, deletedMessage.id])
     
-    // Then remove it after animation completes
     setTimeout(() => {
       setMessages(prev => 
         prev.filter(msg => msg.id !== deletedMessage.id)
       )
-      // Clean up the deleting IDs array
       setDeletingMessageIds(prev => 
         prev.filter(id => id !== deletedMessage.id)
       )
-    }, 500) // Match this with your animation duration
+    }, 500)
   }
-  
+
   const updateConversationInList = (conversationId, lastMessage, lastMessageAt) => {
     setConversations(prev => {
       return prev.map(conv => {
@@ -458,15 +464,11 @@ const AdminChatPage = () => {
   const sendMessage = async (e) => {
     if (e) e.preventDefault()
     
-    if (!message.trim() || !selectedConversation || sending) {
-      console.log('Cannot send:', { message: message.trim(), selectedConversation: !!selectedConversation, sending })
-      return
-    }
+    if (!message.trim() || !selectedConversation || sending) return
 
     const text = message.trim()
     const tempId = `temp-${Date.now()}-${Math.random()}`
     const now = new Date()
-    console.log('🚀 Admin sending message:', text)
     
     const messageKey = `${adminUser.id}-${text}-${Math.floor(now.getTime() / 1000)}`
     sentMessageTimestampsRef.current.add(messageKey)
@@ -483,13 +485,15 @@ const AdminChatPage = () => {
       sender_role: 'admin',
       message: text,
       created_at: now.toISOString(),
-      isTemp: true
+      isTemp: true,
+      reply_to: replyingTo
     }
     
     setMessages(prev => [...prev, tempMessage])
     setMessage('')
     setSending(true)
     setError('')
+    setReplyingTo(null)
 
     try {
       const result = await chatService.sendMessage(
@@ -497,14 +501,11 @@ const AdminChatPage = () => {
         adminUser.id,
         text,
         adminUser.name,
-        'admin'
+        'admin',
+        replyingTo?.id
       )
 
-      if (result.error) {
-        throw result.error
-      }
-
-      console.log('✅ Admin message sent successfully:', result.data)
+      if (result.error) throw result.error
       
       setMessages(prev => 
         prev.map(msg => 
@@ -512,12 +513,10 @@ const AdminChatPage = () => {
         )
       )
       
-      // Update conversation last message
       updateConversationInList(selectedConversation.id, text, now.toISOString())
       
     } catch (error) {
-      console.error('❌ Failed to send admin message:', error)
-      setError('Failed to send message. Please check your connection and try again.')
+      setError('Failed to send message')
       sentMessageTimestampsRef.current.delete(messageKey)
       setMessages(prev => prev.filter(msg => msg.id !== tempId))
       setMessage(text)
@@ -546,19 +545,16 @@ const AdminChatPage = () => {
     if (!selectedConversation) return
     
     try {
-      console.log('🔄 Manually checking for new messages...')
       const { data: newMessages, error } = await chatService.getMessages(selectedConversation.id)
       if (!error && newMessages) {
-        // Process dates to ensure they're valid
         const processedMessages = newMessages.map(msg => ({
           ...msg,
           created_at: ensureValidDate(msg.created_at)
         }));
         setMessages(processedMessages)
-        console.log('✅ Manual refresh loaded', newMessages.length, 'messages')
       }
     } catch (error) {
-      console.error('❌ Error manually refreshing messages:', error)
+      console.error('Error manually refreshing messages:', error)
     }
   }
 
@@ -590,9 +586,6 @@ const AdminChatPage = () => {
     
     setActionInProgress(true)
     try {
-      console.log('🗑️ Deleting selected messages:', selectedMessages)
-      
-      // First mark messages as being deleted (for animation)
       setDeletingMessageIds(prev => [...prev, ...selectedMessages])
       
       const { error } = await chatService.deleteMessages(
@@ -600,16 +593,12 @@ const AdminChatPage = () => {
         selectedMessages
       )
       
-      if (error) {
-        throw new Error(error)
-      }
+      if (error) throw new Error(error)
       
-      // Remove messages from state after animation
       setTimeout(() => {
         setMessages(prev => 
           prev.filter(msg => !selectedMessages.includes(msg.id))
         )
-        // Clean up deleting IDs array
         setDeletingMessageIds(prev => 
           prev.filter(id => !selectedMessages.includes(id))
         )
@@ -620,10 +609,7 @@ const AdminChatPage = () => {
       setSelectedMessages([])
       
     } catch (error) {
-      console.error('Failed to delete messages:', error)
-      setError('Failed to delete selected messages. Please try again.')
-      
-      // Remove the deleting animation state if there was an error
+      setError('Failed to delete selected messages')
       setDeletingMessageIds(prev => 
         prev.filter(id => !selectedMessages.includes(id))
       )
@@ -637,17 +623,11 @@ const AdminChatPage = () => {
     
     setActionInProgress(true)
     try {
-      console.log('🧹 Clearing all messages from conversation:', selectedConversation.id)
-      
       const { error } = await chatService.clearConversation(selectedConversation.id)
       
-      if (error) {
-        throw new Error(error)
-      }
+      if (error) throw new Error(error)
       
       setMessages([])
-      
-      // Update conversation in list
       updateConversationInList(
         selectedConversation.id, 
         'Chat cleared',
@@ -657,14 +637,12 @@ const AdminChatPage = () => {
       setShowConfirmClear(false)
       
     } catch (error) {
-      console.error('Failed to clear chat:', error)
-      setError('Failed to clear conversation. Please try again.')
+      setError('Failed to clear conversation')
     } finally {
       setActionInProgress(false)
     }
   }
 
-  // Group messages by date
   const getMessageGroups = () => {
     const groups = [];
     let currentDate = '';
@@ -672,7 +650,6 @@ const AdminChatPage = () => {
     
     messages.forEach(message => {
       try {
-        // Use a safer date parsing approach
         const messageDate = new Date(ensureValidDate(message.created_at)).toLocaleDateString();
         
         if (messageDate !== currentDate) {
@@ -688,8 +665,6 @@ const AdminChatPage = () => {
           currentGroup.push(message);
         }
       } catch (e) {
-        console.error("Error processing message date:", e);
-        // Add to current group anyway to ensure message is displayed
         currentGroup.push(message);
       }
     });
@@ -704,13 +679,10 @@ const AdminChatPage = () => {
     return groups;
   };
 
-  // Format date for display
   const formatDate = (dateString) => {
     try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return "Today"; // Fallback for invalid dates
-      }
+      if (isNaN(date.getTime())) return "Today";
       
       const today = new Date();
       const yesterday = new Date(today);
@@ -723,12 +695,10 @@ const AdminChatPage = () => {
       } else if (date.toDateString() === yesterday.toDateString()) {
         dayLabel = 'Yesterday';
       } else {
-        // Get day of week
         const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
         dayLabel = weekday;
       }
       
-      // Format date as MM/DD/YY
       const formattedDate = date.toLocaleDateString('en-US', { 
         month: 'numeric', 
         day: 'numeric',
@@ -737,11 +707,10 @@ const AdminChatPage = () => {
       
       return `${dayLabel}, ${formattedDate}`;
     } catch (e) {
-      return "Today"; // Fallback for any errors
+      return "Today";
     }
   };
 
-  // Filter conversations based on search query
   const filteredConversations = conversations.filter(conv => {
     const studentName = (conv.student_name || '').toLowerCase();
     const studentEmail = (conv.student_email || '').toLowerCase();
@@ -753,12 +722,58 @@ const AdminChatPage = () => {
            lastMessage.includes(query);
   });
 
+  const addEmoji = (emoji) => {
+    setMessage(prev => prev + emoji)
+    setShowEmojiPicker(false)
+    inputRef.current?.focus()
+  }
+
+  const handleFileUpload = (event) => {
+    const files = Array.from(event.target.files)
+    setAttachments(prev => [...prev, ...files])
+    // Here you would typically upload files to your storage service
+  }
+
+  const findMessageById = (messageId) => {
+    return messages.find(msg => msg.id === messageId)
+  }
+
+  const handleReply = (message) => {
+    setReplyingTo(message)
+    inputRef.current?.focus()
+  }
+
+  const cancelReply = () => {
+    setReplyingTo(null)
+  }
+
+  const handleForward = (message) => {
+    setForwardMessage(message)
+  }
+
+  const cancelForward = () => {
+    setForwardMessage(null)
+  }
+
+  const toggleSidebar = () => {
+    setShowSidebar(!showSidebar)
+  }
+
+  const goBackToConversations = () => {
+    setSelectedConversation(null)
+    if (window.innerWidth < 768) {
+      setShowSidebar(true)
+    }
+  }
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-gray-50">
         <div className="text-center">
-          <Loader className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
-          <p className="text-gray-600">Loading admin chat...</p>
+          <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse-slow">
+            <MessageCircle className="w-8 h-8 text-white" />
+          </div>
+          <p className="text-gray-600 font-medium">Loading admin chat...</p>
           <p className="text-sm text-gray-500 mt-2">Setting up conversations</p>
         </div>
       </div>
@@ -768,11 +783,24 @@ const AdminChatPage = () => {
   return (
     <>
       <style>{scrollbarStyles}</style>
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-gray-50 chat-container">
         {/* Conversations Sidebar */}
-        <div className="w-96 bg-white border-r border-gray-200 flex flex-col">
-          <div className="p-4 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-gray-800 mb-4">Student Conversations</h1>
+        <div className={`${showSidebar ? 'flex' : 'hidden'} md:flex w-full md:w-80 lg:w-96 bg-white border-r border-gray-200 flex-col absolute md:relative z-20 h-full sidebar-mobile ${showSidebar ? 'open' : ''}`}>
+          <div className="p-4 border-b border-gray-200 bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-xl font-bold text-gray-800">Chats</h1>
+              <div className="flex items-center space-x-2">
+                <button 
+                  onClick={initializeAdminChat}
+                  className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                >
+                  <RefreshCw className="w-5 h-5 text-gray-600" />
+                </button>
+                <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                  <MoreVertical className="w-5 h-5 text-gray-600" />
+                </button>
+              </div>
+            </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -780,42 +808,48 @@ const AdminChatPage = () => {
                 placeholder="Search students..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-100 rounded-lg focus:outline-none focus:bg-white focus:ring-2 focus:ring-green-500 transition-all duration-200"
               />
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="flex-1 overflow-y-auto custom-scrollbar bg-white">
             {filteredConversations.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">
-                <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">No conversations found</p>
+              <div className="text-center text-gray-500 py-12">
+                <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                <p className="text-lg font-medium mb-2">No conversations</p>
+                <p className="text-sm">When students message you, they'll appear here.</p>
               </div>
             ) : (
               filteredConversations.map((conversation) => (
                 <div
                   key={conversation.id}
                   onClick={() => selectConversation(conversation)}
-                  className={`p-4 border-b border-gray-100 cursor-pointer transition-all duration-200 hover:bg-gray-50 ${
-                    selectedConversation?.id === conversation.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                  className={`p-3 border-b border-gray-100 cursor-pointer transition-all duration-200 hover:bg-gray-50 group ${
+                    selectedConversation?.id === conversation.id ? 'bg-green-50 border-l-4 border-l-green-500' : ''
                   }`}
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-semibold text-lg">
-                        {conversation.student_name?.charAt(0).toUpperCase() || 'S'}
-                      </span>
+                    <div className="relative">
+                      <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <span className="text-white font-semibold text-sm">
+                          {conversation.student_name?.charAt(0).toUpperCase() || 'S'}
+                        </span>
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white"></div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-800 truncate">
-                        {conversation.student_name || 'Student'}
-                      </h3>
-                      <p className="text-sm text-gray-500 truncate">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-gray-800 truncate text-sm">
+                          {conversation.student_name || 'Student'}
+                        </h3>
+                        <span className="text-xs text-gray-400 flex-shrink-0 ml-2">
+                          {conversation.last_message_at ? formatTime(conversation.last_message_at) : ''}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 truncate mt-1">
                         {conversation.last_message || 'No messages yet'}
                       </p>
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      {conversation.last_message_at ? formatTime(conversation.last_message_at) : ''}
                     </div>
                   </div>
                 </div>
@@ -825,46 +859,63 @@ const AdminChatPage = () => {
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col bg-white">
+        <div className={`flex-1 flex flex-col bg-white chat-area-mobile ${!showSidebar ? 'flex' : 'hidden md:flex'} ${selectedConversation ? '' : 'hidden md:flex'}`}>
           {selectedConversation ? (
             <>
               {/* Chat Header */}
-              <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm sticky top-0 z-10">
+              <div className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
-                      <span className="text-white font-semibold text-lg">
-                        {selectedConversation.student_name?.charAt(0).toUpperCase() || 'S'}
-                      </span>
+                  <div className="flex items-center space-x-3">
+                    <button 
+                      onClick={goBackToConversations}
+                      className="md:hidden p-2 rounded-full hover:bg-gray-100 transition-colors"
+                    >
+                      <ChevronDown className="w-5 h-5 text-gray-600 transform -rotate-90" />
+                    </button>
+                    <div className="relative">
+                      <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center shadow-sm">
+                        <span className="text-white font-semibold text-sm">
+                          {selectedConversation.student_name?.charAt(0).toUpperCase() || 'S'}
+                        </span>
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
                     </div>
-                    <div>
-                      <h2 className="text-lg font-semibold text-gray-800">
+                    <div className="flex-1">
+                      <h2 className="font-semibold text-gray-800 text-sm">
                         {selectedConversation.student_name || 'Student'}
                       </h2>
-                      <p className="text-sm text-gray-500">
-                        {selectedConversation.student_email || 'No email'}
+                      <p className="text-xs text-gray-500">
+                        {isOnline ? 'Online' : 'Offline'} • {selectedConversation.student_email || 'No email'}
                       </p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center">
+                  <div className="flex items-center space-x-1">
+                   
+                    <button 
+                      onClick={() => setShowContactInfo(!showContactInfo)}
+                      className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                    >
+                      <Info className="w-5 h-5 text-gray-600" />
+                    </button>
+                    
                     {isSelectionMode ? (
-                      <div className="flex items-center text-gray-700">
+                      <div className="flex items-center text-gray-700 ml-2">
                         <button
                           onClick={exitSelectionMode}
                           className="p-1.5 rounded-full hover:bg-gray-200 mr-2"
                         >
                           <X className="w-4 h-4" />
                         </button>
-                        <span className="font-medium">{selectedMessages.length} selected</span>
+                        <span className="font-medium text-sm">{selectedMessages.length} selected</span>
                         
                         {selectedMessages.length > 0 && (
                           <button
                             onClick={() => setShowConfirmDelete(true)}
-                            className="ml-4 text-red-600 hover:bg-red-50 rounded-full p-1.5 transition-colors flex items-center text-xs"
+                            className="ml-3 text-red-600 hover:bg-red-50 rounded-full p-1.5 transition-colors flex items-center text-xs"
                             disabled={actionInProgress}
                           >
-                            <Trash2 className="w-3.5 h-3.5 mr-1" />
+                            <Trash2 className="w-4 h-4 mr-1" />
                             <span>Delete</span>
                           </button>
                         )}
@@ -873,13 +924,13 @@ const AdminChatPage = () => {
                       <div className="relative" ref={optionsMenuRef}>
                         <button
                           onClick={() => setShowOptions(!showOptions)}
-                          className="text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-colors"
+                          className="p-2 rounded-full hover:bg-gray-100 transition-colors"
                         >
-                          <MoreVertical className="w-4 h-4" />
+                          <MoreVertical className="w-5 h-5 text-gray-600" />
                         </button>
                         
                         {showOptions && (
-                          <div className="absolute right-0 mt-1 w-44 bg-white rounded-md shadow-lg overflow-hidden z-20 border border-gray-200">
+                          <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg overflow-hidden z-20 border border-gray-200 animate-fade-in">
                             <div className="py-1">
                               <button
                                 onClick={enterSelectionMode}
@@ -888,18 +939,18 @@ const AdminChatPage = () => {
                                 <span>Select messages</span>
                               </button>
                               <button
-                                onClick={() => setShowConfirmClear(true)}
-                                className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
-                              >
-                                <Trash className="w-4 h-4 mr-2" />
-                                <span>Clear chat</span>
-                              </button>
-                              <button
                                 onClick={checkForNewMessages}
                                 className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                               >
                                 <RefreshCw className="w-4 h-4 mr-2" />
                                 <span>Refresh messages</span>
+                              </button>
+                              <button
+                                onClick={() => setShowConfirmClear(true)}
+                                className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                <span>Clear chat</span>
                               </button>
                             </div>
                           </div>
@@ -912,9 +963,9 @@ const AdminChatPage = () => {
 
               {/* Error Message */}
               {error && (
-                <div className="bg-red-50 border-y border-red-100 px-4 py-2.5 flex justify-between items-center animate-slide-down">
+                <div className="bg-red-50 border-y border-red-100 px-4 py-2.5 flex justify-between items-center animate-slide-in">
                   <div className="flex items-center">
-                    <XCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" />
+                    <XCircle className="w-4 h-4 text-red-500 mr-2 flex-shrink-0" />
                     <p className="text-red-700 text-sm">{error}</p>
                   </div>
                   <button 
@@ -926,25 +977,44 @@ const AdminChatPage = () => {
                 </div>
               )}
 
+              {/* Reply Preview */}
+              {replyingTo && (
+                <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-1 h-8 bg-green-500 rounded-full"></div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-600">Replying to {replyingTo.sender_name}</p>
+                      <p className="text-xs text-gray-500 truncate max-w-xs">{replyingTo.message}</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={cancelReply}
+                    className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                  >
+                    <X className="w-4 h-4 text-gray-500" />
+                  </button>
+                </div>
+              )}
+
               {/* Messages */}
               <div 
                 ref={messagesContainerRef}
-                className="flex-1 overflow-y-auto px-4 py-6 bg-gray-50 custom-scrollbar"
+                className="flex-1 overflow-y-auto px-4 py-2 bg-gray-50 custom-scrollbar"
               >
-                <div className="max-w-3xl mx-auto space-y-6">
+                <div className="max-w-3xl mx-auto space-y-1">
                   {messages.length === 0 ? (
                     <div className="text-center py-16">
                       <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
                         <MessageCircle className="w-10 h-10 text-gray-400" />
                       </div>
                       <p className="text-lg font-medium text-gray-600 mb-2">No messages yet</p>
-                      <p className="text-gray-500">Start a conversation with the student!</p>
+                      <p className="text-gray-500 text-sm">Start a conversation with the student!</p>
                     </div>
                   ) : (
                     getMessageGroups().map((group, groupIndex) => (
-                      <div key={`group-${groupIndex}`} className="space-y-4">
+                      <div key={`group-${groupIndex}`} className="space-y-1">
                         <div className="flex justify-center">
-                          <div className="inline-block bg-white px-3 py-1 text-xs font-medium text-gray-500 rounded-full shadow-sm border border-gray-100">
+                          <div className="inline-block bg-gray-200 px-3 py-1 text-xs font-medium text-gray-600 rounded-full">
                             {formatDate(group.date)}
                           </div>
                         </div>
@@ -957,14 +1027,15 @@ const AdminChatPage = () => {
                           );
                           const isBeingDeleted = deletingMessageIds.includes(msg.id);
                           const isSelected = selectedMessages.includes(msg.id);
+                          const repliedMessage = msg.reply_to ? findMessageById(msg.reply_to) : null;
                           
                           return (
                             <div
                               key={msg.id}
-                              className={`flex ${isAdmin ? 'justify-end' : 'justify-start'} ${isBeingDeleted ? 'message-deleted' : ''}`}
+                              className={`flex ${isAdmin ? 'justify-end' : 'justify-start'} ${isBeingDeleted ? 'message-deleted' : 'message-enter'} ${isSelected ? 'message-selected' : ''}`}
                               onClick={() => isSelectionMode && toggleMessageSelection(msg.id)}
                             >
-                              <div className={`flex ${!isAdmin && 'items-end'} max-w-xs lg:max-w-md ${showSender ? 'mt-4' : 'mt-1'}`}>
+                              <div className={`flex ${!isAdmin && 'items-end'} max-w-xs lg:max-w-md ${showSender ? 'mt-2' : 'mt-1'} px-2 py-1 rounded-lg ${isSelectionMode ? 'cursor-pointer' : ''}`}>
                                 {/* Student Avatar */}
                                 {!isAdmin && showSender && (
                                   <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0">
@@ -983,18 +1054,29 @@ const AdminChatPage = () => {
                                     </span>
                                   )}
                                   
+                                  {/* Reply Preview */}
+                                  {repliedMessage && (
+                                    <div className="bg-black bg-opacity-10 rounded-lg p-2 mb-1 border-l-2 border-green-500">
+                                      <p className="text-xs font-medium text-gray-600">
+                                        {repliedMessage.sender_name}
+                                      </p>
+                                      <p className="text-xs text-gray-500 truncate">
+                                        {repliedMessage.message}
+                                      </p>
+                                    </div>
+                                  )}
+                                  
                                   {/* Message Bubble */}
                                   <div
-                                    className={`rounded-2xl px-4 py-2.5 ${
+                                    className={`rounded-2xl px-3 py-2 ${
                                       isAdmin
-                                        ? 'bg-blue-500 text-white rounded-br-none shadow-sm'
-                                        : 'bg-white text-gray-800 rounded-bl-none shadow-sm border border-gray-100'
-                                    } ${msg.isTemp ? 'opacity-70' : ''} ${isSelected ? 'ring-2 ring-offset-2 ring-blue-500' : ''}
-                                    ${isSelectionMode ? 'cursor-pointer hover:opacity-90' : ''}`}
+                                        ? 'bg-green-500 text-white rounded-br-md'
+                                        : 'bg-white text-gray-800 rounded-bl-md shadow-sm border border-gray-200'
+                                    } ${msg.isTemp ? 'opacity-70' : ''}`}
                                   >
-                                    <p className="text-sm whitespace-pre-wrap break-words leading-snug">{msg.message}</p>
+                                    <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.message}</p>
                                     <div className={`flex items-center text-xs mt-1 ${
-                                      isAdmin ? 'text-blue-100 justify-end' : 'text-gray-400'
+                                      isAdmin ? 'text-green-100 justify-end' : 'text-gray-400'
                                     }`}>
                                       {msg.isTemp ? (
                                         <div className="flex items-center">
@@ -1003,7 +1085,6 @@ const AdminChatPage = () => {
                                         </div>
                                       ) : (
                                         <>
-                                          {/* Use the safe time formatting function */}
                                           {formatTime(msg.created_at)}
                                           {isAdmin && (
                                             <CheckCircle className="w-3 h-3 ml-1" />
@@ -1012,6 +1093,33 @@ const AdminChatPage = () => {
                                       )}
                                     </div>
                                   </div>
+
+                                  {/* Message Actions */}
+                                  {!isSelectionMode && (
+                                    <div className="flex items-center justify-end space-x-2 mt-1 opacity-0 hover:opacity-100 transition-opacity">
+                                      <button 
+                                        onClick={() => handleReply(msg)}
+                                        className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                                        title="Reply"
+                                      >
+                                        <Reply className="w-3 h-3 text-gray-500" />
+                                      </button>
+                                      <button 
+                                        onClick={() => handleForward(msg)}
+                                        className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                                        title="Forward"
+                                      >
+                                        <Forward className="w-3 h-3 text-gray-500" />
+                                      </button>
+                                      <button 
+                                        onClick={() => toggleMessageSelection(msg.id)}
+                                        className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                                        title="Select"
+                                      >
+                                        <Star className="w-3 h-3 text-gray-500" />
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -1020,6 +1128,27 @@ const AdminChatPage = () => {
                       </div>
                     ))
                   )}
+                  
+                  {/* Typing Indicator */}
+                  {isTyping && (
+                    <div className="flex justify-start">
+                      <div className="flex items-end max-w-xs lg:max-w-md mt-1 px-2 py-1">
+                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0">
+                          <span className="text-white font-semibold text-xs">
+                            {selectedConversation.student_name?.charAt(0).toUpperCase() || 'S'}
+                          </span>
+                        </div>
+                        <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 shadow-sm border border-gray-200">
+                          <div className="flex space-x-1">
+                            <div className="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
+                            <div className="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
+                            <div className="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   <div ref={messagesEndRef} />
                 </div>
 
@@ -1027,34 +1156,75 @@ const AdminChatPage = () => {
                 {showScrollButton && (
                   <button
                     onClick={() => scrollToBottom()}
-                    className="fixed bottom-24 right-6 bg-white shadow-lg rounded-full p-2.5 z-10 hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 border border-gray-200"
+                    className="fixed bottom-20 right-4 bg-green-500 text-white shadow-lg rounded-full p-3 z-10 hover:bg-green-600 transition-all duration-200 transform hover:scale-105 animate-bounce-slow"
                   >
-                    <ChevronDown className="w-5 h-5 text-gray-600" />
+                    <ChevronDown className="w-5 h-5" />
                   </button>
                 )}
               </div>
 
               {/* Message Input */}
-              <div className="bg-white border-t border-gray-200 p-4 sticky bottom-0">
-                <form onSubmit={sendMessage} className="flex items-center space-x-2 max-w-3xl mx-auto">
+              <div className="bg-white border-t border-gray-200 p-3 sticky bottom-0">
+                <form onSubmit={sendMessage} className="flex items-end space-x-2 max-w-3xl mx-auto">
+                  {/* Attachment Button */}
+                  
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    multiple
+                  />
+
+                  {/* Emoji Picker */}
+                  <div className="relative" ref={emojiPickerRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      className="p-2 text-gray-500 hover:text-gray-700 transition-colors flex-shrink-0"
+                    >
+                      <Smile className="w-5 h-5" />
+                    </button>
+                    
+                    {showEmojiPicker && (
+                      <div className="absolute bottom-12 left-0 w-64 h-48 bg-white rounded-lg shadow-lg border border-gray-200 z-30 overflow-y-auto custom-scrollbar">
+                        <div className="p-3 grid grid-cols-8 gap-1">
+                          {emojis.map((emoji, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => addEmoji(emoji)}
+                              className="p-1 hover:bg-gray-100 rounded transition-colors text-lg"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Message Input */}
                   <div className="flex-1 relative">
-                    <input
-                      type="text"
+                    <textarea
+                      ref={inputRef}
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       onKeyPress={handleKeyPress}
                       placeholder="Type a message..."
                       disabled={sending || isSelectionMode}
-                      className="w-full rounded-full py-3 px-4 pl-5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 disabled:opacity-50 transition-all duration-200 border border-gray-200 focus:border-transparent shadow-sm"
+                      rows="1"
+                      className="w-full rounded-2xl py-3 px-4 bg-gray-100 focus:outline-none focus:bg-white focus:ring-2 focus:ring-green-500 text-gray-700 disabled:opacity-50 transition-all duration-200 auto-resize custom-scrollbar"
                     />
                   </div>
 
+                  {/* Send Button */}
                   <button
                     type="submit"
                     disabled={!message.trim() || sending || isSelectionMode}
-                    className={`p-3 rounded-full transition-all duration-200 ${
+                    className={`p-3 rounded-full transition-all duration-200 flex-shrink-0 ${
                       message.trim() && !sending && !isSelectionMode
-                        ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700 transform hover:scale-105' 
+                        ? 'bg-green-500 text-white shadow-sm hover:bg-green-600 transform hover:scale-105' 
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
                   >
@@ -1068,34 +1238,97 @@ const AdminChatPage = () => {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex-1 flex items-center justify-center bg-gray-50">
               <div className="text-center text-gray-500 max-w-md p-8">
-                <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <h3 className="text-xl font-semibold mb-2">Select a conversation</h3>
-                <p>Choose a student from the sidebar to start chatting</p>
+                <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <MessageCircle className="w-12 h-12 text-green-500" />
+                </div>
+                <h3 className="text-2xl font-semibold mb-3 text-gray-700">Welcome to Admin Chat</h3>
+                <p className="text-gray-600 mb-6">Select a conversation from the sidebar to start chatting with students.</p>
+                <div className="space-y-2 text-sm text-gray-500">
+                  <p>💬 Reply to specific messages</p>
+                  <p>📎 Share files and documents</p>
+                  <p>😊 Use emojis to express yourself</p>
+                  <p>🔍 Search through conversations</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Contact Info Sidebar */}
+          {showContactInfo && selectedConversation && (
+            <div className="absolute inset-0 bg-white z-30 animate-slide-in md:relative md:z-0 md:w-80 lg:w-96 border-l border-gray-200">
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Contact Info</h2>
+                  <button 
+                    onClick={() => setShowContactInfo(false)}
+                    className="p-1 rounded-full hover:bg-gray-100 transition-colors md:hidden"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="text-center">
+                  <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+                    <span className="text-white font-semibold text-xl">
+                      {selectedConversation.student_name?.charAt(0).toUpperCase() || 'S'}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-1">
+                    {selectedConversation.student_name || 'Student'}
+                  </h3>
+                  <p className="text-gray-500 text-sm mb-6">{selectedConversation.student_email}</p>
+                  
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <span className="text-gray-600">Status</span>
+                      <span className="text-green-500 text-sm font-medium">Online</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <span className="text-gray-600">Member since</span>
+                      <span className="text-gray-500 text-sm">2024</span>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-6 space-y-2">
+                    <button className="w-full py-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium text-sm">
+                      <Ban className="w-4 h-4 inline mr-2" />
+                      Block Student
+                    </button>
+                    <button className="w-full py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm">
+                      <Archive className="w-4 h-4 inline mr-2" />
+                      Archive Chat
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
           {/* Clear Chat Confirmation Modal */}
           {showConfirmClear && (
-            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg shadow-xl p-6 m-4 max-w-sm w-full animate-fade-in">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Clear entire chat?</h3>
-                <p className="text-gray-500 mb-5">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full animate-fade-in">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Trash2 className="w-6 h-6 text-red-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center">Clear entire chat?</h3>
+                <p className="text-gray-500 text-sm text-center mb-6">
                   This will permanently delete all messages in this conversation. This action cannot be undone.
                 </p>
-                <div className="flex justify-end space-x-3">
+                <div className="flex space-x-3">
                   <button
                     onClick={() => setShowConfirmClear(false)}
-                    className="px-4 py-2 rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium"
+                    className="flex-1 px-4 py-2.5 rounded-lg text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium transition-colors"
                     disabled={actionInProgress}
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleClearChat}
-                    className="px-4 py-2 rounded-md text-white bg-red-600 hover:bg-red-700 font-medium flex items-center"
+                    className="flex-1 px-4 py-2.5 rounded-lg text-white bg-red-500 hover:bg-red-600 font-medium transition-colors flex items-center justify-center"
                     disabled={actionInProgress}
                   >
                     {actionInProgress ? (
@@ -1104,10 +1337,7 @@ const AdminChatPage = () => {
                         Clearing...
                       </>
                     ) : (
-                      <>
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Clear Chat
-                      </>
+                      'Clear Chat'
                     )}
                   </button>
                 </div>
@@ -1117,25 +1347,28 @@ const AdminChatPage = () => {
 
           {/* Delete Messages Confirmation Modal */}
           {showConfirmDelete && (
-            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg shadow-xl p-6 m-4 max-w-sm w-full animate-fade-in">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full animate-fade-in">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Trash2 className="w-6 h-6 text-red-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center">
                   Delete {selectedMessages.length} {selectedMessages.length === 1 ? 'message' : 'messages'}?
                 </h3>
-                <p className="text-gray-500 mb-5">
+                <p className="text-gray-500 text-sm text-center mb-6">
                   This action cannot be undone.
                 </p>
-                <div className="flex justify-end space-x-3">
+                <div className="flex space-x-3">
                   <button
                     onClick={() => setShowConfirmDelete(false)}
-                    className="px-4 py-2 rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium"
+                    className="flex-1 px-4 py-2.5 rounded-lg text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium transition-colors"
                     disabled={actionInProgress}
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleDeleteSelected}
-                    className="px-4 py-2 rounded-md text-white bg-red-600 hover:bg-red-700 font-medium flex items-center"
+                    className="flex-1 px-4 py-2.5 rounded-lg text-white bg-red-500 hover:bg-red-600 font-medium transition-colors flex items-center justify-center"
                     disabled={actionInProgress}
                   >
                     {actionInProgress ? (
@@ -1144,10 +1377,7 @@ const AdminChatPage = () => {
                         Deleting...
                       </>
                     ) : (
-                      <>
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete
-                      </>
+                      'Delete'
                     )}
                   </button>
                 </div>
