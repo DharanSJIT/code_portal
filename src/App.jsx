@@ -30,6 +30,10 @@ import Profile from './components/Profile';
 import ChangePassword from './components/ChangePassword';
 import StudentPasswordManager from './components/StudentPasswordManager';
 
+// Chat Components
+import StudentChatPage from './components/Chat/StudentChatPage';
+import AdminChatPage from './components/Chat/AdminChatPage';
+
 // Auth Context
 import { AuthProvider } from './contexts/AuthContext';
 
@@ -178,7 +182,7 @@ function App() {
           
           {/* Legacy home route - redirect to dashboard */}
           <Route path="/home" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/settings" element={<Profile />} />
+          
           {/* Leaderboard Page Route */}
           <Route path="/leaderboard" element={
             <ProtectedRoute>
@@ -210,7 +214,14 @@ function App() {
           {/* Settings Page Route */}
           <Route path="/settings" element={
             <ProtectedRoute>
-              <SettingsPage />
+              <Profile />
+            </ProtectedRoute>
+          } />
+
+          {/* Chat Routes */}
+          <Route path="/chat" element={
+            <ProtectedRoute>
+              <StudentChatPage />
             </ProtectedRoute>
           } />
           
@@ -238,7 +249,8 @@ function App() {
             <Route path="add-student" element={<AdminUserCreation />} />
             <Route path="scraping-status" element={<ScrapingStatus />} />
             <Route path="leaderboard" element={<AdminLeaderboard />} />
-            <Route path="/admin/passwords" element={<StudentPasswordManager />} />
+            <Route path="passwords" element={<StudentPasswordManager />} />
+            <Route path="chat" element={<AdminChatPage />} />
           </Route>
           
           {/* Legacy Routes with Authentication Guard */}
