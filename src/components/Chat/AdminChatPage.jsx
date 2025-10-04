@@ -592,6 +592,9 @@ const AdminChatPage = () => {
     try {
       console.log('🗑️ Deleting selected messages:', selectedMessages)
       
+      // First mark messages as being deleted (for animation)
+      setDeletingMessageIds(prev => [...prev, ...selectedMessages])
+      
       const { error } = await chatService.deleteMessages(
         selectedConversation.id, 
         selectedMessages
@@ -601,20 +604,16 @@ const AdminChatPage = () => {
         throw new Error(error)
       }
       
-      // Mark messages as being deleted for the animation
-      setDeletingMessageIds(prev => [...prev, ...selectedMessages]);
-      
-      // Remove after animation completes
+      // Remove messages from state after animation
       setTimeout(() => {
         setMessages(prev => 
           prev.filter(msg => !selectedMessages.includes(msg.id))
-        );
-        
-        // Clean up deleting IDs
+        )
+        // Clean up deleting IDs array
         setDeletingMessageIds(prev => 
           prev.filter(id => !selectedMessages.includes(id))
-        );
-      }, 500);
+        )
+      }, 500)
       
       setShowConfirmDelete(false)
       setIsSelectionMode(false)
@@ -623,6 +622,11 @@ const AdminChatPage = () => {
     } catch (error) {
       console.error('Failed to delete messages:', error)
       setError('Failed to delete selected messages. Please try again.')
+      
+      // Remove the deleting animation state if there was an error
+      setDeletingMessageIds(prev => 
+        prev.filter(id => !selectedMessages.includes(id))
+      )
     } finally {
       setActionInProgress(false)
     }
@@ -986,7 +990,7 @@ const AdminChatPage = () => {
                                         ? 'bg-blue-500 text-white rounded-br-none shadow-sm'
                                         : 'bg-white text-gray-800 rounded-bl-none shadow-sm border border-gray-100'
                                     } ${msg.isTemp ? 'opacity-70' : ''} ${isSelected ? 'ring-2 ring-offset-2 ring-blue-500' : ''}
-                                                                        ${isSelectionMode ? 'cursor-pointer hover:opacity-90' : ''}`}
+                                    ${isSelectionMode ? 'cursor-pointer hover:opacity-90' : ''}`}
                                   >
                                     <p className="text-sm whitespace-pre-wrap break-words leading-snug">{msg.message}</p>
                                     <div className={`flex items-center text-xs mt-1 ${

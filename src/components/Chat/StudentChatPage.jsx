@@ -78,14 +78,14 @@ const scrollbarStyles = `
 
   .chat-header {
     flex-shrink: 0;
-    background: rgba(128, 128, 128, 0.15);
+    background: rgba(128, 128, 128, 0.125);
 
     border-bottom: 1px solid #e5e7eb;
     width: 100%;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 0rem;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   }
 
@@ -101,7 +101,7 @@ const scrollbarStyles = `
     background: rgba(128, 128, 128, 0.1);
 
     border-top: 1px solid #e5e7eb;
-    padding: 1rem;
+    padding: 0.5rem;
     width: 100%;
   }
 `;
@@ -436,6 +436,9 @@ const StudentChatPage = () => {
     try {
       console.log('🗑️ Deleting selected messages:', selectedMessages)
       
+      // First mark the messages as being deleted (for animation)
+      setDeletingMessageIds(prev => [...prev, ...selectedMessages])
+      
       const { error } = await chatService.deleteMessages(
         conversation.id, 
         selectedMessages
@@ -445,7 +448,17 @@ const StudentChatPage = () => {
         throw new Error(error)
       }
       
-      // We'll let the real-time subscription handle the actual removal
+      // Remove the messages from the state after animation
+      setTimeout(() => {
+        setMessages(prev => 
+          prev.filter(msg => !selectedMessages.includes(msg.id))
+        )
+        // Clean up the deleting IDs array
+        setDeletingMessageIds(prev => 
+          prev.filter(id => !selectedMessages.includes(id))
+        )
+      }, 500)
+      
       setShowConfirmDelete(false)
       setIsSelectionMode(false)
       setSelectedMessages([])
@@ -453,6 +466,10 @@ const StudentChatPage = () => {
     } catch (error) {
       console.error('Failed to delete messages:', error)
       setError('Failed to delete selected messages. Please try again.')
+      // Remove the deleting animation state if there was an error
+      setDeletingMessageIds(prev => 
+        prev.filter(id => !selectedMessages.includes(id))
+      )
     } finally {
       setActionInProgress(false)
     }
