@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import SignIn from "../components/SignIn";
+// import { motion } from "framer-motion";
+import { Twitter, Facebook, Linkedin, Github, ArrowRight } from "lucide-react";
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
@@ -132,6 +134,61 @@ const LandingPage = () => {
       );
     }
   };
+
+  const footerVariants = {
+  hidden: { opacity: 0, y: 50 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      type: "spring",
+      stiffness: 80,
+      staggerChildren: 0.15, // Staggers the animation of child elements
+    },
+  },
+};
+
+const columnVariants = {
+  hidden: { opacity: 0, y: 30 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+};
+
+const linkListVariants = {
+  hidden: {},
+  show: {
+    transition: {
+      staggerChildren: 0.1, // Staggers each link in the list
+    },
+  },
+};
+
+const linkItemVariants = {
+  hidden: { opacity: 0, x: -20 },
+  show: { opacity: 1, x: 0 },
+};
+
+const socialIconContainerVariants = {
+  hidden: {},
+  show: {
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const socialIconVariants = {
+  hidden: { opacity: 0, scale: 0.5 },
+  show: { opacity: 1, scale: 1 },
+};
+
+// --- Social Icons Data ---
+// This makes it easier to manage the social links and their icons.
+const socialLinks = [
+  { name: "twitter", icon: <Twitter size={18} />, href: "#" },
+  { name: "facebook", icon: <Facebook size={18} />, href: "#" },
+  { name: "linkedin", icon: <Linkedin size={18} />, href: "#" },
+  { name: "github", icon: <Github size={18} />, href: "#" },
+];
 
   const handleNextContest = () => {
     if (autoRotateTimerRef.current) {
@@ -1495,133 +1552,152 @@ const LandingPage = () => {
         </main>
 
         {/* Footer */}
-        <footer className="border-t border-gray-200 py-12 sm:py-16 px-4 sm:px-6 bg-white">
-          <div className="max-w-7xl mx-auto">
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-12 mb-8 md:mb-12">
-              <div className="col-span-2 sm:col-span-2 md:col-span-1">
-                <div className="flex items-center space-x-2 mb-4 sm:mb-5">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 gradient-bg rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-base shadow-md">
-                    CT
-                  </div>
-                  <span className="text-lg sm:text-xl font-bold text-gray-900">
-                    CodeTrack<span className="text-blue-600">Pro</span>
-                  </span>
-                </div>
-                <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
-                  Empowering developers to track and grow their coding careers
-                  through unified analytics and insights.
-                </p>
-                <div className="flex space-x-3 sm:space-x-4">
-                  {["twitter", "facebook", "linkedin", "github"].map(
-                    (social) => (
-                      <motion.a
-                        key={social}
-                        href="#"
-                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-blue-100 hover:text-blue-600"
-                        whileHover={{ y: -3 }}
-                      >
-                        <span className="sr-only">{social}</span>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                        >
-                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" />
-                        </svg>
-                      </motion.a>
-                    )
-                  )}
-                </div>
-              </div>
+       <motion.footer
+      className="border-t border-gray-200 py-12 sm:py-16 px-4 sm:px-6 bg-white relative overflow-hidden"
+      variants={footerVariants}
+      initial="hidden"
+      whileInView="show" // Animation triggers when the footer is in view
+      viewport={{ once: true, amount: 0.2 }}
+    >
+      {/* Animated gradient border */}
+      <motion.div
+        className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent"
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: 1 }}
+        transition={{ duration: 1.5, ease: "circOut", delay: 0.2 }}
+        style={{ transformOrigin: "center" }}
+      />
 
-              <div>
-                <h4 className="font-bold text-gray-900 mb-3 sm:mb-5 text-base sm:text-lg">
-                  Product
-                </h4>
-                <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base text-gray-600">
-                  <li className="hover:text-blue-600 transition-colors cursor-pointer">
-                    Features
-                  </li>
-                  <li className="hover:text-blue-600 transition-colors cursor-pointer">
-                    Pricing
-                  </li>
-                  <li className="hover:text-blue-600 transition-colors cursor-pointer">
-                    API
-                  </li>
-                  <li className="hover:text-blue-600 transition-colors cursor-pointer">
-                    Integrations
-                  </li>
-                  <li className="hover:text-blue-600 transition-colors cursor-pointer">
-                    Updates
-                  </li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-gray-900 mb-3 sm:mb-5 text-base sm:text-lg">
-                  Company
-                </h4>
-                <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base text-gray-600">
-                  <li className="hover:text-blue-600 transition-colors cursor-pointer">
-                    About Us
-                  </li>
-                  <li className="hover:text-blue-600 transition-colors cursor-pointer">
-                    Blog
-                  </li>
-                  <li className="hover:text-blue-600 transition-colors cursor-pointer">
-                    Careers
-                  </li>
-                  <li className="hover:text-blue-600 transition-colors cursor-pointer">
-                    Press
-                  </li>
-                  <li className="hover:text-blue-600 transition-colors cursor-pointer">
-                    Accessibility
-                  </li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-gray-900 mb-3 sm:mb-5 text-base sm:text-lg">
-                  Resources
-                </h4>
-                <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base text-gray-600">
-                  <li className="hover:text-blue-600 transition-colors cursor-pointer">
-                    Documentation
-                  </li>
-                  <li className="hover:text-blue-600 transition-colors cursor-pointer">
-                    Help Center
-                  </li>
-                  <li className="hover:text-blue-600 transition-colors cursor-pointer">
-                    Community
-                  </li>
-                  <li className="hover:text-blue-600 transition-colors cursor-pointer">
-                    Contact
-                  </li>
-                  <li className="hover:text-blue-600 transition-colors cursor-pointer">
-                    Developers
-                  </li>
-                </ul>
-              </div>
+      <div className="max-w-7xl mx-auto">
+        <motion.div
+          className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-12 mb-8 md:mb-12"
+          variants={footerVariants}
+        >
+          {/* Brand Column */}
+          <motion.div
+            className="col-span-2 sm:col-span-2 md:col-span-1"
+            variants={columnVariants}
+          >
+            <div className="flex items-center space-x-2 mb-4 sm:mb-5">
+              <motion.div
+                className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-base shadow-lg"
+                whileHover={{ scale: 1.1, rotate: -10 }}
+                transition={{ type: 'spring', stiffness: 300 }}
+              >
+                CT
+              </motion.div>
+              <span className="text-lg sm:text-xl font-bold text-gray-900">
+                CodeTrack<span className="text-blue-600">Pro</span>
+              </span>
             </div>
+            <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
+              Empowering developers to track and grow their coding careers
+              through unified analytics and insights.
+            </p>
+            <motion.div
+              className="flex space-x-3 sm:space-x-4"
+              variants={socialIconContainerVariants}
+            >
+              {socialLinks.map((social) => (
+                <motion.a
+                  key={social.name}
+                  href={social.href}
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-blue-100 hover:text-blue-600 transition-colors"
+                  whileHover={{ y: -4, scale: 1.1, rotate: 5 }}
+                  whileTap={{ scale: 0.95 }}
+                  variants={socialIconVariants}
+                  aria-label={social.name}
+                >
+                  {social.icon}
+                </motion.a>
+              ))}
+            </motion.div>
+          </motion.div>
 
-            <div className="border-t border-gray-200 pt-6 sm:pt-8 flex flex-col md:flex-row justify-between items-center text-xs sm:text-sm text-gray-600">
-              <p>&copy; 2025 CodeTrack Pro. All rights reserved.</p>
-              <div className="flex space-x-4 sm:space-x-6 mt-4 md:mt-0">
-                <a href="#" className="hover:text-blue-600 transition-colors">
-                  Privacy Policy
-                </a>
-                <a href="#" className="hover:text-blue-600 transition-colors">
-                  Terms of Service
-                </a>
-                <a href="#" className="hover:text-blue-600 transition-colors">
-                  Cookie Policy
-                </a>
-              </div>
-            </div>
+          {/* Product Column */}
+          <motion.div variants={columnVariants}>
+            <h4 className="font-bold text-gray-900 mb-3 sm:mb-5 text-base sm:text-lg">
+              For Students
+            </h4>
+            <motion.ul
+              className="space-y-2 sm:space-y-3 text-sm sm:text-base text-gray-600"
+              variants={linkListVariants}
+            >
+              {[ "Dashboard", "LeaderBoard", "Messenger", "Activity"].map((link) => (
+                <motion.li key={link} variants={linkItemVariants}>
+                  <motion.a href="#" className="flex items-center group hover:text-blue-600 transition-colors" whileHover={{x: 5}}>
+                    <ArrowRight className="w-3 h-3 mr-2 text-blue-400 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300"/>
+                    {link}
+                  </motion.a>
+                </motion.li>
+              ))}
+            </motion.ul>
+          </motion.div>
+
+          {/* Company Column */}
+          <motion.div variants={columnVariants}>
+            <h4 className="font-bold text-gray-900 mb-3 sm:mb-5 text-base sm:text-lg">
+              For Admin
+            </h4>
+            <motion.ul
+              className="space-y-2 sm:space-y-3 text-sm sm:text-base text-gray-600"
+              variants={linkListVariants}
+            >
+              {["Portal", "Chat Management", "User Analytics", "Scraping Status"].map((link) => (
+                 <motion.li key={link} variants={linkItemVariants}>
+                  <motion.a href="#" className="flex items-center group hover:text-blue-600 transition-colors" whileHover={{x: 5}}>
+                    <ArrowRight className="w-3 h-3 mr-2 text-blue-400 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300"/>
+                    {link}
+                  </motion.a>
+                </motion.li>
+              ))}
+            </motion.ul>
+          </motion.div>
+
+          {/* Resources Column */}
+          <motion.div variants={columnVariants}>
+            <h4 className="font-bold text-gray-900 mb-3 sm:mb-5 text-base sm:text-lg">
+              Resources
+            </h4>
+            <motion.ul
+              className="space-y-2 sm:space-y-3 text-sm sm:text-base text-gray-600"
+              variants={linkListVariants}
+            >
+              {["Documentation", "Help Center", "Community", "Contact"].map((link) => (
+                 <motion.li key={link} variants={linkItemVariants}>
+                  <motion.a href="#" className="flex items-center group hover:text-blue-600 transition-colors" whileHover={{x: 5}}>
+                    <ArrowRight className="w-3 h-3 mr-2 text-blue-400 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300"/>
+                    {link}
+                  </motion.a>
+                </motion.li>
+              ))}
+            </motion.ul>
+          </motion.div>
+        </motion.div>
+
+        {/* Bottom Bar */}
+        <motion.div
+          className="border-t border-gray-200 pt-6 sm:pt-8 flex flex-col md:flex-row justify-between items-center text-xs sm:text-sm text-gray-600"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8, delay: 0.5 }}
+        >
+          <p>&copy; 2025 CodeTrack Pro. All rights reserved.</p>
+          <div className="flex space-x-4 sm:space-x-6 mt-4 md:mt-0">
+            <a href="#" className="hover:text-blue-600 transition-colors">
+              Privacy Policy
+            </a>
+            <a href="#" className="hover:text-blue-600 transition-colors">
+              Terms of Service
+            </a>
+            <a href="#" className="hover:text-blue-600 transition-colors">
+              Cookie Policy
+            </a>
           </div>
-        </footer>
+        </motion.div>
+      </div>
+    </motion.footer>
       </div>
     </ErrorBoundary>
   );
