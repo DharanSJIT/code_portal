@@ -171,7 +171,7 @@ const Header = () => {
   const navItems = [
     { name: 'Dashboard', path: '/dashboard' },
     { name: 'Leaderboard', path: '/leaderboard' },
-    { name: 'Chat', path: '/chat' },
+    { name: 'Messenger', path: '/chat' },
     { name: 'Activity', path: '/activity' }
   ];
 

@@ -268,7 +268,7 @@ const scrollbarStyles = `
     flex-direction: column;
     height: calc(100vh - 10vh);
     position: fixed;
-    top: 8vh;
+    top: 9vh;
     right: 0;
     bottom: 0;
     left: 0;
@@ -900,7 +900,7 @@ const StudentChatPage = () => {
                   <p className="animate-fade-in" style={{animationDelay: '0.1s'}}>💬 Ask any question you have</p>
                   <p className="animate-fade-in" style={{animationDelay: '0.2s'}}>⚡ Get instant responses</p>
                   <p className="animate-fade-in" style={{animationDelay: '0.3s'}}>🔒 Your conversations are secure</p>
-                  <p className="animate-fade-in" style={{animationDelay: '0.4s'}}>📞 Professional support team</p>
+                  {/* <p className="animate-fade-in" style={{animationDelay: '0.4s'}}>📞 Professional support team</p> */}
                 </div>
               </div>
             ) : (
