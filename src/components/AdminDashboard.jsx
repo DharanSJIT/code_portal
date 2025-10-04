@@ -279,7 +279,7 @@ const AdminDashboard = () => {
       setStats({
         totalStudents: dashboardStats.totalStudents || 0,
         activeStudents: dashboardStats.activeStudents || 0,
-        totalProblems: dashboardStats.totalSolvedProblems || 0,
+        totalProblems: dashboardStats.totalStudents - dashboardStats.activeStudents || 0,
         platformStats: dashboardStats.platformCounts || {
           leetcode: 0,
           codeforces: 0,
@@ -526,9 +526,9 @@ const AdminDashboard = () => {
       bgColor: "bg-blue-50",
     },
     {
-      title: "Problems Solved",
+      title: "Inactive Students",
       value: stats.totalProblems,
-      description: "Across all platforms",
+      description: "Without profile links",
       // icon: (
       //   <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none">
       //     <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -870,26 +870,16 @@ const AdminDashboard = () => {
                 transition={{ type: "spring", stiffness: 300, damping: 10 }}
               >
                 <svg
+                  xmlns="http://www.w3.org/2000/svg"
                   className="w-5 h-5 mr-3"
                   viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                  fill="currentColor"
                 >
-                  <rect
-                    x="3"
-                    y="11"
-                    width="18"
-                    height="11"
-                    rx="2"
-                    ry="2"
-                  ></rect>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  <path d="M12 2C6.48 2 2 6.02 2 10.72c0 2.73 1.41 5.17 3.67 6.81v4.47l4.13-2.27c.69.13 1.4.2 2.13.2 5.52 0 10-4.02 10-8.72S17.52 2 12 2zm.3 11.79L10 11.3l-3.7 2.49 4.34-4.79 2.3 2.49 3.7-2.49-4.34 4.79z" />
                 </svg>
-                Messenger 
+                Messenger
               </motion.a>
+
               </li>
             </li>
           </ul>
@@ -1080,26 +1070,7 @@ const AdminDashboard = () => {
                 </motion.svg>
               </motion.button>
 
-              <motion.button
-                className="p-2 text-slate-600 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors"
-                whileHover={{ scale: 1.1, backgroundColor: "#EFF6FF" }}
-                whileTap={{ scale: 0.9 }}
-              >
-                <svg
-                  className="w-5 h-5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                  />
-                </svg>
-              </motion.button>
-
+              
               <motion.button
                 onClick={handleLogout}
                 className="md:flex hidden items-center px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg"
