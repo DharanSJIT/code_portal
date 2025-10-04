@@ -200,7 +200,7 @@ const AdminChatPage = () => {
   }, [])
 
   useEffect(() => {
-    scrollToBottom()
+    scrollToBottom('auto') // Use 'auto' for instant scroll when messages load
   }, [messages, isTyping])
 
   useEffect(() => {
@@ -242,8 +242,22 @@ const AdminChatPage = () => {
 
   const scrollToBottom = (behavior = 'smooth') => {
     setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior })
+      messagesEndRef.current?.scrollIntoView({ 
+        behavior,
+        block: 'end',
+        inline: 'nearest'
+      })
     }, 100)
+  }
+
+  // Force scroll to bottom when conversation is selected
+  const forceScrollToBottom = () => {
+    setTimeout(() => {
+      const messagesContainer = messagesContainerRef.current
+      if (messagesContainer) {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight
+      }
+    }, 150)
   }
 
   const initializeAdminChat = async () => {
@@ -346,6 +360,11 @@ const AdminChatPage = () => {
           created_at: ensureValidDate(msg.created_at)
         }));
         setMessages(processedMessages || [])
+        
+        // Force scroll to bottom after messages are loaded
+        setTimeout(() => {
+          forceScrollToBottom()
+        }, 200)
       }
 
       setupRealtimeSubscription(conversation.id)
@@ -552,6 +571,11 @@ const AdminChatPage = () => {
           created_at: ensureValidDate(msg.created_at)
         }));
         setMessages(processedMessages)
+        
+        // Scroll to bottom after refreshing messages
+        setTimeout(() => {
+          forceScrollToBottom()
+        }, 100)
       }
     } catch (error) {
       console.error('Error manually refreshing messages:', error)
@@ -831,12 +855,12 @@ const AdminChatPage = () => {
                 >
                   <div className="flex items-center space-x-3">
                     <div className="relative">
-                      <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <div className="w-12 h-12 bg-green-400 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
                         <span className="text-white font-semibold text-sm">
                           {conversation.student_name?.charAt(0).toUpperCase() || 'S'}
                         </span>
                       </div>
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white"></div>
+                      {/* <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white"></div> */}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
@@ -891,14 +915,7 @@ const AdminChatPage = () => {
                   </div>
                   
                   <div className="flex items-center space-x-1">
-                   
-                    <button 
-                      onClick={() => setShowContactInfo(!showContactInfo)}
-                      className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                    >
-                      <Info className="w-5 h-5 text-gray-600" />
-                    </button>
-                    
+                    {/* Contact Info Button */}
                     {isSelectionMode ? (
                       <div className="flex items-center text-gray-700 ml-2">
                         <button
@@ -1000,156 +1017,159 @@ const AdminChatPage = () => {
               <div 
                 ref={messagesContainerRef}
                 className="flex-1 overflow-y-auto px-4 py-2 bg-gray-50 custom-scrollbar"
+                style={{ display: 'flex', flexDirection: 'column' }}
               >
-                <div className="max-w-3xl mx-auto space-y-1">
-                  {messages.length === 0 ? (
-                    <div className="text-center py-16">
-                      <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <MessageCircle className="w-10 h-10 text-gray-400" />
-                      </div>
-                      <p className="text-lg font-medium text-gray-600 mb-2">No messages yet</p>
-                      <p className="text-gray-500 text-sm">Start a conversation with the student!</p>
-                    </div>
-                  ) : (
-                    getMessageGroups().map((group, groupIndex) => (
-                      <div key={`group-${groupIndex}`} className="space-y-1">
-                        <div className="flex justify-center">
-                          <div className="inline-block bg-gray-200 px-3 py-1 text-xs font-medium text-gray-600 rounded-full">
-                            {formatDate(group.date)}
-                          </div>
+                <div className="flex-1 min-h-0">
+                  <div className="max-w-3xl mx-auto space-y-1">
+                    {messages.length === 0 ? (
+                      <div className="text-center py-16">
+                        <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <MessageCircle className="w-10 h-10 text-gray-400" />
                         </div>
-                        
-                        {group.messages.map((msg, msgIndex) => {
-                          const isAdmin = msg.sender_role === 'admin' || msg.sender_id === adminUser.id;
-                          const showSender = !isAdmin && (
-                            msgIndex === 0 || 
-                            group.messages[msgIndex - 1]?.sender_id !== msg.sender_id
-                          );
-                          const isBeingDeleted = deletingMessageIds.includes(msg.id);
-                          const isSelected = selectedMessages.includes(msg.id);
-                          const repliedMessage = msg.reply_to ? findMessageById(msg.reply_to) : null;
+                        <p className="text-lg font-medium text-gray-600 mb-2">No messages yet</p>
+                        <p className="text-gray-500 text-sm">Start a conversation with the student!</p>
+                      </div>
+                    ) : (
+                      getMessageGroups().map((group, groupIndex) => (
+                        <div key={`group-${groupIndex}`} className="space-y-1">
+                          <div className="flex justify-center">
+                            <div className="inline-block bg-gray-200 px-3 py-1 text-xs font-medium text-gray-600 rounded-full">
+                              {formatDate(group.date)}
+                            </div>
+                          </div>
                           
-                          return (
-                            <div
-                              key={msg.id}
-                              className={`flex ${isAdmin ? 'justify-end' : 'justify-start'} ${isBeingDeleted ? 'message-deleted' : 'message-enter'} ${isSelected ? 'message-selected' : ''}`}
-                              onClick={() => isSelectionMode && toggleMessageSelection(msg.id)}
-                            >
-                              <div className={`flex ${!isAdmin && 'items-end'} max-w-xs lg:max-w-md ${showSender ? 'mt-2' : 'mt-1'} px-2 py-1 rounded-lg ${isSelectionMode ? 'cursor-pointer' : ''}`}>
-                                {/* Student Avatar */}
-                                {!isAdmin && showSender && (
-                                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0">
-                                    <span className="text-white font-semibold text-xs">
-                                      {msg.sender_name?.charAt(0).toUpperCase() || 'S'}
-                                    </span>
-                                  </div>
-                                )}
-                                
-                                {/* Message Content */}
-                                <div className={`flex flex-col ${!isAdmin && !showSender ? 'ml-10' : ''}`}>
-                                  {/* Sender Name */}
-                                  {showSender && !isAdmin && (
-                                    <span className="text-xs font-medium text-gray-600 mb-1 ml-1">
-                                      {msg.sender_name || selectedConversation.student_name || 'Student'}
-                                    </span>
-                                  )}
-                                  
-                                  {/* Reply Preview */}
-                                  {repliedMessage && (
-                                    <div className="bg-black bg-opacity-10 rounded-lg p-2 mb-1 border-l-2 border-green-500">
-                                      <p className="text-xs font-medium text-gray-600">
-                                        {repliedMessage.sender_name}
-                                      </p>
-                                      <p className="text-xs text-gray-500 truncate">
-                                        {repliedMessage.message}
-                                      </p>
+                          {group.messages.map((msg, msgIndex) => {
+                            const isAdmin = msg.sender_role === 'admin' || msg.sender_id === adminUser.id;
+                            const showSender = !isAdmin && (
+                              msgIndex === 0 || 
+                              group.messages[msgIndex - 1]?.sender_id !== msg.sender_id
+                            );
+                            const isBeingDeleted = deletingMessageIds.includes(msg.id);
+                            const isSelected = selectedMessages.includes(msg.id);
+                            const repliedMessage = msg.reply_to ? findMessageById(msg.reply_to) : null;
+                            
+                            return (
+                              <div
+                                key={msg.id}
+                                className={`flex ${isAdmin ? 'justify-end' : 'justify-start'} ${isBeingDeleted ? 'message-deleted' : 'message-enter'} ${isSelected ? 'message-selected' : ''}`}
+                                onClick={() => isSelectionMode && toggleMessageSelection(msg.id)}
+                              >
+                                <div className={`flex ${!isAdmin && 'items-end'} max-w-xs lg:max-w-md ${showSender ? 'mt-2' : 'mt-1'} px-2 py-1 rounded-lg ${isSelectionMode ? 'cursor-pointer' : ''}`}>
+                                  {/* Student Avatar */}
+                                  {!isAdmin && showSender && (
+                                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0">
+                                      <span className="text-white font-semibold text-xs">
+                                        {msg.sender_name?.charAt(0).toUpperCase() || 'S'}
+                                      </span>
                                     </div>
                                   )}
                                   
-                                  {/* Message Bubble */}
-                                  <div
-                                    className={`rounded-2xl px-3 py-2 ${
-                                      isAdmin
-                                        ? 'bg-green-500 text-white rounded-br-md'
-                                        : 'bg-white text-gray-800 rounded-bl-md shadow-sm border border-gray-200'
-                                    } ${msg.isTemp ? 'opacity-70' : ''}`}
-                                  >
-                                    <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.message}</p>
-                                    <div className={`flex items-center text-xs mt-1 ${
-                                      isAdmin ? 'text-green-100 justify-end' : 'text-gray-400'
-                                    }`}>
-                                      {msg.isTemp ? (
-                                        <div className="flex items-center">
-                                          <Clock className="w-3 h-3 mr-1" />
-                                          <span>Sending...</span>
-                                        </div>
-                                      ) : (
-                                        <>
-                                          {formatTime(msg.created_at)}
-                                          {isAdmin && (
-                                            <CheckCircle className="w-3 h-3 ml-1" />
-                                          )}
-                                        </>
-                                      )}
+                                  {/* Message Content */}
+                                  <div className={`flex flex-col ${!isAdmin && !showSender ? 'ml-10' : ''}`}>
+                                    {/* Sender Name */}
+                                    {showSender && !isAdmin && (
+                                      <span className="text-xs font-medium text-gray-600 mb-1 ml-1">
+                                        {msg.sender_name || selectedConversation.student_name || 'Student'}
+                                      </span>
+                                    )}
+                                    
+                                    {/* Reply Preview */}
+                                    {repliedMessage && (
+                                      <div className="bg-black bg-opacity-10 rounded-lg p-2 mb-1 border-l-2 border-green-500">
+                                        <p className="text-xs font-medium text-gray-600">
+                                          {repliedMessage.sender_name}
+                                        </p>
+                                        <p className="text-xs text-gray-500 truncate">
+                                          {repliedMessage.message}
+                                        </p>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Message Bubble */}
+                                    <div
+                                      className={`rounded-2xl px-3 py-2 ${
+                                        isAdmin
+                                          ? 'bg-green-500 text-white rounded-br-md'
+                                          : 'bg-white text-gray-800 rounded-bl-md shadow-sm border border-gray-200'
+                                      } ${msg.isTemp ? 'opacity-70' : ''}`}
+                                    >
+                                      <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.message}</p>
+                                      <div className={`flex items-center text-xs mt-1 ${
+                                        isAdmin ? 'text-green-100 justify-end' : 'text-gray-400'
+                                      }`}>
+                                        {msg.isTemp ? (
+                                          <div className="flex items-center">
+                                            <Clock className="w-3 h-3 mr-1" />
+                                            <span>Sending...</span>
+                                          </div>
+                                        ) : (
+                                          <>
+                                            {formatTime(msg.created_at)}
+                                            {isAdmin && (
+                                              <CheckCircle className="w-3 h-3 ml-1" />
+                                            )}
+                                          </>
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
 
-                                  {/* Message Actions */}
-                                  {!isSelectionMode && (
-                                    <div className="flex items-center justify-end space-x-2 mt-1 opacity-0 hover:opacity-100 transition-opacity">
-                                      <button 
-                                        onClick={() => handleReply(msg)}
-                                        className="p-1 rounded-full hover:bg-gray-200 transition-colors"
-                                        title="Reply"
-                                      >
-                                        <Reply className="w-3 h-3 text-gray-500" />
-                                      </button>
-                                      <button 
-                                        onClick={() => handleForward(msg)}
-                                        className="p-1 rounded-full hover:bg-gray-200 transition-colors"
-                                        title="Forward"
-                                      >
-                                        <Forward className="w-3 h-3 text-gray-500" />
-                                      </button>
-                                      <button 
-                                        onClick={() => toggleMessageSelection(msg.id)}
-                                        className="p-1 rounded-full hover:bg-gray-200 transition-colors"
-                                        title="Select"
-                                      >
-                                        <Star className="w-3 h-3 text-gray-500" />
-                                      </button>
-                                    </div>
-                                  )}
+                                    {/* Message Actions */}
+                                    {!isSelectionMode && (
+                                      <div className="flex items-center justify-end space-x-2 mt-1 opacity-0 hover:opacity-100 transition-opacity">
+                                        <button 
+                                          onClick={() => handleReply(msg)}
+                                          className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                                          title="Reply"
+                                        >
+                                          <Reply className="w-3 h-3 text-gray-500" />
+                                        </button>
+                                        <button 
+                                          onClick={() => handleForward(msg)}
+                                          className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                                          title="Forward"
+                                        >
+                                          <Forward className="w-3 h-3 text-gray-500" />
+                                        </button>
+                                        <button 
+                                          onClick={() => toggleMessageSelection(msg.id)}
+                                          className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                                          title="Select"
+                                        >
+                                          <Star className="w-3 h-3 text-gray-500" />
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))
-                  )}
-                  
-                  {/* Typing Indicator */}
-                  {isTyping && (
-                    <div className="flex justify-start">
-                      <div className="flex items-end max-w-xs lg:max-w-md mt-1 px-2 py-1">
-                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0">
-                          <span className="text-white font-semibold text-xs">
-                            {selectedConversation.student_name?.charAt(0).toUpperCase() || 'S'}
-                          </span>
+                            );
+                          })}
                         </div>
-                        <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 shadow-sm border border-gray-200">
-                          <div className="flex space-x-1">
-                            <div className="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
-                            <div className="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
-                            <div className="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
+                      ))
+                    )}
+                    
+                    {/* Typing Indicator */}
+                    {isTyping && (
+                      <div className="flex justify-start">
+                        <div className="flex items-end max-w-xs lg:max-w-md mt-1 px-2 py-1">
+                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0">
+                            <span className="text-white font-semibold text-xs">
+                              {selectedConversation.student_name?.charAt(0).toUpperCase() || 'S'}
+                            </span>
+                          </div>
+                          <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 shadow-sm border border-gray-200">
+                            <div className="flex space-x-1">
+                              <div className="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
+                              <div className="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
+                              <div className="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                  
-                  <div ref={messagesEndRef} />
+                    )}
+                    
+                    <div ref={messagesEndRef} />
+                  </div>
                 </div>
 
                 {/* Scroll to Bottom Button */}
@@ -1255,58 +1275,7 @@ const AdminChatPage = () => {
             </div>
           )}
 
-          {/* Contact Info Sidebar */}
-          {showContactInfo && selectedConversation && (
-            <div className="absolute inset-0 bg-white z-30 animate-slide-in md:relative md:z-0 md:w-80 lg:w-96 border-l border-gray-200">
-              <div className="p-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold">Contact Info</h2>
-                  <button 
-                    onClick={() => setShowContactInfo(false)}
-                    className="p-1 rounded-full hover:bg-gray-100 transition-colors md:hidden"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="text-center">
-                  <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-                    <span className="text-white font-semibold text-xl">
-                      {selectedConversation.student_name?.charAt(0).toUpperCase() || 'S'}
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-1">
-                    {selectedConversation.student_name || 'Student'}
-                  </h3>
-                  <p className="text-gray-500 text-sm mb-6">{selectedConversation.student_email}</p>
-                  
-                  <div className="space-y-4 text-left">
-                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                      <span className="text-gray-600">Status</span>
-                      <span className="text-green-500 text-sm font-medium">Online</span>
-                    </div>
-                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                      <span className="text-gray-600">Member since</span>
-                      <span className="text-gray-500 text-sm">2024</span>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-6 space-y-2">
-                    <button className="w-full py-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium text-sm">
-                      <Ban className="w-4 h-4 inline mr-2" />
-                      Block Student
-                    </button>
-                    <button className="w-full py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm">
-                      <Archive className="w-4 h-4 inline mr-2" />
-                      Archive Chat
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
+         
           {/* Clear Chat Confirmation Modal */}
           {showConfirmClear && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
