@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { 
   Send, Paperclip, Smile, Loader, MessageCircle, User, RefreshCw, Clock, 
-  CheckCircle, XCircle, ChevronDown, Shield, Trash2, MoreVertical, X, Trash, ArrowLeft
+  CheckCircle, XCircle, ChevronDown, Shield, Trash2, MoreVertical, X, Trash, ArrowLeft,
+  Reply, Forward, Star, Info, Archive, Phone, Video
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { chatService } from '../../services/chatService'
@@ -9,51 +10,51 @@ import { chatService } from '../../services/chatService'
 const scrollbarStyles = `
   /* Custom scrollbar styles */
   .custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
+    width: 6px;
   }
   
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 10px;
+    background: transparent;
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #c5c5c5;
-    border-radius: 10px;
+    background: #cccccc;
+    border-radius: 3px;
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
+    background: #aaaaaa;
   }
 
-  @keyframes progress {
-    0% { width: 0%; }
-    50% { width: 70%; }
-    100% { width: 100%; }
-  }
-
-  .animate-progress {
-    animation: progress 2s ease-in-out infinite;
-  }
-
+  /* Basic animations */
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
   }
 
   .animate-fade-in {
-    animation: fadeIn 0.3s ease-in-out;
+    animation: fadeIn 0.2s ease-out;
   }
 
-  @keyframes slideDown {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
+  .animate-slide-in {
+    animation: slideIn 0.2s ease-out;
   }
 
-  .animate-slide-down {
-    animation: slideDown 0.3s ease-in-out;
+  .animate-pulse-slow {
+    animation: pulse 2s ease-in-out infinite;
   }
-  
+
+  /* Message deleted animation */
   .message-deleted {
     animation: fadeOut 0.5s ease forwards;
   }
@@ -63,46 +64,85 @@ const scrollbarStyles = `
     to { opacity: 0; transform: translateY(10px); height: 0; margin: 0; padding: 0; }
   }
 
-  /* Fixed layout to prevent whole page scrolling */
+  /* Selection styles */
+  .message-selected {
+    background-color: rgba(59, 130, 246, 0.1) !important;
+    border-radius: 8px;
+  }
+
+  /* Typing indicator */
+  .typing-dot {
+    animation: typingAnimation 1.4s infinite ease-in-out;
+  }
+
+  .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+  .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+  @keyframes typingAnimation {
+    0%, 80%, 100% { 
+      transform: scale(0.8);
+      opacity: 0.5;
+    }
+    40% { 
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* Textarea auto-resize */
+  .auto-resize {
+    resize: none;
+    min-height: 40px;
+    max-height: 120px;
+  }
+
+  /* Message hover actions */
+  .message-actions {
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+  }
+
+  .message-wrapper:hover .message-actions {
+    opacity: 1;
+  }
+
+  /* WhatsApp-style reply preview styles */
+  .reply-preview-student {
+    border-left: 4px solid #3b82f6;
+    background: rgba(59, 130, 246, 0.08);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+  }
+
+  .reply-preview-admin {
+    border-left: 4px solid #10b981;
+    background: rgba(16, 185, 129, 0.08);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+  }
+
+  /* Fixed layout */
   .chat-layout {
     display: flex;
     flex-direction: column;
-    height: calc(100% - 10vh);
-    position: absolute;
+    height: calc(100vh - 10vh);
+    position: fixed;
     top: 10vh;
     right: 0;
     bottom: 0;
     left: 0;
     overflow: hidden;
+    background: #f9fafb;
   }
 
-  .chat-header {
-    flex-shrink: 0;
-    background: rgba(128, 128, 128, 0.125);
-
-    border-bottom: 1px solid #e5e7eb;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.5rem 0rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  }
-
-  .chat-messages {
-    flex-grow: 1;
-    overflow-y: auto;
-    padding: 1rem;
-    padding-bottom: 1.5rem;
-  }
-
-  .chat-input {
-    flex-shrink: 0;
-    background: rgba(128, 128, 128, 0.1);
-
-    border-top: 1px solid #e5e7eb;
-    padding: 0.5rem;
-    width: 100%;
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    .chat-layout {
+      height: 100vh;
+      top: 0;
+    }
   }
 `;
 
@@ -115,7 +155,6 @@ const StudentChatPage = () => {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [isOnline, setIsOnline] = useState(true)
-  const [showScrollButton, setShowScrollButton] = useState(false)
   const [deletingMessageIds, setDeletingMessageIds] = useState([])
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedMessages, setSelectedMessages] = useState([])
@@ -123,18 +162,27 @@ const StudentChatPage = () => {
   const [showConfirmClear, setShowConfirmClear] = useState(false)
   const [showConfirmDelete, setShowConfirmDelete] = useState(false)
   const [actionInProgress, setActionInProgress] = useState(false)
-  
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [replyingTo, setReplyingTo] = useState(null)
+  const [showContactInfo, setShowContactInfo] = useState(false)
+  const [isTyping, setIsTyping] = useState(false)
+
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const subscriptionRef = useRef(null)
   const sentMessageTimestampsRef = useRef(new Set())
   const optionsMenuRef = useRef(null)
+  const emojiPickerRef = useRef(null)
+  const inputRef = useRef(null)
 
   const studentUser = {
     id: currentUser?.uid,
     name: userData?.name || userData?.displayName || currentUser?.displayName || 'Student',
     email: currentUser?.email || 'student@example.com'
   }
+
+  // Enhanced emoji list
+  const emojis = ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈', '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾', '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾']
 
   useEffect(() => {
     if (studentUser.id) {
@@ -144,59 +192,43 @@ const StudentChatPage = () => {
     return () => {
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe()
-        console.log('🧹 Cleaned up student subscription')
       }
     }
   }, [studentUser.id])
 
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+    // Scroll to bottom without animation
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'auto' })
+    }
+  }, [messages, isTyping])
 
   useEffect(() => {
-    const messagesContainer = messagesContainerRef.current
-    
-    const handleScroll = () => {
-      if (!messagesContainer) return
-      
-      // Show scroll button when user scrolls up more than 300px from bottom
-      const isScrolledUp = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight > 300
-      setShowScrollButton(isScrolledUp)
-    }
-    
-    messagesContainer?.addEventListener('scroll', handleScroll)
-    
-    return () => {
-      messagesContainer?.removeEventListener('scroll', handleScroll)
-    }
-  }, [])
-
-  useEffect(() => {
-    // Close options menu when clicking outside
     const handleClickOutside = (event) => {
       if (optionsMenuRef.current && !optionsMenuRef.current.contains(event.target)) {
         setShowOptions(false)
       }
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
+        setShowEmojiPicker(false)
+      }
     }
     
     document.addEventListener('mousedown', handleClickOutside)
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const scrollToBottom = (behavior = 'smooth') => {
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior })
-    }, 100)
-  }
+  // Auto-resize textarea
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto'
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px'
+    }
+  }, [message])
 
   const initializeChat = async () => {
     try {
       setLoading(true)
       setError('')
-      console.log('🎯 Initializing chat for student:', studentUser.id, studentUser.name)
       
       const conv = await chatService.getOrCreateConversation(
         studentUser.id, 
@@ -204,22 +236,18 @@ const StudentChatPage = () => {
         studentUser.email
       )
       setConversation(conv)
-      console.log('✅ Conversation ready:', conv.id)
 
       const { data: existingMessages, error: messagesError } = await chatService.getMessages(conv.id)
       if (messagesError) {
-        console.error('Error loading messages:', messagesError)
         setError('Failed to load messages')
       } else {
         setMessages(existingMessages || [])
-        console.log('📨 Loaded', existingMessages?.length || 0, 'messages')
       }
 
       setupRealtimeSubscription(conv.id)
       setLoading(false)
 
     } catch (error) {
-      console.error('💥 Failed to initialize chat:', error)
       setError('Failed to initialize chat. Please refresh the page.')
       setLoading(false)
     }
@@ -227,54 +255,40 @@ const StudentChatPage = () => {
 
   const setupRealtimeSubscription = (conversationId) => {
     try {
-      console.log('🔔 Setting up real-time subscription for:', conversationId)
-      
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe()
       }
 
       subscriptionRef.current = chatService.subscribeToMessages(conversationId, (payload) => {
-        console.log('🔄 Real-time message event:', payload)
         setIsOnline(true)
         
         if (typeof payload === 'object' && payload !== null && 'type' in payload) {
-          // New format with type and data
           if (payload.type === 'INSERT') {
             handleNewMessage(payload.data)
           } else if (payload.type === 'DELETE') {
             handleDeletedMessage(payload.data)
           }
         } else {
-          // Legacy format - direct message object
           handleNewMessage(payload)
         }
       })
 
     } catch (error) {
-      console.error('❌ Error setting up real-time subscription:', error)
       setIsOnline(false)
     }
   }
   
   const handleNewMessage = (newMessage) => {
-    // Create message signature for our own sent messages
     const messageKey = `${newMessage.sender_id}-${newMessage.message}-${Math.floor(new Date(newMessage.created_at).getTime() / 1000)}`
     
-    // Only skip if this is OUR message that we just sent
     if (newMessage.sender_id === studentUser.id && sentMessageTimestampsRef.current.has(messageKey)) {
-      console.log('🚫 Ignoring real-time update for our own message')
       return
     }
     
     setMessages(prev => {
-      // Check if message already exists by ID (most reliable check)
       const messageExists = prev.some(msg => msg.id === newMessage.id)
-      if (messageExists) {
-        console.log('📝 Message already exists by ID, skipping...')
-        return prev
-      }
+      if (messageExists) return prev
       
-      console.log('➕ Adding new message to student chat')
       return [...prev, newMessage].sort((a, b) => 
         new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       )
@@ -282,35 +296,26 @@ const StudentChatPage = () => {
   }
   
   const handleDeletedMessage = (deletedMessage) => {
-    console.log('🗑️ Handling deleted message in student chat:', deletedMessage)
-    
-    // First mark the message as being deleted (for animation)
     setDeletingMessageIds(prev => [...prev, deletedMessage.id])
     
-    // Then remove it after animation completes
     setTimeout(() => {
       setMessages(prev => 
         prev.filter(msg => msg.id !== deletedMessage.id)
       )
-      // Clean up the deleting IDs array
       setDeletingMessageIds(prev => 
         prev.filter(id => id !== deletedMessage.id)
       )
-    }, 500) // Match this with your animation duration
+    }, 500)
   }
 
   const sendMessage = async (e) => {
     if (e) e.preventDefault()
     
-    if (!message.trim() || !conversation || sending) {
-      console.log('Cannot send:', { message: message.trim(), conversation: !!conversation, sending })
-      return
-    }
+    if (!message.trim() || !conversation || sending) return
 
     const text = message.trim()
     const tempId = `temp-${Date.now()}-${Math.random()}`
     const now = new Date()
-    console.log('🚀 Student sending message:', text, 'from:', studentUser.name)
     
     const messageKey = `${studentUser.id}-${text}-${Math.floor(now.getTime() / 1000)}`
     sentMessageTimestampsRef.current.add(messageKey)
@@ -327,13 +332,15 @@ const StudentChatPage = () => {
       sender_role: 'student',
       message: text,
       created_at: now.toISOString(),
-      isTemp: true
+      isTemp: true,
+      reply_to: replyingTo?.id
     }
     
     setMessages(prev => [...prev, tempMessage])
     setMessage('')
     setSending(true)
     setError('')
+    setReplyingTo(null)
 
     try {
       const result = await chatService.sendMessage(
@@ -341,14 +348,11 @@ const StudentChatPage = () => {
         studentUser.id,
         text,
         studentUser.name,
-        'student'
+        'student',
+        replyingTo?.id
       )
 
-      if (result.error) {
-        throw result.error
-      }
-
-      console.log('✅ Student message sent successfully:', result.data)
+      if (result.error) throw result.error
       
       setMessages(prev => 
         prev.map(msg => 
@@ -357,7 +361,6 @@ const StudentChatPage = () => {
       )
       
     } catch (error) {
-      console.error('❌ Failed to send student message:', error)
       setError('Failed to send message. Please check your connection and try again.')
       sentMessageTimestampsRef.current.delete(messageKey)
       setMessages(prev => prev.filter(msg => msg.id !== tempId))
@@ -387,14 +390,12 @@ const StudentChatPage = () => {
     if (!conversation) return
     
     try {
-      console.log('🔄 Manually checking for new messages...')
       const { data: newMessages, error } = await chatService.getMessages(conversation.id)
       if (!error && newMessages) {
         setMessages(newMessages)
-        console.log('✅ Manual refresh loaded', newMessages.length, 'messages')
       }
     } catch (error) {
-      console.error('❌ Error manually refreshing messages:', error)
+      console.error('Error manually refreshing messages:', error)
     }
   }
 
@@ -412,12 +413,9 @@ const StudentChatPage = () => {
   const toggleMessageSelection = (messageId, studentOnly = true) => {
     if (!isSelectionMode) return
 
-    // If studentOnly is true, only allow selection of student's own messages
     if (studentOnly) {
       const msg = messages.find(m => m.id === messageId)
-      if (msg && msg.sender_id !== studentUser.id) {
-        return
-      }
+      if (msg && msg.sender_id !== studentUser.id) return
     }
     
     setSelectedMessages(prev => {
@@ -434,9 +432,6 @@ const StudentChatPage = () => {
     
     setActionInProgress(true)
     try {
-      console.log('🗑️ Deleting selected messages:', selectedMessages)
-      
-      // First mark the messages as being deleted (for animation)
       setDeletingMessageIds(prev => [...prev, ...selectedMessages])
       
       const { error } = await chatService.deleteMessages(
@@ -444,16 +439,12 @@ const StudentChatPage = () => {
         selectedMessages
       )
       
-      if (error) {
-        throw new Error(error)
-      }
+      if (error) throw new Error(error)
       
-      // Remove the messages from the state after animation
       setTimeout(() => {
         setMessages(prev => 
           prev.filter(msg => !selectedMessages.includes(msg.id))
         )
-        // Clean up the deleting IDs array
         setDeletingMessageIds(prev => 
           prev.filter(id => !selectedMessages.includes(id))
         )
@@ -464,9 +455,7 @@ const StudentChatPage = () => {
       setSelectedMessages([])
       
     } catch (error) {
-      console.error('Failed to delete messages:', error)
       setError('Failed to delete selected messages. Please try again.')
-      // Remove the deleting animation state if there was an error
       setDeletingMessageIds(prev => 
         prev.filter(id => !selectedMessages.includes(id))
       )
@@ -480,110 +469,123 @@ const StudentChatPage = () => {
     
     setActionInProgress(true)
     try {
-      console.log('🧹 Clearing all messages from conversation:', conversation.id)
-      
       const { error } = await chatService.clearConversation(conversation.id)
       
-      if (error) {
-        throw new Error(error)
-      }
+      if (error) throw new Error(error)
       
       setMessages([])
       setShowConfirmClear(false)
       
     } catch (error) {
-      console.error('Failed to clear chat:', error)
       setError('Failed to clear conversation. Please try again.')
     } finally {
       setActionInProgress(false)
     }
   }
 
-  // Group messages by date
+  const handleReply = (message) => {
+    setReplyingTo(message)
+    inputRef.current?.focus()
+  }
+
+  const cancelReply = () => {
+    setReplyingTo(null)
+  }
+
+  const addEmoji = (emoji) => {
+    setMessage(prev => prev + emoji)
+    setShowEmojiPicker(false)
+    inputRef.current?.focus()
+  }
+
+  const findMessageById = (messageId) => {
+    return messages.find(msg => msg.id === messageId)
+  }
+
   const getMessageGroups = () => {
-    const groups = [];
-    let currentDate = '';
-    let currentGroup = [];
+    const groups = []
+    let currentDate = ''
+    let currentGroup = []
     
     messages.forEach(message => {
-      const messageDate = new Date(message.created_at).toLocaleDateString();
+      const messageDate = new Date(message.created_at).toLocaleDateString()
       
       if (messageDate !== currentDate) {
         if (currentGroup.length > 0) {
           groups.push({
             date: currentDate,
             messages: currentGroup
-          });
+          })
         }
-        currentDate = messageDate;
-        currentGroup = [message];
+        currentDate = messageDate
+        currentGroup = [message]
       } else {
-        currentGroup.push(message);
+        currentGroup.push(message)
       }
-    });
+    })
     
     if (currentGroup.length > 0) {
       groups.push({
         date: currentDate,
         messages: currentGroup
-      });
+      })
     }
     
-    return groups;
-  };
+    return groups
+  }
 
-  // Format date for display
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    const date = new Date(dateString)
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
     
-    let dayLabel;
+    let dayLabel
     
     if (date.toDateString() === today.toDateString()) {
-      dayLabel = 'Today';
+      dayLabel = 'Today'
     } else if (date.toDateString() === yesterday.toDateString()) {
-      dayLabel = 'Yesterday';
+      dayLabel = 'Yesterday'
     } else {
-      // Get day of week
-      const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
-      dayLabel = weekday;
+      const weekday = date.toLocaleDateString('en-US', { weekday: 'long' })
+      dayLabel = weekday
     }
     
-    // Format date as MM/DD/YY
     const formattedDate = date.toLocaleDateString('en-US', { 
       month: 'numeric', 
       day: 'numeric',
       year: '2-digit'
-    });
+    })
     
-    return `${dayLabel}, ${formattedDate}`;
-  };
+    return `${dayLabel}, ${formattedDate}`
+  }
+
+  const formatTime = (dateStr) => {
+    try {
+      const date = new Date(dateStr)
+      return isNaN(date.getTime()) ? 'Just now' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    } catch (e) {
+      return 'Just now'
+    }
+  }
 
   const goBack = () => {
     if (window.history.length > 1) {
-      window.history.back();
+      window.history.back()
     } else {
-      window.location.href = '/dashboard';
+      window.location.href = '/dashboard'
     }
-  };
+  }
 
   if (loading) {
     return (
-      <div className="absolute top-10vh left-0 right-0 bottom-0 flex flex-col items-center justify-center bg-white py-20">
-        <div className="w-16 h-16 relative mb-6">
-          <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center animate-pulse">
-            <MessageCircle className="w-8 h-8 text-blue-500" />
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse-slow">
+            <MessageCircle className="w-8 h-8 text-white" />
           </div>
-          <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center">
-            <Loader className="w-4 h-4 animate-spin text-blue-500" />
-          </div>
-        </div>
-        <h3 className="text-lg font-medium text-gray-800 mb-2">Setting up your chat</h3>
-        <p className="text-sm text-gray-500 mb-6">Connecting to support...</p>
-        <div className="w-48 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-          <div className="h-full bg-blue-500 animate-progress" style={{width: '70%'}}></div>
+          <p className="text-gray-600 font-medium">Setting up your chat...</p>
+          <p className="text-sm text-gray-500 mt-2">Connecting to support</p>
         </div>
       </div>
     )
@@ -593,92 +595,100 @@ const StudentChatPage = () => {
     <>
       <style>{scrollbarStyles}</style>
       <div className="chat-layout">
-        {/* Chat Header - Below existing 10vh main header */}
-        <div className="chat-header">
-          <div className="max-w-3xl mx-auto w-full px-4 flex items-center justify-between">
-            <div className="flex items-center">
+        {/* Chat Header */}
+        <div className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm flex-shrink-0">
+          <div className="flex items-center justify-between max-w-3xl mx-auto">
+            <div className="flex items-center space-x-3">
               <button
                 onClick={goBack}
-                className="mr-3 p-1.5 rounded-full hover:bg-gray-100 text-gray-500"
-                aria-label="Go back"
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
               >
-                <ArrowLeft size={20} />
+                <ArrowLeft className="w-5 h-5 text-gray-600" />
               </button>
-              
-              <div className="flex items-center">
-                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center shadow-sm mr-3">
+              <div className="relative">
+                <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-sm">
                   <Shield className="w-5 h-5 text-white" />
                 </div>
-                
-                <div>
-                  <h2 className="font-semibold text-gray-800 ">Welcome to Support Chat</h2>
-                  <div className={`flex items-center text-xs ${isOnline ? 'text-green-600' : 'text-yellow-500'}`}>
-                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-yellow-500'} mr-1 animate-pulse`}></span>
-                    <span>{isOnline ? 'Online' : 'Connecting...'}</span>
-                  </div>
-                </div>
+                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
+              </div>
+              <div className="flex-1">
+                <h2 className="font-semibold text-gray-800 text-sm">Support Team</h2>
+                <p className="text-xs text-gray-500">
+                  {isOnline ? 'Online' : 'Connecting...'} • Always here to help
+                </p>
               </div>
             </div>
             
-            <div className="flex items-center">
+            <div className="flex items-center space-x-1">
+              <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                <Phone className="w-4 h-4 text-gray-600" />
+              </button>
+              <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                <Video className="w-4 h-4 text-gray-600" />
+              </button>
+              <button 
+                onClick={() => setShowContactInfo(!showContactInfo)}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <Info className="w-5 h-5 text-gray-600" />
+              </button>
+              
               {isSelectionMode ? (
-                <div className="flex items-center text-gray-700">
+                <div className="flex items-center text-gray-700 ml-2">
                   <button
                     onClick={exitSelectionMode}
                     className="p-1.5 rounded-full hover:bg-gray-200 mr-2"
                   >
                     <X className="w-4 h-4" />
                   </button>
-                  <span className="font-medium">{selectedMessages.length} selected</span>
+                  <span className="font-medium text-sm">{selectedMessages.length} selected</span>
                   
                   {selectedMessages.length > 0 && (
                     <button
                       onClick={() => setShowConfirmDelete(true)}
-                      className="ml-3 text-red-600 hover:bg-red-50 rounded-full p-1.5 transition-colors"
+                      className="ml-3 text-red-600 hover:bg-red-50 rounded-full p-1.5 transition-colors flex items-center text-xs"
                       disabled={actionInProgress}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      <span>Delete</span>
                     </button>
                   )}
                 </div>
               ) : (
-                <div className="flex">
+                <div className="relative" ref={optionsMenuRef}>
                   <button
-                    onClick={checkForNewMessages}
-                    className="mr-2 text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-colors"
-                    title="Refresh messages"
+                    onClick={() => setShowOptions(!showOptions)}
+                    className="p-2 rounded-full hover:bg-gray-100 transition-colors"
                   >
-                    <RefreshCw className="w-4 h-4" />
+                    <MoreVertical className="w-5 h-5 text-gray-600" />
                   </button>
                   
-                  <div className="relative" ref={optionsMenuRef}>
-                    <button
-                      onClick={() => setShowOptions(!showOptions)}
-                      className="text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-colors"
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                    
-                    {showOptions && (
-                      <div className="absolute right-0 mt-1 w-44 bg-white rounded-md shadow-lg overflow-hidden z-20 border border-gray-200">
-                        <div className="py-1">
-                          <button
-                            onClick={enterSelectionMode}
-                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                          >
-                            <span>Select messages</span>
-                          </button>
-                          <button
-                            onClick={() => setShowConfirmClear(true)}
-                            className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
-                          >
-                            <Trash className="w-4 h-4 mr-2" />
-                            <span>Clear chat</span>
-                          </button>
-                        </div>
+                  {showOptions && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg overflow-hidden z-20 border border-gray-200 animate-fade-in">
+                      <div className="py-1">
+                        <button
+                          onClick={enterSelectionMode}
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                        >
+                          <span>Select messages</span>
+                        </button>
+                        <button
+                          onClick={checkForNewMessages}
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                        >
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          <span>Refresh messages</span>
+                        </button>
+                        <button
+                          onClick={() => setShowConfirmClear(true)}
+                          className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          <span>Clear chat</span>
+                        </button>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -687,89 +697,141 @@ const StudentChatPage = () => {
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border-b border-red-100 px-4 py-2.5 flex justify-between items-center animate-slide-down">
-            <div className="flex items-center max-w-2xl mx-auto w-full">
-              <XCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" />
-              <p className="text-red-700 text-sm flex-1">{error}</p>
+          <div className="bg-red-50 border-b border-red-100 px-4 py-2.5 flex justify-between items-center animate-slide-in">
+            <div className="flex items-center max-w-3xl mx-auto w-full">
+              <XCircle className="w-4 h-4 text-red-500 mr-2 flex-shrink-0" />
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+            <button 
+              onClick={retryConnection}
+              className="text-red-600 hover:text-red-800 text-sm font-medium px-3 py-1 rounded hover:bg-red-100 ml-3 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Reply Preview */}
+        {replyingTo && (
+          <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 animate-slide-in">
+            <div className="flex items-start justify-between max-w-3xl mx-auto">
+              <div className="flex items-start space-x-3 flex-1">
+                <div className="w-1 h-12 bg-blue-500 rounded-full flex-shrink-0"></div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2 mb-1">
+                    <Reply className="w-4 h-4 text-blue-500" />
+                    <p className="text-sm font-medium text-blue-600">
+                      Replying to {replyingTo.sender_name}
+                    </p>
+                  </div>
+                  <p className="text-sm text-gray-600 truncate">
+                    {replyingTo.message}
+                  </p>
+                </div>
+              </div>
               <button 
-                onClick={retryConnection}
-                className="text-red-600 hover:text-red-800 text-sm font-medium px-3 py-1 rounded hover:bg-red-100 ml-3 transition-colors"
+                onClick={cancelReply}
+                className="p-1 rounded-full hover:bg-gray-200 transition-colors flex-shrink-0"
               >
-                Retry
+                <X className="w-4 h-4 text-gray-500" />
               </button>
             </div>
           </div>
         )}
 
-        {/* Messages Container - with scrollbar */}
+        {/* Messages */}
         <div 
           ref={messagesContainerRef}
-          className="chat-messages custom-scrollbar bg-gray-50"
+          className="flex-1 overflow-y-auto px-4 py-2 bg-gray-50 custom-scrollbar"
         >
-          <div className="max-w-2xl mx-auto space-y-6">
+          <div className="max-w-3xl mx-auto space-y-1">
             {messages.length === 0 ? (
               <div className="text-center py-16">
-                <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <MessageCircle className="w-10 h-10 text-blue-400" />
+                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <MessageCircle className="w-10 h-10 text-blue-500" />
                 </div>
-                <h3 className="text-lg font-medium text-gray-800 mb-2">No messages yet</h3>
-                <p className="text-gray-500 text-sm mb-6">Start a conversation with the admin team!</p>
-                <div className="inline-flex items-center justify-center bg-blue-50 text-blue-600 px-4 py-2 rounded-full text-sm">
-                  <Shield className="w-4 h-4 mr-2" />
-                  <span>Support team is available</span>
+                <h3 className="text-lg font-medium text-gray-600 mb-2">Welcome to Support Chat</h3>
+                <p className="text-gray-500 text-sm mb-6">Our team is here to help you with any questions!</p>
+                <div className="space-y-2 text-sm text-gray-500">
+                  <p>💬 Ask any question you have</p>
+                  <p>⚡ Get instant responses</p>
+                  <p>🔒 Your conversations are secure</p>
+                  <p>📞 Professional support team</p>
                 </div>
               </div>
             ) : (
               getMessageGroups().map((group, groupIndex) => (
-                <div key={`group-${groupIndex}`} className="space-y-4">
+                <div key={`group-${groupIndex}`} className="space-y-1">
                   <div className="flex justify-center">
-                    <div className="inline-block bg-white px-3 py-1 text-xs font-medium text-gray-500 rounded-full shadow-sm border border-gray-100">
+                    <div className="inline-block bg-gray-200 px-3 py-1 text-xs font-medium text-gray-600 rounded-full">
                       {formatDate(group.date)}
                     </div>
                   </div>
                   
                   {group.messages.map((msg, msgIndex) => {
-                    const isCurrentUser = msg.sender_id === studentUser.id;
+                    const isCurrentUser = msg.sender_id === studentUser.id
                     const showSender = !isCurrentUser && (
                       msgIndex === 0 || 
                       group.messages[msgIndex - 1]?.sender_id !== msg.sender_id
-                    );
-                    const isBeingDeleted = deletingMessageIds.includes(msg.id);
-                    const isSelected = selectedMessages.includes(msg.id);
-                    const isSelectable = !isSelectionMode || isCurrentUser;
+                    )
+                    const isBeingDeleted = deletingMessageIds.includes(msg.id)
+                    const isSelected = selectedMessages.includes(msg.id)
+                    const repliedMessage = msg.reply_to ? findMessageById(msg.reply_to) : null
                     
                     return (
                       <div
                         key={msg.id}
-                        className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} ${isBeingDeleted ? 'message-deleted' : ''}`}
-                        onClick={() => toggleMessageSelection(msg.id, true)}
+                        className={`message-wrapper flex ${isCurrentUser ? 'justify-end' : 'justify-start'} ${isBeingDeleted ? 'message-deleted' : ''} ${isSelected ? 'message-selected' : ''}`}
                       >
-                        <div className={`flex ${!isCurrentUser && 'items-end'} max-w-xs lg:max-w-md ${showSender ? 'mt-4' : 'mt-1'}`}>
-                          {/* Admin Avatar (only show on first message in a sequence) */}
+                        <div className={`flex ${!isCurrentUser && 'items-end'} max-w-xs lg:max-w-md ${showSender ? 'mt-2' : 'mt-1'} px-2 py-1 rounded-lg`}>
+                          {/* Admin Avatar */}
                           {!isCurrentUser && showSender && (
-                            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0">
+                            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0">
                               <Shield className="w-4 h-4 text-white" />
                             </div>
                           )}
                           
-                          {/* Message Content with Spacing */}
+                          {/* Message Content */}
                           <div className={`flex flex-col ${!isCurrentUser && !showSender ? 'ml-10' : ''}`}>
-                            {/* Sender Name (only for admin and only on first message in sequence) */}
+                            {/* Sender Name */}
                             {showSender && !isCurrentUser && (
                               <span className="text-xs font-medium text-gray-600 mb-1 ml-1">
-                                {msg.sender_name || 'Admin Support'}
+                                {msg.sender_name || 'Support Team'}
                               </span>
                             )}
                             
                             {/* Message Bubble */}
                             <div
-                              className={`rounded-2xl px-4 py-2.5 ${
+                              className={`rounded-2xl px-3 py-2 ${
                                 isCurrentUser
-                                  ? `bg-blue-600 text-white rounded-br-none shadow-sm ${isSelectionMode ? 'cursor-pointer' : ''}`
-                                  : `bg-white text-gray-800 rounded-bl-none shadow-sm border border-gray-100 ${isSelectionMode ? 'opacity-70' : ''}`
-                              } ${msg.isTemp ? 'opacity-70' : ''} ${isSelected ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}
+                                  ? 'bg-blue-500 text-white rounded-br-md'
+                                  : 'bg-white text-gray-800 rounded-bl-md shadow-sm border border-gray-200'
+                              } ${msg.isTemp ? 'opacity-70' : ''} ${isSelectionMode && isCurrentUser ? 'cursor-pointer' : ''}`}
+                              onClick={() => isSelectionMode && toggleMessageSelection(msg.id, true)}
                             >
-                              <p className="text-sm whitespace-pre-wrap break-words leading-snug">{msg.message}</p>
+                              {/* WhatsApp-Style Reply Preview inside message */}
+                              {repliedMessage && (
+                                <div className={`${isCurrentUser ? 'reply-preview-student' : 'reply-preview-admin'}`}>
+                                  <div className="flex items-center space-x-1 mb-1">
+                                    <span className={`text-xs font-semibold ${
+                                      repliedMessage.sender_id === studentUser.id
+                                        ? (isCurrentUser ? 'text-blue-200' : 'text-blue-600')
+                                        : (isCurrentUser ? 'text-green-200' : 'text-green-600')
+                                    }`}>
+                                      {repliedMessage.sender_id === studentUser.id ? 'You' : repliedMessage.sender_name}
+                                    </span>
+                                  </div>
+                                  <p className={`text-xs ${
+                                    isCurrentUser 
+                                      ? 'text-blue-100' 
+                                      : 'text-gray-600'
+                                  } truncate leading-tight`}>
+                                    {repliedMessage.message}
+                                  </p>
+                                </div>
+                              )}
+                              
+                              <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.message}</p>
                               <div className={`flex items-center text-xs mt-1 ${
                                 isCurrentUser ? 'text-blue-100 justify-end' : 'text-gray-400'
                               }`}>
@@ -780,9 +842,7 @@ const StudentChatPage = () => {
                                   </div>
                                 ) : (
                                   <>
-                                    {new Date(msg.created_at).toLocaleTimeString([], { 
-                                      hour: '2-digit', minute: '2-digit' 
-                                    })}
+                                    {formatTime(msg.created_at)}
                                     {isCurrentUser && (
                                       <CheckCircle className="w-3 h-3 ml-1" />
                                     )}
@@ -790,6 +850,33 @@ const StudentChatPage = () => {
                                 )}
                               </div>
                             </div>
+
+                            {/* Message Actions - Show on hover for admin messages */}
+                            {!isSelectionMode && !msg.isTemp && !isCurrentUser && (
+                              <div className="message-actions flex items-center justify-end space-x-1 mt-1">
+                                <button 
+                                  onClick={() => handleReply(msg)}
+                                  className="p-1 rounded-full hover:bg-gray-200 transition-colors group"
+                                  title="Reply to this message"
+                                >
+                                  <Reply className="w-3 h-3 text-gray-500 group-hover:text-blue-500" />
+                                </button>
+                                <button 
+                                  onClick={() => {}}
+                                  className="p-1 rounded-full hover:bg-gray-200 transition-colors group"
+                                  title="Forward message"
+                                >
+                                  <Forward className="w-3 h-3 text-gray-500 group-hover:text-blue-500" />
+                                </button>
+                                <button 
+                                  onClick={() => {}}
+                                  className="p-1 rounded-full hover:bg-gray-200 transition-colors group"
+                                  title="Star message"
+                                >
+                                  <Star className="w-3 h-3 text-gray-500 group-hover:text-yellow-500" />
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -798,74 +885,183 @@ const StudentChatPage = () => {
                 </div>
               ))
             )}
+            
+            {/* Typing Indicator */}
+            {isTyping && (
+              <div className="flex justify-start animate-fade-in">
+                <div className="flex items-end max-w-xs lg:max-w-md mt-1 px-2 py-1">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0">
+                    <Shield className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 shadow-sm border border-gray-200">
+                    <div className="flex space-x-1">
+                      <div className="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
+                      <div className="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
+                      <div className="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div ref={messagesEndRef} />
           </div>
+        </div>
 
-          {/* Scroll to Bottom Button */}
-          {showScrollButton && (
+        {/* Message Input */}
+        <div className="bg-white border-t border-gray-200 p-3 sticky bottom-0 flex-shrink-0">
+          <form onSubmit={sendMessage} className="flex items-end space-x-2 max-w-3xl mx-auto">
+            {/* Attachment Button */}
             <button
-              onClick={() => scrollToBottom()}
-              className="fixed bottom-24 right-6 bg-white shadow-lg rounded-full p-2.5 z-10 hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 border border-gray-200"
+              type="button"
+              className="p-2 text-gray-500 hover:text-gray-700 transition-colors flex-shrink-0"
+              disabled={isSelectionMode}
             >
-              <ChevronDown className="w-5 h-5 text-gray-600" />
+              <Paperclip className="w-5 h-5" />
             </button>
-          )}
-        </div>
 
-        {/* Fixed Message Input at Bottom */}
-        <div className="chat-input shadow-md z-20">
-          <div className="max-w-2xl mx-auto">
-            <form onSubmit={sendMessage} className="flex items-center space-x-2">
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Type a message..."
-                  disabled={sending || !conversation || isSelectionMode}
-                  className="w-full rounded-full py-3 px-4 pl-5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 disabled:opacity-50 transition-all duration-200 border border-gray-200 focus:border-transparent shadow-sm"
-                />
-              </div>
-
+            {/* Emoji Picker */}
+                        <div className="relative" ref={emojiPickerRef}>
               <button
-                type="submit"
-                disabled={!message.trim() || sending || !conversation || isSelectionMode}
-                className={`p-3 rounded-full transition-all duration-200 ${
-                  message.trim() && !sending && conversation && !isSelectionMode
-                    ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700 transform hover:scale-105' 
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
+                type="button"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className="p-2 text-gray-500 hover:text-gray-700 transition-colors flex-shrink-0"
+                disabled={isSelectionMode}
               >
-                {sending ? (
-                  <Loader className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Send className="w-5 h-5" />
-                )}
+                <Smile className="w-5 h-5" />
               </button>
-            </form>
-          </div>
+              
+              {showEmojiPicker && (
+                <div className="absolute bottom-12 left-0 w-64 h-48 bg-white rounded-lg shadow-lg border border-gray-200 z-30 overflow-y-auto custom-scrollbar animate-fade-in">
+                  <div className="p-3 grid grid-cols-8 gap-1">
+                    {emojis.map((emoji, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => addEmoji(emoji)}
+                        className="p-1 hover:bg-gray-100 rounded transition-colors text-lg"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Message Input */}
+            <div className="flex-1 relative">
+              <textarea
+                ref={inputRef}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder={
+                  replyingTo 
+                    ? `Replying to ${replyingTo.sender_name}...` 
+                    : isSelectionMode 
+                      ? 'Exit selection mode to type...'
+                      : 'Type a message...'
+                }
+                disabled={sending || !conversation || isSelectionMode}
+                rows="1"
+                className="w-full rounded-2xl py-3 px-4 bg-gray-100 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 text-gray-700 disabled:opacity-50 transition-all duration-200 auto-resize custom-scrollbar"
+              />
+            </div>
+
+            {/* Send Button */}
+            <button
+              type="submit"
+              disabled={!message.trim() || sending || !conversation || isSelectionMode}
+              className={`p-3 rounded-full transition-all duration-200 flex-shrink-0 ${
+                message.trim() && !sending && conversation && !isSelectionMode
+                  ? 'bg-blue-500 text-white shadow-sm hover:bg-blue-600 transform hover:scale-105' 
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              {sending ? (
+                <Loader className="w-5 h-5 animate-spin" />
+              ) : (
+                <Send className="w-5 h-5" />
+              )}
+            </button>
+          </form>
         </div>
+
+        {/* Contact Info Sidebar */}
+        {showContactInfo && (
+          <div className="absolute inset-0 bg-white z-30 animate-slide-in">
+            <div className="p-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Support Info</h2>
+                <button 
+                  onClick={() => setShowContactInfo(false)}
+                  className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="text-center">
+                <div className="w-20 h-20 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+                  <Shield className="w-10 h-10 text-white" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-1">Support Team</h3>
+                <p className="text-gray-500 text-sm mb-6">Always here to help</p>
+                
+                <div className="space-y-4 text-left">
+                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Response Time</span>
+                    <span className="text-blue-500 text-sm font-medium">Under 5 minutes</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Availability</span>
+                    <span className="text-green-500 text-sm font-medium">24/7</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Languages</span>
+                    <span className="text-gray-500 text-sm">English, Spanish, French</span>
+                  </div>
+                </div>
+                
+                <div className="mt-6 space-y-2">
+                  <button className="w-full py-2.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors font-medium text-sm">
+                    <Phone className="w-4 h-4 inline mr-2" />
+                    Request Call Back
+                  </button>
+                  <button className="w-full py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm">
+                    <Archive className="w-4 h-4 inline mr-2" />
+                    View FAQ
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Clear Chat Confirmation Modal */}
         {showConfirmClear && (
-          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 m-4 max-w-sm w-full animate-fade-in">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Clear entire chat?</h3>
-              <p className="text-gray-500 mb-5">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full animate-fade-in">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-red-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center">Clear entire chat?</h3>
+              <p className="text-gray-500 text-sm text-center mb-6">
                 This will permanently delete all messages in this conversation. This action cannot be undone.
               </p>
-              <div className="flex justify-end space-x-3">
+              <div className="flex space-x-3">
                 <button
                   onClick={() => setShowConfirmClear(false)}
-                  className="px-4 py-2 rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium"
+                  className="flex-1 px-4 py-2.5 rounded-lg text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium transition-colors"
                   disabled={actionInProgress}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleClearChat}
-                  className="px-4 py-2 rounded-md text-white bg-red-600 hover:bg-red-700 font-medium flex items-center"
+                  className="flex-1 px-4 py-2.5 rounded-lg text-white bg-red-500 hover:bg-red-600 font-medium transition-colors flex items-center justify-center"
                   disabled={actionInProgress}
                 >
                   {actionInProgress ? (
@@ -874,10 +1070,7 @@ const StudentChatPage = () => {
                       Clearing...
                     </>
                   ) : (
-                    <>
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Clear Chat
-                    </>
+                    'Clear Chat'
                   )}
                 </button>
               </div>
@@ -887,25 +1080,28 @@ const StudentChatPage = () => {
 
         {/* Delete Messages Confirmation Modal */}
         {showConfirmDelete && (
-          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 m-4 max-w-sm w-full animate-fade-in">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full animate-fade-in">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-red-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center">
                 Delete {selectedMessages.length} {selectedMessages.length === 1 ? 'message' : 'messages'}?
               </h3>
-              <p className="text-gray-500 mb-5">
+              <p className="text-gray-500 text-sm text-center mb-6">
                 This action cannot be undone.
               </p>
-              <div className="flex justify-end space-x-3">
+              <div className="flex space-x-3">
                 <button
                   onClick={() => setShowConfirmDelete(false)}
-                  className="px-4 py-2 rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium"
+                  className="flex-1 px-4 py-2.5 rounded-lg text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium transition-colors"
                   disabled={actionInProgress}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDeleteSelected}
-                  className="px-4 py-2 rounded-md text-white bg-red-600 hover:bg-red-700 font-medium flex items-center"
+                  className="flex-1 px-4 py-2.5 rounded-lg text-white bg-red-500 hover:bg-red-600 font-medium transition-colors flex items-center justify-center"
                   disabled={actionInProgress}
                 >
                   {actionInProgress ? (
@@ -914,10 +1110,7 @@ const StudentChatPage = () => {
                       Deleting...
                     </>
                   ) : (
-                    <>
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </>
+                    'Delete'
                   )}
                 </button>
               </div>
