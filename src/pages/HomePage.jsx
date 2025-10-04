@@ -266,7 +266,7 @@ const HomePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white mb-12">
       <main className="px-4 py-6 md:px-8 md:py-8">
         <AnimatePresence mode="wait">
           <motion.div 

@@ -1339,14 +1339,14 @@ const LandingPage = () => {
                 >
                   <div className="flex items-center mb-4 sm:mb-6">
                     <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-full mr-3 sm:mr-4 flex items-center justify-center font-bold text-blue-600 text-sm sm:text-base">
-                      JS
+                      BR
                     </div>
                     <div>
                       <div className="font-bold text-gray-900 text-sm sm:text-base">
-                        Jake Simon
+                        Balaji 
                       </div>
                       <div className="text-xs sm:text-sm text-gray-600">
-                        Software Engineer at Google
+                        Software Engineer at Zoho
                       </div>
                     </div>
                   </div>
@@ -1379,11 +1379,11 @@ const LandingPage = () => {
                 >
                   <div className="flex items-center mb-4 sm:mb-6">
                     <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-full mr-3 sm:mr-4 flex items-center justify-center font-bold text-purple-600 text-sm sm:text-base">
-                      AL
+                      PM
                     </div>
                     <div>
                       <div className="font-bold text-gray-900 text-sm sm:text-base">
-                        Anisha Lal
+                        Praveen Mohan
                       </div>
                       <div className="text-xs sm:text-sm text-gray-600">
                         CS Student at Stanford
@@ -1419,14 +1419,14 @@ const LandingPage = () => {
                 >
                   <div className="flex items-center mb-4 sm:mb-6">
                     <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-full mr-3 sm:mr-4 flex items-center justify-center font-bold text-green-600 text-sm sm:text-base">
-                      MC
+                      H
                     </div>
                     <div>
                       <div className="font-bold text-gray-900 text-sm sm:text-base">
-                        Miguel Costa
+                        Harish
                       </div>
                       <div className="text-xs sm:text-sm text-gray-600">
-                        Senior Developer at Microsoft
+                        Senior Developer at MindTree
                       </div>
                     </div>
                   </div>
@@ -1479,7 +1479,7 @@ const LandingPage = () => {
                     Ready to Level Up Your Coding Career?
                   </motion.h2>
                   <motion.p
-                    className="text-base sm:text-lg md:text-xl text-white/90 mb-6 sm:mb-8 md:mb-10 max-w-2xl mx-auto"
+                    className="text-base sm:text-lg md:text-xl text-white/90  sm:mb-8 md:mb-10 max-w-2xl mx-auto"
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
@@ -1487,30 +1487,6 @@ const LandingPage = () => {
                   >
                     Join thousands of developers who have transformed their
                     coding journey with our all-in-one platform.
-                  </motion.p>
-                  <motion.button
-                    className="px-6 sm:px-8 md:px-10 py-3 sm:py-3.5 md:py-4 bg-white text-blue-600 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg shadow-lg hover:shadow-2xl"
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.6 }}
-                    viewport={{ once: true }}
-                    whileHover={{
-                      scale: 1.05,
-                      boxShadow: "0 20px 30px rgba(0, 0, 0, 0.2)",
-                    }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={openSignInModal}
-                  >
-                    Start Free Trial
-                  </motion.button>
-                  <motion.p
-                    className="mt-4 sm:mt-6 text-white/80 text-xs sm:text-sm"
-                    initial={{ opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    transition={{ delay: 0.8 }}
-                    viewport={{ once: true }}
-                  >
-                    No credit card required • 14-day free trial • Cancel anytime
                   </motion.p>
                 </div>
               </motion.div>
