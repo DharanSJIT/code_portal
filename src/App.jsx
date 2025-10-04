@@ -42,12 +42,12 @@ import { debugUserProfile, createMissingUserProfile } from './utils/debugAuth';
 import { createAdminAccount, verifyAdminAccount, checkAllUsers } from './utils/adminSetup';
 
 // Protected Route Wrapper Component
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, hideFooter = false }) => {
   return (
     <>
       <Header />
       {children}
-      <Footer />
+      {!hideFooter && <Footer />}
     </>
   );
 };
@@ -218,9 +218,9 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* Chat Routes */}
+          {/* Chat Routes - WITHOUT FOOTER */}
           <Route path="/chat" element={
-            <ProtectedRoute>
+            <ProtectedRoute hideFooter={true}>
               <StudentChatPage />
             </ProtectedRoute>
           } />
