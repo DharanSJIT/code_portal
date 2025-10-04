@@ -157,6 +157,22 @@ const scrollbarStyles = `
   .student-removing {
     animation: slideOut 0.3s ease-in-out forwards;
   }
+
+  /* New conversation highlight */
+  @keyframes highlightNew {
+    from { 
+      background-color: rgba(34, 197, 94, 0.2);
+      transform: scale(1.02);
+    }
+    to { 
+      background-color: transparent;
+      transform: scale(1);
+    }
+  }
+
+  .new-conversation {
+    animation: highlightNew 2s ease-out;
+  }
 `
 
 const AdminChatPage = () => {
@@ -188,16 +204,19 @@ const AdminChatPage = () => {
   const [attachments, setAttachments] = useState([])
   const [studentProfiles, setStudentProfiles] = useState({})
   const [removingStudents, setRemovingStudents] = useState([])
+  const [newConversationIds, setNewConversationIds] = useState([])
   
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const subscriptionRef = useRef(null)
   const conversationSubscriptionRef = useRef(null)
+  const allMessagesSubscriptionRef = useRef(null)
   const sentMessageTimestampsRef = useRef(new Set())
   const optionsMenuRef = useRef(null)
   const fileInputRef = useRef(null)
   const emojiPickerRef = useRef(null)
   const inputRef = useRef(null)
+  const processedConversationIds = useRef(new Set())
 
   const adminUser = {
     id: 'admin_1',
@@ -218,6 +237,9 @@ const AdminChatPage = () => {
       }
       if (conversationSubscriptionRef.current) {
         conversationSubscriptionRef.current.unsubscribe()
+      }
+      if (allMessagesSubscriptionRef.current) {
+        allMessagesSubscriptionRef.current.unsubscribe()
       }
     }
   }, [])
@@ -261,6 +283,17 @@ const AdminChatPage = () => {
     }
   }, [message])
 
+  // Clear new conversation highlight after 3 seconds
+  useEffect(() => {
+    if (newConversationIds.length > 0) {
+      const timer = setTimeout(() => {
+        setNewConversationIds([])
+      }, 3000)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [newConversationIds])
+
   // Function to check if a conversation has real messages
   const hasRealMessages = async (conversationId) => {
     try {
@@ -275,7 +308,9 @@ const AdminChatPage = () => {
         msg.message.trim() !== '' &&
         msg.message !== 'Conversation created' &&
         msg.message !== 'Chat cleared' &&
-        msg.sender_role !== 'system'
+        msg.sender_role !== 'system' &&
+        !msg.message.includes('joined the chat') &&
+        !msg.message.includes('created account')
       )
       
       return realMessages.length > 0
@@ -288,15 +323,6 @@ const AdminChatPage = () => {
   // Function to determine if a conversation should be shown
   const shouldShowConversation = (conversation) => {
     if (!conversation) return false
-    
-    // Debug logging
-    console.log('Checking conversation:', {
-      id: conversation.id,
-      student_id: conversation.student_id,
-      last_message: conversation.last_message,
-      created_at: conversation.created_at,
-      last_message_at: conversation.last_message_at
-    })
     
     // Must have a student_id
     if (!conversation.student_id) return false
@@ -313,7 +339,6 @@ const AdminChatPage = () => {
     }
     
     // Check if last_message_at exists and is different from created_at
-    // This helps identify auto-created conversations
     if (conversation.created_at && conversation.last_message_at) {
       const createdTime = new Date(conversation.created_at).getTime()
       const lastMessageTime = new Date(conversation.last_message_at).getTime()
@@ -325,6 +350,27 @@ const AdminChatPage = () => {
     }
     
     return true
+  }
+
+  // Fetch student profile by ID
+  const fetchStudentProfile = async (studentId) => {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', studentId))
+      if (userDoc.exists()) {
+        const data = userDoc.data()
+        return {
+          id: studentId,
+          name: data.name || data.displayName || data.firstName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.email?.split('@')[0] || 'Student',
+          email: data.email || '',
+          avatar: data.photoURL || data.avatar || null,
+          isOnline: data.isOnline || false,
+          lastSeen: data.lastSeen || null
+        }
+      }
+    } catch (error) {
+      console.warn(`Could not fetch profile for student ${studentId}:`, error)
+    }
+    return null
   }
 
   // Only fetch student profiles for conversations with real messages
@@ -351,21 +397,9 @@ const AdminChatPage = () => {
       
       if (studentIds.length > 0) {
         for (const studentId of studentIds) {
-          try {
-            const userDoc = await getDoc(doc(db, 'users', studentId))
-            if (userDoc.exists()) {
-              const data = userDoc.data()
-              profiles[studentId] = {
-                id: studentId,
-                name: data.name || data.displayName || data.firstName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.email?.split('@')[0] || 'Student',
-                email: data.email || '',
-                avatar: data.photoURL || data.avatar || null,
-                isOnline: data.isOnline || false,
-                lastSeen: data.lastSeen || null
-              }
-            }
-          } catch (error) {
-            console.warn(`Could not fetch profile for student ${studentId}:`, error)
+          const profile = await fetchStudentProfile(studentId)
+          if (profile) {
+            profiles[studentId] = profile
           }
         }
       }
@@ -420,6 +454,7 @@ const AdminChatPage = () => {
               const hasReal = await hasRealMessages(conv.id)
               if (hasReal) {
                 validConversations.push(conv)
+                processedConversationIds.current.add(conv.id)
               } else {
                 console.log('Filtered out conversation with no real messages:', conv.id)
               }
@@ -438,6 +473,7 @@ const AdminChatPage = () => {
         }
         
         setupConversationSubscription()
+        setupGlobalMessageSubscription()
       }
 
       setLoading(false)
@@ -470,8 +506,110 @@ const AdminChatPage = () => {
     }
   }
 
+  // Setup global message subscription to catch new student messages
+  const setupGlobalMessageSubscription = () => {
+    try {
+      if (allMessagesSubscriptionRef.current) {
+        allMessagesSubscriptionRef.current.unsubscribe()
+      }
+
+      // Subscribe to all messages to catch new student first messages
+      allMessagesSubscriptionRef.current = chatService.subscribeToAllMessages(async (payload) => {
+        console.log('Global message event:', payload.eventType, payload)
+        
+        if (payload.eventType === 'INSERT' && payload.new) {
+          const newMessage = payload.new
+          
+          // Check if this is a student's message (not admin)
+          if (newMessage.sender_role === 'student' && newMessage.sender_id !== adminUser.id) {
+            console.log('New student message detected:', newMessage)
+            
+            // Check if we already have this conversation
+            const existsInList = conversations.some(conv => conv.id === newMessage.conversation_id)
+            
+            if (!existsInList && !processedConversationIds.current.has(newMessage.conversation_id)) {
+              console.log('New conversation needed for message:', newMessage.conversation_id)
+              
+              // Get the full conversation data
+              try {
+                const { data: conversation, error } = await chatService.getConversation(newMessage.conversation_id)
+                if (!error && conversation) {
+                  console.log('Retrieved conversation data:', conversation)
+                  await handleNewConversationFromMessage(conversation, newMessage)
+                }
+              } catch (error) {
+                console.error('Error getting conversation for new message:', error)
+              }
+            } else {
+              console.log('Conversation already exists or processed:', newMessage.conversation_id)
+            }
+          }
+        }
+      })
+    } catch (error) {
+      console.error('Error setting up global message subscription:', error)
+    }
+  }
+
+  // Handle new conversation created from a student message
+  const handleNewConversationFromMessage = async (conversation, firstMessage) => {
+    console.log('Processing new conversation from message:', conversation.id)
+    
+    // Validate the conversation
+    if (!shouldShowConversation(conversation)) {
+      console.log('New conversation failed validation:', conversation.id)
+      return
+    }
+
+    // Double-check it has real messages
+    const hasReal = await hasRealMessages(conversation.id)
+    if (!hasReal) {
+      console.log('New conversation has no real messages:', conversation.id)
+      return
+    }
+
+    console.log('Adding new conversation to list:', conversation.id)
+    
+    // Mark as processed
+    processedConversationIds.current.add(conversation.id)
+    
+    // Add to new conversation list for highlighting
+    setNewConversationIds(prev => [...prev, conversation.id])
+    
+    // Add to conversations list
+    setConversations(prev => {
+      const exists = prev.some(conv => conv.id === conversation.id)
+      if (exists) return prev
+      
+      const updated = [conversation, ...prev].sort((a, b) => 
+        new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+      )
+      
+      console.log('Updated conversations list, new count:', updated.length)
+      return updated
+    })
+
+    // Fetch student profile if we don't have it
+    if (conversation.student_id && !studentProfiles[conversation.student_id]) {
+      console.log('Fetching profile for new student:', conversation.student_id)
+      const profile = await fetchStudentProfile(conversation.student_id)
+      if (profile) {
+        setStudentProfiles(prev => ({
+          ...prev,
+          [conversation.student_id]: profile
+        }))
+      }
+    }
+  }
+
   const handleNewConversation = async (newConversation) => {
-    console.log('New conversation received:', newConversation)
+    console.log('New conversation received via subscription:', newConversation)
+    
+    // Skip if already processed
+    if (processedConversationIds.current.has(newConversation.id)) {
+      console.log('Conversation already processed:', newConversation.id)
+      return
+    }
     
     // Strict filtering for new conversations
     if (!shouldShowConversation(newConversation)) {
@@ -487,6 +625,12 @@ const AdminChatPage = () => {
     }
 
     console.log('Accepting new conversation:', newConversation.id)
+    
+    // Mark as processed
+    processedConversationIds.current.add(newConversation.id)
+    
+    // Add to new conversation list for highlighting
+    setNewConversationIds(prev => [...prev, newConversation.id])
 
     setConversations(prev => {
       const exists = prev.some(conv => conv.id === newConversation.id)
@@ -499,24 +643,12 @@ const AdminChatPage = () => {
 
     // Fetch profile for the new student
     if (newConversation.student_id && !studentProfiles[newConversation.student_id]) {
-      try {
-        const userDoc = await getDoc(doc(db, 'users', newConversation.student_id))
-        if (userDoc.exists()) {
-          const data = userDoc.data()
-          setStudentProfiles(prev => ({
-            ...prev,
-            [newConversation.student_id]: {
-              id: newConversation.student_id,
-              name: data.name || data.displayName || data.firstName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.email?.split('@')[0] || 'Student',
-              email: data.email || '',
-              avatar: data.photoURL || data.avatar || null,
-              isOnline: data.isOnline || false,
-              lastSeen: data.lastSeen || null
-            }
-          }))
-        }
-      } catch (error) {
-        console.warn('Could not fetch new student profile:', error)
+      const profile = await fetchStudentProfile(newConversation.student_id)
+      if (profile) {
+        setStudentProfiles(prev => ({
+          ...prev,
+          [newConversation.student_id]: profile
+        }))
       }
     }
   }
@@ -531,6 +663,7 @@ const AdminChatPage = () => {
       setConversations(prev => 
         prev.filter(conv => conv.id !== updatedConversation.id)
       )
+      processedConversationIds.current.delete(updatedConversation.id)
       return
     }
     
@@ -541,16 +674,44 @@ const AdminChatPage = () => {
       setConversations(prev => 
         prev.filter(conv => conv.id !== updatedConversation.id)
       )
+      processedConversationIds.current.delete(updatedConversation.id)
       return
     }
 
-    setConversations(prev => 
-      prev.map(conv => 
-        conv.id === updatedConversation.id ? updatedConversation : conv
-      ).sort((a, b) => 
-        new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+    // Check if this is a new conversation being updated (first real message)
+    const existsInList = conversations.some(conv => conv.id === updatedConversation.id)
+    
+    if (!existsInList && !processedConversationIds.current.has(updatedConversation.id)) {
+      console.log('Updated conversation is actually new, adding to list')
+      processedConversationIds.current.add(updatedConversation.id)
+      setNewConversationIds(prev => [...prev, updatedConversation.id])
+      
+      setConversations(prev => 
+        [updatedConversation, ...prev].sort((a, b) => 
+          new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+        )
       )
-    )
+      
+      // Fetch student profile if needed
+      if (updatedConversation.student_id && !studentProfiles[updatedConversation.student_id]) {
+        const profile = await fetchStudentProfile(updatedConversation.student_id)
+        if (profile) {
+          setStudentProfiles(prev => ({
+            ...prev,
+            [updatedConversation.student_id]: profile
+          }))
+        }
+      }
+    } else {
+      // Regular update
+      setConversations(prev => 
+        prev.map(conv => 
+          conv.id === updatedConversation.id ? updatedConversation : conv
+        ).sort((a, b) => 
+          new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+        )
+      )
+    }
     
     if (selectedConversation && selectedConversation.id === updatedConversation.id) {
       setSelectedConversation(updatedConversation)
@@ -562,6 +723,8 @@ const AdminChatPage = () => {
     setConversations(prev => 
       prev.filter(conv => conv.id !== deletedConversation.id)
     )
+    
+    processedConversationIds.current.delete(deletedConversation.id)
     
     if (selectedConversation && selectedConversation.id === deletedConversation.id) {
       setSelectedConversation(null)
@@ -880,7 +1043,7 @@ const AdminChatPage = () => {
       const { error } = await chatService.clearConversation(selectedConversation.id)
       
       if (error) throw new Error(error)
-      
+              
       setMessages([])
       updateConversationInList(
         selectedConversation.id, 
@@ -915,6 +1078,9 @@ const AdminChatPage = () => {
       // Delete the conversation from chat system
       const { error: convError } = await chatService.deleteConversation(selectedConversation.id)
       if (convError) throw new Error('Failed to delete conversation')
+      
+      // Remove from processed conversations
+      processedConversationIds.current.delete(selectedConversation.id)
       
       // Remove from local state (this removes them from the messenger interface)
       setTimeout(() => {
@@ -1070,7 +1236,8 @@ const AdminChatPage = () => {
   const toggleSidebar = () => {
     setShowSidebar(!showSidebar)
   }
-    const goBackToConversations = () => {
+
+  const goBackToConversations = () => {
     setSelectedConversation(null)
     if (window.innerWidth < 768) {
       setShowSidebar(true)
@@ -1104,7 +1271,7 @@ const AdminChatPage = () => {
             <MessageCircle className="w-8 h-8 text-white" />
           </div>
           <p className="text-gray-600 font-medium">Loading admin chat...</p>
-          <p className="text-sm text-gray-500 mt-2">Filtering active conversations</p>
+          <p className="text-sm text-gray-500 mt-2">Setting up real-time filtering</p>
         </div>
       </div>
     )
@@ -1118,8 +1285,12 @@ const AdminChatPage = () => {
         <div className={`${showSidebar ? 'flex' : 'hidden'} md:flex w-full md:w-80 lg:w-96 bg-white border-r border-gray-200 flex-col absolute md:relative z-20 h-full sidebar-mobile ${showSidebar ? 'open' : ''}`}>
           <div className="p-4 border-b border-gray-200 bg-white">
             <div className="flex items-center justify-between mb-4">
-              <h1 className="text-xl font-bold text-gray-800">Active Chats</h1>
+              <h1 className="text-xl font-bold text-gray-800">Live Student Chats</h1>
               <div className="flex items-center space-x-2">
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-xs text-gray-500 ml-1">Live</span>
+                </div>
                 <button 
                   onClick={initializeAdminChat}
                   className="p-2 rounded-full hover:bg-gray-100 transition-colors"
@@ -1136,7 +1307,7 @@ const AdminChatPage = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search active conversations..."
+                placeholder="Search real-time conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-gray-100 rounded-lg focus:outline-none focus:bg-white focus:ring-2 focus:ring-green-500 transition-all duration-200"
@@ -1149,32 +1320,38 @@ const AdminChatPage = () => {
               <div className="text-center text-gray-500 py-12">
                 <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-30" />
                 <p className="text-lg font-medium mb-2">No active conversations</p>
-                <p className="text-sm mb-4">Students appear here only when they send real messages.</p>
+                <p className="text-sm mb-4">Students appear instantly when they send messages.</p>
                 <div className="mt-6 text-xs text-gray-400 space-y-2 px-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="font-medium text-blue-800 mb-2">🔍 Debug Info:</p>
-                    <p className="text-blue-700">Total conversations loaded: {conversations.length}</p>
-                    <p className="text-blue-700">After filtering: {filteredConversations.length}</p>
-                    <p className="text-blue-700 mt-2 text-xs">Check browser console for detailed filtering logs</p>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <p className="font-medium text-green-800 mb-2">🔥 Real-time Features:</p>
+                    <ul className="text-green-700 space-y-1 text-left">
+                      <li>• Instant new student detection</li>
+                      <li>• Live message monitoring</li>
+                      <li>• Auto-conversation creation</li>
+                      <li>• Smart filtering system</li>
+                    </ul>
                   </div>
-                  <div className="space-y-1">
-                    <p>💡 Only real student messages are shown</p>
-                    <p>🚫 Auto-created conversations are hidden</p>
-                    <p>📱 System messages are filtered out</p>
-                    <p>⏱️ Empty conversations don't appear</p>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="font-medium text-blue-800 mb-2">📊 Status:</p>
+                    <p className="text-blue-700">Conversations loaded: {conversations.length}</p>
+                    <p className="text-blue-700">After filtering: {filteredConversations.length}</p>
+                    <p className="text-blue-700 mt-2 text-xs">System is monitoring for new messages</p>
                   </div>
                 </div>
               </div>
             ) : (
               filteredConversations.map((conversation) => {
                 const isRemoving = removingStudents.includes(conversation.student_id)
+                const isNewConversation = newConversationIds.includes(conversation.id)
                 return (
                   <div
                     key={conversation.id}
                     onClick={() => !isRemoving && selectConversation(conversation)}
                     className={`p-3 border-b border-gray-100 cursor-pointer transition-all duration-200 hover:bg-gray-50 group ${
                       selectedConversation?.id === conversation.id ? 'bg-green-50 border-l-4 border-l-green-500' : ''
-                    } ${isRemoving ? 'student-removing pointer-events-none' : ''}`}
+                    } ${isRemoving ? 'student-removing pointer-events-none' : ''} ${
+                      isNewConversation ? 'new-conversation bg-green-100' : ''
+                    }`}
                   >
                     <div className="flex items-center space-x-3">
                       <div className="relative">
@@ -1187,11 +1364,18 @@ const AdminChatPage = () => {
                         {studentProfiles[conversation.student_id]?.isOnline && (
                           <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white"></div>
                         )}
+                        {/* New conversation indicator */}
+                        {isNewConversation && (
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <h3 className="font-semibold text-gray-800 truncate text-sm">
                             {getStudentDisplayName(conversation)}
+                            {isNewConversation && (
+                              <span className="ml-1 text-xs bg-green-500 text-white px-1.5 py-0.5 rounded-full">NEW</span>
+                            )}
                           </h3>
                           <span className="text-xs text-gray-400 flex-shrink-0 ml-2">
                             {conversation.last_message_at ? formatTime(conversation.last_message_at) : ''}
@@ -1236,6 +1420,9 @@ const AdminChatPage = () => {
                     <div className="flex-1">
                       <h2 className="font-semibold text-gray-800 text-sm">
                         {getStudentDisplayName(selectedConversation)}
+                        {newConversationIds.includes(selectedConversation.id) && (
+                          <span className="ml-2 text-xs bg-green-500 text-white px-2 py-0.5 rounded-full">NEW CHAT</span>
+                        )}
                       </h2>
                       <p className="text-xs text-gray-500">
                         {studentProfiles[selectedConversation.student_id]?.isOnline ? 'Online' : 'Offline'} • {getStudentEmail(selectedConversation)}
@@ -1586,22 +1773,27 @@ const AdminChatPage = () => {
           ) : (
             <div className="flex-1 flex items-center justify-center bg-gray-50">
               <div className="text-center text-gray-500 max-w-md p-8">
-                <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 relative">
                   <MessageCircle className="w-12 h-12 text-green-500" />
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
                 </div>
-                <h3 className="text-2xl font-semibold mb-3 text-gray-700">Smart Student Chat Filter</h3>
-                <p className="text-gray-600 mb-6">Only students who actively send messages will appear here. Auto-created conversations are automatically filtered out.</p>
+                <h3 className="text-2xl font-semibold mb-3 text-gray-700">Real-time Student Chat</h3>
+                <p className="text-gray-600 mb-6">Students appear instantly when they send messages. No refresh needed - everything happens in real-time!</p>
                 <div className="space-y-2 text-sm text-gray-500">
-                  <p>💬 Reply to real student messages</p>
-                  <p>📎 Share files and documents</p>
-                  <p>😊 Use emojis to express yourself</p>
-                  <p>🔍 Search through active conversations</p>
-                  <p>🎯 Smart filtering removes empty chats</p>
-                  <p>⏱️ Students appear only when they message first</p>
+                  <p>💬 Instant message notifications</p>
+                  <p>📎 Real-time file sharing</p>
+                  <p>😊 Live emoji reactions</p>
+                  <p>🔍 Smart conversation filtering</p>
+                  <p>🎯 Auto-detects new students</p>
+                  <p>⚡ No page refresh required</p>
                 </div>
-                <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-yellow-800 text-sm font-medium">🔧 Debugging Mode Active</p>
-                  <p className="text-yellow-700 text-xs mt-1">Check browser console for detailed filtering information</p>
+                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-green-800 text-sm font-medium">🔥 Live System Status</p>
+                  <p className="text-green-700 text-xs mt-1">Real-time monitoring active • Instant updates enabled</p>
+                  <div className="flex items-center justify-center mt-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
+                    <span className="text-green-600 text-xs">System Online</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1705,6 +1897,7 @@ const AdminChatPage = () => {
                     <li>• Delete all chat messages permanently</li>
                     <li>• Keep student's account active in the system</li>
                     <li>• Allow student to start a new conversation later</li>
+                    <li>• Maintain real-time monitoring for future messages</li>
                   </ul>
                 </div>
                 <div className="flex space-x-3">
