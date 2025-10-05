@@ -34,6 +34,7 @@ import StudentPasswordManager from './components/StudentPasswordManager';
 // Chat Components
 import StudentChatPage from './components/Chat/StudentChatPage';
 import AdminChatPage from './components/Chat/AdminChatPage';
+import QueryBot from './components/QueryBot';
 
 // Auth Context
 import { AuthProvider } from './contexts/AuthContext';
@@ -253,6 +254,7 @@ function App() {
             <Route path="leaderboard" element={<AdminLeaderboard />} />
             <Route path="passwords" element={<StudentPasswordManager />} />
             <Route path="chat" element={<AdminChatPage />} />
+            <Route path="querybot" element={<QueryBot />} />
           </Route>
           
           {/* Legacy Routes with Authentication Guard */}
