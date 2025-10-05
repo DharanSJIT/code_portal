@@ -1971,14 +1971,14 @@ const AdminChatPage = () => {
                   <p>🎯 Auto-detects new students</p>
                   <p>⚡ No page refresh required</p>
                 </div>
-                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                {/* <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                   <p className="text-green-800 text-sm font-medium">🔥 Live System Status</p>
                   <p className="text-green-700 text-xs mt-1">Real-time monitoring active • Instant updates enabled</p>
                   <div className="flex items-center justify-center mt-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
                     <span className="text-green-600 text-xs">System Online</span>
                   </div>
-                </div>
+                </div> */}
               </div>
             </div>
           )}
