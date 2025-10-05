@@ -881,6 +881,25 @@ const AdminDashboard = () => {
               </motion.a>
 
               </li>
+              <li>
+              <motion.a
+                onClick={() => navigate("/admin/querybot")}
+                className="flex items-center px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-lg font-medium cursor-pointer"
+                whileHover={{ x: 5, backgroundColor: "#F8FAFC" }}
+                transition={{ type: "spring", stiffness: 300, damping: 10 }}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-5 h-5 mr-3"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M12 2C6.48 2 2 6.02 2 10.72c0 2.73 1.41 5.17 3.67 6.81v4.47l4.13-2.27c.69.13 1.4.2 2.13.2 5.52 0 10-4.02 10-8.72S17.52 2 12 2zm.3 11.79L10 11.3l-3.7 2.49 4.34-4.79 2.3 2.49 3.7-2.49-4.34 4.79z" />
+                </svg>
+                QueryBot
+              </motion.a>
+
+              </li>
             </li>
           </ul>
         </div>
