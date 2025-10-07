@@ -1179,11 +1179,7 @@ const StudentChatPage = () => {
   }
 
   const goBack = () => {
-    if (window.history.length > 1) {
-      window.history.back()
-    } else {
-      window.location.href = '/chat'
-    }
+    window.location.href = '/chat'
   }
 
   // ================================
