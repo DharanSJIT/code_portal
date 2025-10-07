@@ -1331,29 +1331,29 @@ const StudentChatPage = () => {
       <style>{scrollbarStyles}</style>
       <div className={`chat-layout ${chatLoaded ? 'animate-chat-open' : ''}`}>
         {/* Chat Header with animation */}
-        <div className={`bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-4 shadow-md flex-shrink-0 ${chatLoaded ? 'animate-header-slide' : ''}`}>
+        <div className={`bg-gradient-to-r from-blue-500 to-blue-600 px-3 md:px-4 py-3 md:py-4 shadow-md flex-shrink-0 ${chatLoaded ? 'animate-header-slide' : ''}`}>
           <div className="flex items-center justify-between max-w-3xl mx-auto">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 md:space-x-3 flex-1 min-w-0">
               <button
                 onClick={goBack}
-                className="p-2 rounded-full hover:bg-white/20 transition-all duration-200 btn-hover"
+                className="p-1.5 md:p-2 rounded-full hover:bg-white/20 transition-all duration-200 btn-hover flex-shrink-0"
               >
-                <ArrowRight className="w-5 h-5 text-white" />
+                <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-white" />
               </button>
-              <div className="relative">
-                <div className={`w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg ${isOnline ? 'animate-avatar-bounce' : ''}`}>
-                  <span className="text-blue-600 font-bold text-lg">
+              <div className="relative flex-shrink-0">
+                <div className={`w-10 h-10 md:w-12 md:h-12 bg-white rounded-full flex items-center justify-center shadow-lg ${isOnline ? 'animate-avatar-bounce' : ''}`}>
+                  <span className="text-blue-600 font-bold text-base md:text-lg">
                     {chatInfo?.avatar}
                   </span>
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white shadow-sm animate-pulse"></div>
+                <div className="absolute -bottom-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-green-400 rounded-full border-2 border-white shadow-sm animate-pulse"></div>
               </div>
-              <div className="flex-1">
-                <h2 className="font-bold text-white text-base flex items-center gap-2">
-                  {chatInfo?.name}
-                  {chatInfo?.type === 'group' && getDomainBadge(chatInfo.domain)}
+              <div className="flex-1 min-w-0">
+                <h2 className="font-bold text-white text-sm md:text-base flex items-center gap-2">
+                  <span className="truncate">{chatInfo?.name}</span>
+                  {chatInfo?.type === 'group' && <span className="flex-shrink-0">{getDomainBadge(chatInfo.domain)}</span>}
                 </h2>
-                <p className="text-xs text-blue-100">
+                <p className="text-xs text-blue-100 truncate hidden sm:block">
                   {chatInfo?.status} • {chatInfo?.subtitle}
                 </p>
               </div>
@@ -1426,19 +1426,19 @@ const StudentChatPage = () => {
                     setActiveTab('support')
                     selectSupportChat()
                   }}
-                  className="p-2 rounded-full hover:bg-white/20 transition-all duration-200 btn-hover"
-                  title="Switch to Support"
+                  className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1.5 md:py-2 rounded-lg bg-white/20 hover:bg-white/30 transition-all duration-200 btn-hover flex-shrink-0"
                 >
-                  <MessageCircle className="w-5 h-5 text-white" />
+                  <MessageCircle className="w-4 h-4 text-white" />
+                  <span className="text-white text-xs md:text-sm font-medium">Support</span>
                 </button>
               )}
               {activeTab === 'support' && groups.length > 0 && (
                 <button
                   onClick={() => setActiveTab('groups')}
-                  className="p-2 rounded-full hover:bg-white/20 transition-all duration-200 btn-hover"
-                  title="Switch to Groups"
+                  className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1.5 md:py-2 rounded-lg bg-white/20 hover:bg-white/30 transition-all duration-200 btn-hover flex-shrink-0"
                 >
-                  <Users className="w-5 h-5 text-white" />
+                  <Users className="w-4 h-4 text-white" />
+                  <span className="text-white text-xs md:text-sm font-medium">Groups</span>
                 </button>
               )}
             </div>
