@@ -1304,7 +1304,7 @@ const StudentChatPage = () => {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
         <div className="text-center">
-          <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse-slow">
+          <div className="w-16 h-16 bg-blue-400 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse-slow">
             <MessageCircle className="w-8 h-8 text-white" />
           </div>
           <p className="text-gray-600 font-medium">Setting up your chat...</p>
@@ -1435,7 +1435,7 @@ const StudentChatPage = () => {
         {/* Group List Sidebar */}
         {activeTab === 'groups' && !activeGroup && (
           <div className="flex-1 overflow-y-auto bg-white border-r border-gray-200">
-            <div className="p-4">
+            <div className="p-4 max-w-3xl mx-auto">
               <h3 className="font-semibold text-gray-800 mb-3">Your Groups</h3>
               {groups.length === 0 ? (
                 <div className="text-center text-gray-500 py-12">

@@ -1996,7 +1996,7 @@ const AdminChatPage = () => {
             {activeTab === 'group' && (
               <button
                 onClick={() => setShowCreateGroup(true)}
-                className="w-full mt-3 bg-green-400 text-white py-2.5 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center justify-center space-x-2"
+                className="w-full mt-3 bg-green-500 text-white py-2.5 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center justify-center space-x-2"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>Create New Group</span>
