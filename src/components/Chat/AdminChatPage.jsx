@@ -247,7 +247,7 @@ const scrollbarStyles = `
 
   /* Group message styles */
   .group-message-admin {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: #10b981;
     color: white;
     border-radius: 18px 18px 4px 18px;
   }
@@ -261,10 +261,10 @@ const scrollbarStyles = `
   }
 
   /* Domain gradient backgrounds */
-  .bg-domain-fullstack { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-  .bg-domain-aml { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-  .bg-domain-aws { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
-  .bg-domain-other { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); }
+  .bg-domain-fullstack { background: bg-green-300; }
+  .bg-domain-aml { background: bg-green-300; }
+  .bg-domain-aws { background: bg-green-300; }
+  .bg-domain-other { background: bg-green-300; }
 `
 
 const AdminChatPage = () => {
@@ -338,7 +338,7 @@ const AdminChatPage = () => {
 
   // Domain configurations
   const domains = {
-    fullstack: { name: 'Full Stack', color: 'from-purple-400 to-pink-600', badge: 'domain-badge-fullstack', bg: 'bg-domain-fullstack' },
+    fullstack: { name: 'Full Stack', color: 'bg-green-300', badge: 'domain-badge-fullstack', bg: 'bg-red-700' },
     aml: { name: 'AML', color: 'from-blue-400 to-cyan-500', badge: 'domain-badge-aml', bg: 'bg-domain-aml' },
     aws: { name: 'AWS', color: 'from-green-400 to-teal-500', badge: 'domain-badge-aws', bg: 'bg-domain-aws' },
     other: { name: 'Other', color: 'from-orange-200 to-orange-400', badge: 'domain-badge-other', bg: 'bg-domain-other' }
@@ -1996,7 +1996,7 @@ const AdminChatPage = () => {
             {activeTab === 'group' && (
               <button
                 onClick={() => setShowCreateGroup(true)}
-                className="w-full mt-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white py-2.5 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center justify-center space-x-2"
+                className="w-full mt-3 bg-green-400 text-white py-2.5 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center justify-center space-x-2"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>Create New Group</span>
@@ -2123,7 +2123,7 @@ const AdminChatPage = () => {
                     >
                       <div className="flex items-center space-x-3">
                         <div className="relative">
-                          <div className={`w-12 h-12 bg-gradient-to-r ${domainConfig.color} rounded-full flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                          <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
                             <span className="text-white font-semibold text-sm">
                               {group.name.charAt(0).toUpperCase()}
                             </span>
@@ -2176,7 +2176,7 @@ const AdminChatPage = () => {
                     <div className="relative">
                       <div className={`w-10 h-10 ${
                         chatInfo.type === 'group' 
-                          ? `bg-gradient-to-r ${chatInfo.domainConfig.color}`
+                          ? 'bg-blue-500'
                           : 'bg-green-500'
                       } rounded-full flex items-center justify-center shadow-sm`}>
                         <span className="text-white font-semibold text-sm">
@@ -2382,11 +2382,7 @@ const AdminChatPage = () => {
                                 <div className={`flex ${!isAdmin && 'items-end'} max-w-xs lg:max-w-md ${showSender ? 'mt-2' : 'mt-1'} px-2 py-1 rounded-lg ${isSelectionMode ? 'cursor-pointer' : ''}`}>
                                   {/* Student/User Avatar */}
                                   {!isAdmin && showSender && (
-                                    <div className={`w-8 h-8 ${
-                                      chatInfo.type === 'group' 
-                                        ? `bg-gradient-to-r ${chatInfo.domainConfig.color}`
-                                        : 'bg-green-500'
-                                    } rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0`}>
+                                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0">
                                       <span className="text-white font-semibold text-xs">
                                         {chatInfo.type === 'group' ? msg.sender_name?.charAt(0).toUpperCase() : getStudentAvatarInitial(selectedConversation)}
                                       </span>
@@ -2481,11 +2477,7 @@ const AdminChatPage = () => {
                     {isTyping && (
                       <div className="flex justify-start">
                         <div className="flex items-end max-w-xs lg:max-w-md mt-1 px-2 py-1">
-                          <div className={`w-8 h-8 ${
-                            chatInfo.type === 'group' 
-                              ? `bg-gradient-to-r ${chatInfo.domainConfig.color}`
-                              : 'bg-green-500'
-                          } rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0`}>
+                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0">
                             <span className="text-white font-semibold text-xs">
                               {chatInfo.type === 'group' ? 'S' : getStudentAvatarInitial(selectedConversation)}
                             </span>
@@ -2766,8 +2758,8 @@ const AdminChatPage = () => {
                       onChange={(e) => setNewGroupData(prev => ({...prev, domain: e.target.value}))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="fullstack">Full Stack Development</option>
-                      <option value="aml">AML (Anti-Money Laundering)</option>
+                      <option value="fullstack">FSD</option>
+                      <option value="aml">AML(Artificial Intelligence)</option>
                       <option value="aws">AWS Cloud</option>
                       <option value="other">Other</option>
                     </select>
