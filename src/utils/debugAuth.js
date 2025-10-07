@@ -120,5 +120,5 @@ export const createMissingUserProfile = async (userData = {}) => {
 if (typeof window !== 'undefined') {
   window.debugUserProfile = debugUserProfile;
   window.createMissingUserProfile = createMissingUserProfile;
-  console.log('🔧 Debug utilities loaded! Use window.debugUserProfile() to debug');
+  // console.log('🔧 Debug utilities loaded! Use window.debugUserProfile() to debug');
 }

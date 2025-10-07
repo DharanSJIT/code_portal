@@ -232,14 +232,14 @@ if (typeof window !== 'undefined') {
   window.verifyAdminAccount = verifyAdminAccount;
   window.checkAllUsers = checkAllUsers;
   
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('🔧 ADMIN SETUP UTILITIES LOADED');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('\n📝 Available commands:');
-  console.log('   1. createAdminAccount("email", "password", "Name")');
-  console.log('   2. verifyAdminAccount("email", "password")');
-  console.log('   3. checkAllUsers()');
-  console.log('\n💡 Example:');
-  console.log('   createAdminAccount("admin@codetrack.com", "Admin@12345", "Admin User")');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  // console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  // console.log('🔧 ADMIN SETUP UTILITIES LOADED');
+  // console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  // console.log('\n📝 Available commands:');
+  // console.log('   1. createAdminAccount("email", "password", "Name")');
+  // console.log('   2. verifyAdminAccount("email", "password")');
+  // console.log('   3. checkAllUsers()');
+  // console.log('\n💡 Example:');
+  // console.log('   createAdminAccount("admin@codetrack.com", "Admin@12345", "Admin User")');
+  // console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 }

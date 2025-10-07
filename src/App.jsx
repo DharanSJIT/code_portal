@@ -145,12 +145,12 @@ function App() {
       window.createAdminAccount = createAdminAccount;
       window.verifyAdminAccount = verifyAdminAccount;
       window.checkAllUsers = checkAllUsers;
-      console.log('🔧 Debug tools loaded:');
-      console.log('  - Run window.debugUserProfile() to debug authentication');
-      console.log('  - Run window.createMissingUserProfile({ role: "user" }) to create missing profile');
-      console.log('  - Run window.createAdminAccount("email", "password", "Name") to create admin');
-      console.log('  - Run window.verifyAdminAccount("email", "password") to verify admin');
-      console.log('  - Run window.checkAllUsers() to see all users');
+      // console.log('🔧 Debug tools loaded:');
+      // console.log('  - Run window.debugUserProfile() to debug authentication');
+      // console.log('  - Run window.createMissingUserProfile({ role: "user" }) to create missing profile');
+      // console.log('  - Run window.createAdminAccount("email", "password", "Name") to create admin');
+      // console.log('  - Run window.verifyAdminAccount("email", "password") to verify admin');
+      // console.log('  - Run window.checkAllUsers() to see all users');
     }
   }, []);
 
