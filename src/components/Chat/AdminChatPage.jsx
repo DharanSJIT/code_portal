@@ -2143,7 +2143,7 @@ const AdminChatPage = () => {
                             {group.description || 'Group chat'}
                           </p>
                           <div className="flex items-center space-x-2 mt-1">
-                            {getDomainBadge(group.domain)}
+                            {/* {getDomainBadge(group.domain)} */}
                             <span className="text-xs text-gray-400 flex items-center">
                               <Users className="w-3 h-3 mr-1" />
                               {group.member_count || 0}
