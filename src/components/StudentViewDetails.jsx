@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../firebase.js';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import activityService from '../services/activityService';
+import { validatePlatformData, sanitizeStudentData, calculateTotalProblems, formatLastUpdated } from '../utils/dataValidation';
 
 // --- Animation & Utility Hooks ---
 
@@ -290,15 +292,15 @@ const scrapeLeetCode = async (leetcodeUrl) => {
       }
     }
 
-    // Fallback data
+    // Return empty data if API fails
     return {
-      totalSolved: Math.floor(Math.random() * 200) + 50,
-      easySolved: Math.floor(Math.random() * 100) + 20,
-      mediumSolved: Math.floor(Math.random() * 80) + 10,
-      hardSolved: Math.floor(Math.random() * 30) + 5,
-      ranking: Math.floor(Math.random() * 500000) + 100000,
-      acceptanceRate: Math.floor(Math.random() * 40) + 50,
-      reputation: Math.floor(Math.random() * 100) + 10
+      totalSolved: 0,
+      easySolved: 0,
+      mediumSolved: 0,
+      hardSolved: 0,
+      ranking: 0,
+      acceptanceRate: 0,
+      reputation: 0
     };
 
   } catch (error) {
@@ -366,12 +368,8 @@ const scrapeGitHub = async (githubUrl) => {
       console.log('GitHub repos API failed, using basic user data:', repoError.message);
     }
 
-    // Estimate contributions
-    const totalContributions = Math.floor(
-      (userData.public_repos || 0) * 3 + 
-      (userData.followers || 0) * 2 + 
-      totalStars * 0.5
-    );
+    // Calculate contributions based on available data
+    const totalContributions = (userData.public_repos || 0) + (userData.followers || 0);
 
     return {
       username: userData.login,
@@ -447,8 +445,8 @@ const scrapeCodeforces = async (codeforcesUrl) => {
         }
       }
     } catch (subError) {
-      console.log('Codeforces submissions API failed, using estimated problems solved');
-      problemsSolved = Math.max(50, (user.rating || 0) / 10);
+      console.log('Codeforces submissions API failed');
+      problemsSolved = 0;
     }
 
     return {
@@ -524,12 +522,12 @@ const scrapeAtCoder = async (atcoderUrl) => {
             }
           }
         } catch (userInfoError) {
-          console.log('AtCoder user info API failed, using estimates:', userInfoError.message);
-          // Estimate based on problems solved
-          rating = Math.min(3000, Math.max(400, problemsSolved * 15));
-          maxRating = Math.min(3200, rating + Math.floor(Math.random() * 200));
-          contestsParticipated = Math.floor(problemsSolved / 2.5);
-          rank = getAtCoderRank(rating);
+          console.log('AtCoder user info API failed:', userInfoError.message);
+          // Use default values if API fails
+          rating = 0;
+          maxRating = 0;
+          contestsParticipated = 0;
+          rank = 'Gray';
         }
         
         return {
@@ -599,10 +597,11 @@ const scrapeAtCoder = async (atcoderUrl) => {
               }
             }
           } catch (ratingError) {
-            console.log('Rating API failed, estimating from submissions:', ratingError.message);
-            rating = Math.min(3000, Math.max(400, problemsSolved * 15));
-            maxRating = Math.min(3200, rating + Math.floor(Math.random() * 200));
-            rank = getAtCoderRank(rating);
+            console.log('Rating API failed:', ratingError.message);
+            // Use default values if rating API fails
+            rating = 0;
+            maxRating = 0;
+            rank = 'Gray';
           }
           
           return {
@@ -633,8 +632,8 @@ const scrapeAtCoder = async (atcoderUrl) => {
           const currentRating = ratings.length > 0 ? ratings[ratings.length - 1] : 0;
           const maxRating = ratings.length > 0 ? Math.max(...ratings) : 0;
           
-          // Estimate problems solved based on contests and rating
-          const problemsSolved = Math.floor(data.length * 2.5) + Math.floor(currentRating / 50);
+          // Calculate problems solved based on contest participation
+          const problemsSolved = data.length > 0 ? data.length : 0;
           
           return {
             rating: currentRating,
@@ -651,26 +650,24 @@ const scrapeAtCoder = async (atcoderUrl) => {
       console.log('AtCoder API failed:', apiError.message);
     }
     
-    // Ultimate fallback: Return reasonable mock data
-    console.log('All AtCoder methods failed, returning estimated data');
-    const rating = Math.floor(Math.random() * 2000) + 800;
+    // Ultimate fallback: Return empty data
+    console.log('All AtCoder methods failed, returning empty data');
     return {
-      rating: rating,
-      maxRating: rating + Math.floor(Math.random() * 300),
-      contestsParticipated: Math.floor(Math.random() * 50) + 5,
-      rank: getAtCoderRank(rating),
-      problemsSolved: Math.floor(Math.random() * 100) + 20
+      rating: 0,
+      maxRating: 0,
+      contestsParticipated: 0,
+      rank: 'Gray',
+      problemsSolved: 0
     };
 
   } catch (error) {
     console.error('AtCoder scraping error:', error);
-    const rating = Math.floor(Math.random() * 2000) + 800;
     return {
-      rating: rating,
-      maxRating: rating + Math.floor(Math.random() * 300),
-      contestsParticipated: Math.floor(Math.random() * 50) + 5,
-      rank: getAtCoderRank(rating),
-      problemsSolved: Math.floor(Math.random() * 100) + 20
+      rating: 0,
+      maxRating: 0,
+      contestsParticipated: 0,
+      rank: 'Gray',
+      problemsSolved: 0
     };
   }
 };
@@ -692,13 +689,37 @@ const StudentViewDetails = ({ student, onClose }) => {
   useEffect(() => {
     const timer = setTimeout(() => setIsMounted(true), 100);
     
-    // Auto-fetch data when component mounts
-    if (currentStudent.platformUrls && Object.values(currentStudent.platformUrls).some(url => url)) {
-      handleAutoFetch();
+    // Sanitize student data and auto-fetch if URLs exist
+    const sanitizedStudent = sanitizeStudentData(student);
+    if (sanitizedStudent) {
+      setCurrentStudent(sanitizedStudent);
+      if (sanitizedStudent.platformUrls && Object.values(sanitizedStudent.platformUrls).some(url => url)) {
+        handleAutoFetch();
+      }
+      
+      // Generate initial activities if student has platform data but no recent activities
+      generateInitialActivities(sanitizedStudent);
     }
     
     return () => clearTimeout(timer);
   }, []);
+
+  // Generate initial activities based on existing platform data
+  const generateInitialActivities = async (studentData) => {
+    try {
+      // Check if student already has activities
+      const existingActivities = await activityService.getStudentActivities(studentData.id, 5);
+      if (existingActivities.success && existingActivities.activities.length > 0) {
+        return; // Already has activities, don't create duplicates
+      }
+      
+      // Create a welcome activity if no activities exist
+      await activityService.logActivity(studentData.id, 'system', 'Profile viewed for the first time');
+      
+    } catch (error) {
+      console.error('Error generating initial activities:', error);
+    }
+  };
 
   // Auto-fetch function for real-time data
   const handleAutoFetch = async () => {
@@ -717,15 +738,24 @@ const StudentViewDetails = ({ student, onClose }) => {
       const updatePlatform = async (platform, scraper) => {
         try {
           setPlatformData(prev => ({ ...prev, [platform]: { loading: true, data: null, error: null } }));
-          const data = await scraper(currentStudent.platformUrls[platform]);
-          setPlatformData(prev => ({ ...prev, [platform]: { loading: false, data, error: null } }));
+          const oldData = currentStudent.platformData?.[platform];
+          const rawData = await scraper(currentStudent.platformUrls[platform]);
+          const validatedData = validatePlatformData(platform, rawData);
+          setPlatformData(prev => ({ ...prev, [platform]: { loading: false, data: validatedData, error: null } }));
           updateData[`scrapingStatus.${platform}`] = 'completed';
-          updateData[`platformData.${platform}`] = data;
+          updateData[`platformData.${platform}`] = validatedData;
+          
+          // Log activity only for actual changes
+          await activityService.logPlatformUpdate(currentStudent.id, platform, oldData, validatedData);
+          
           return true;
         } catch (error) {
           console.error(`Error fetching ${platform}:`, error);
           setPlatformData(prev => ({ ...prev, [platform]: { loading: false, data: null, error: error.message } }));
           updateData[`scrapingStatus.${platform}`] = 'failed';
+          
+          // Don't log failed attempts to avoid spam
+          
           return false;
         }
       };
@@ -784,27 +814,35 @@ const StudentViewDetails = ({ student, onClose }) => {
     if (scraperMap[platform] && currentStudent.platformUrls[platform]) {
       try {
         setPlatformData(prev => ({ ...prev, [platform]: { loading: true, data: null, error: null } }));
-        const data = await scraperMap[platform](currentStudent.platformUrls[platform]);
-        setPlatformData(prev => ({ ...prev, [platform]: { loading: false, data, error: null } }));
+        const rawData = await scraperMap[platform](currentStudent.platformUrls[platform]);
+        const validatedData = validatePlatformData(platform, rawData);
+        setPlatformData(prev => ({ ...prev, [platform]: { loading: false, data: validatedData, error: null } }));
         
         // Update Firestore
+        const oldData = currentStudent.platformData?.[platform];
         const updateData = {
           [`scrapingStatus.${platform}`]: 'completed',
-          [`platformData.${platform}`]: data,
+          [`platformData.${platform}`]: validatedData,
           'scrapingStatus.lastUpdated': new Date().toISOString()
         };
         await updateDoc(doc(db, 'users', currentStudent.id), updateData);
         
+        // Log activity for manual retry
+        await activityService.logPlatformUpdate(currentStudent.id, platform, oldData, validatedData);
+        
         // Refresh student data
         const updatedStudentDoc = await getDoc(doc(db, 'users', currentStudent.id));
         if (updatedStudentDoc.exists()) {
-          setCurrentStudent({
+          const refreshedData = sanitizeStudentData({
             id: updatedStudentDoc.id,
             ...updatedStudentDoc.data()
           });
+          setCurrentStudent(refreshedData);
         }
       } catch (error) {
         setPlatformData(prev => ({ ...prev, [platform]: { loading: false, data: null, error: error.message } }));
+        
+        // Don't log failed retry attempts to avoid spam
       }
     }
   };
@@ -831,22 +869,16 @@ const StudentViewDetails = ({ student, onClose }) => {
     return { data: storedData, status: scrapingStatusValue, hasData: !!storedData };
   };
 
-  // Calculate total problems solved
+  // Calculate total problems solved using utility function
   const calculateTotalSolved = () => {
-    const platforms = ['leetcode', 'codeforces', 'atcoder'];
-    return platforms.reduce((total, platform) => {
+    const platformDataObj = {};
+    ['leetcode', 'codeforces', 'atcoder'].forEach(platform => {
       const platformInfo = getPlatformData(platform);
       if (platformInfo.data) {
-        if (platform === 'leetcode') {
-          return total + (platformInfo.data.totalSolved || platformInfo.data.solved || 0);
-        } else if (platform === 'atcoder') {
-          return total + (platformInfo.data.problemsSolved || 0);
-        } else {
-          return total + (platformInfo.data.problemsSolved || platformInfo.data.solved || 0);
-        }
+        platformDataObj[platform] = platformInfo.data;
       }
-      return total;
-    }, 0);
+    });
+    return calculateTotalProblems(platformDataObj);
   };
 
   // Get platform stats for display
@@ -991,11 +1023,11 @@ const StudentViewDetails = ({ student, onClose }) => {
               <span>{currentStudent.year || 'N/A'}</span>
             </div>
           </div>
-          {/* {currentStudent.scrapingStatus?.lastUpdated && (
+          {currentStudent.scrapingStatus?.lastUpdated && (
             <div className="mt-3 text-xs text-slate-400">
               Last updated: {formatLastUpdated(currentStudent.scrapingStatus.lastUpdated)}
             </div>
-          )} */}
+          )}
         </header>
 
         {/* Body */}
@@ -1006,25 +1038,36 @@ const StudentViewDetails = ({ student, onClose }) => {
               <h3 className="text-base font-semibold text-slate-500 uppercase tracking-wider">
                 Overall Snapshot
               </h3>
-              <button
-                onClick={handleManualRefresh}
-                disabled={isAutoScraping}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${
-                  isAutoScraping 
-                    ? 'bg-blue-100 text-blue-600 cursor-not-allowed' 
-                    : 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-105'
-                }`}
-              >
-                <svg 
-                  className={`w-4 h-4 ${isAutoScraping ? 'animate-spin' : ''}`} 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    await activityService.logActivity(currentStudent.id, 'system', `Manual activity test at ${new Date().toLocaleTimeString()}`);
+                    window.location.reload();
+                  }}
+                  className="px-3 py-2 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition-all duration-200"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                {isAutoScraping ? 'Updating...' : 'Refresh Data'}
-              </button>
+                  Test Activity
+                </button>
+                <button
+                  onClick={handleManualRefresh}
+                  disabled={isAutoScraping}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                    isAutoScraping 
+                      ? 'bg-blue-100 text-blue-600 cursor-not-allowed' 
+                      : 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-105'
+                  }`}
+                >
+                  <svg 
+                    className={`w-4 h-4 ${isAutoScraping ? 'animate-spin' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  {isAutoScraping ? 'Updating...' : 'Refresh Data'}
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {snapshotData.map((item, index) => (

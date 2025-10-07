@@ -3,21 +3,26 @@ import { auth } from '../firebase';
 import { API_ENDPOINTS, fetchWithAuth } from '../config/api';
 
 class AuthService {
-  // Login and verify with backend
+  // Login and verify with backend (graceful fallback)
   async loginAndVerifyAdmin(user) {
     try {
       const idToken = await user.getIdToken();
       
-      // Verify with backend and check admin status
+      // Try backend verification with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      
       const response = await fetch(API_ENDPOINTS.AUTH.LOGIN, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken })
+        body: JSON.stringify({ idToken }),
+        signal: controller.signal
       });
       
+      clearTimeout(timeoutId);
+      
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Backend verification failed');
+        throw new Error('Backend verification failed');
       }
       
       const data = await response.json();
@@ -30,8 +35,22 @@ class AuthService {
       
       return data;
     } catch (error) {
-      console.error('Backend verification error:', error);
-      throw error;
+      // Backend is down or unreachable - continue without backend verification
+      console.warn('Backend verification failed, continuing with Firebase only:', error.message);
+      
+      const idToken = await user.getIdToken();
+      localStorage.setItem('authToken', idToken);
+      localStorage.setItem('userEmail', user.email);
+      localStorage.setItem('userId', user.uid);
+      
+      // Return minimal data structure
+      return {
+        user: {
+          uid: user.uid,
+          email: user.email,
+          isAdmin: false // Will be determined by Firestore lookup
+        }
+      };
     }
   }
 

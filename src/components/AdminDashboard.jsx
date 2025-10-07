@@ -862,7 +862,8 @@ const AdminDashboard = () => {
                 </svg>
                 Password Manager
               </motion.a>
-              <li>
+            </li>
+            <li>
               <motion.a
                 onClick={() => navigate("/admin/chat")}
                 className="flex items-center px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-lg font-medium cursor-pointer"
@@ -879,27 +880,24 @@ const AdminDashboard = () => {
                 </svg>
                 Messenger
               </motion.a>
-
-              </li>
-              <li>
-  <motion.a
-    onClick={() => navigate("/admin/querybot")}
-    className="flex items-center px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-lg font-medium cursor-pointer"
-    whileHover={{ x: 5, backgroundColor: "#F8FAFC" }}
-    transition={{ type: "spring", stiffness: 300, damping: 10 }}
-  >
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      className="w-5 h-5 mr-3"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-    >
-      <path d="M12 2a1 1 0 011 1v1.05A7.97 7.97 0 0120 11v2a8 8 0 01-8 8h-1.1l-2.9 1.6a1 1 0 01-1.5-.86v-2.04A7.96 7.96 0 014 13v-2a7.97 7.97 0 017-7.95V3a1 1 0 011-1zm0 4a6 6 0 00-6 6v1a6 6 0 006 6h1a6 6 0 006-6v-1a6 6 0 00-6-6h-1zm-2 6a1 1 0 110-2 1 1 0 010 2zm4 0a1 1 0 110-2 1 1 0 010 2z" />
-    </svg>
-    QueryBot
-  </motion.a>
-</li>
-
+            </li>
+            <li>
+              <motion.a
+                onClick={() => navigate("/admin/querybot")}
+                className="flex items-center px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-lg font-medium cursor-pointer"
+                whileHover={{ x: 5, backgroundColor: "#F8FAFC" }}
+                transition={{ type: "spring", stiffness: 300, damping: 10 }}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-5 h-5 mr-3"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M12 2a1 1 0 011 1v1.05A7.97 7.97 0 0120 11v2a8 8 0 01-8 8h-1.1l-2.9 1.6a1 1 0 01-1.5-.86v-2.04A7.96 7.96 0 014 13v-2a7.97 7.97 0 017-7.95V3a1 1 0 011-1zm0 4a6 6 0 00-6 6v1a6 6 0 006 6h1a6 6 0 006-6v-1a6 6 0 00-6-6h-1zm-2 6a1 1 0 110-2 1 1 0 010 2zm4 0a1 1 0 110-2 1 1 0 010 2z" />
+                </svg>
+                QueryBot
+              </motion.a>
             </li>
           </ul>
         </div>
@@ -1277,7 +1275,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Add CSS for animations */}
-      <style jsx>{`
+      <style jsx="true">{`
         @keyframes fadeIn {
           from {
             opacity: 0;

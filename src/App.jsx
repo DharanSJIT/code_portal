@@ -14,6 +14,7 @@ import Footer from './components/Footer';
 import SignIn from './components/SignIn';
 import Leaderboard from './components/Leaderboard';
 import ActivityFeed from './components/ActivityFeed';
+import ProgressAnalytics from './components/ProgressAnalytics';
 import TaskTracker from './components/TaskTracker';
 import ScrollToTop from './components/ScrollToTop';
 
@@ -37,7 +38,7 @@ import AdminChatPage from './components/Chat/AdminChatPage';
 import QueryBot from './components/QueryBot';
 
 // Auth Context
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 // Debug utilities (remove after fixing the issue)
 import { debugUserProfile, createMissingUserProfile } from './utils/debugAuth';
@@ -80,32 +81,9 @@ const TasksPage = () => {
   );
 };
 
-// Activity Page Component (Full Page)
+// Progress Analytics Page Component (Full Page)
 const ActivityPage = () => {
-  const [activities] = React.useState([
-    { id: 1, platform: 'LeetCode', action: 'Solved "Two Sum" problem', time: '2 hours ago' },
-    { id: 2, platform: 'GitHub', action: 'Pushed 12 commits to main', time: '4 hours ago' },
-    { id: 3, platform: 'Codeforces', action: 'Participated in Div 2 contest', time: '1 day ago' },
-    { id: 4, platform: 'AtCoder', action: 'Solved 3 problems in ABC contest', time: '2 days ago' },
-    { id: 5, platform: 'HackerRank', action: 'Earned Gold Badge in Algorithms', time: '3 days ago' },
-    { id: 6, platform: 'LeetCode', action: 'Completed daily challenge', time: '3 days ago' },
-    { id: 7, platform: 'GitHub', action: 'Created new repository "awesome-project"', time: '4 days ago' },
-    { id: 8, platform: 'Codeforces', action: 'Achieved rating of 1800+', time: '5 days ago' }
-  ]);
-
-  return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Recent Activity</h1>
-          <p className="text-gray-600">
-            Your complete activity history across all platforms
-          </p>
-        </div>
-        <ActivityFeed activities={activities} expanded={true} />
-      </div>
-    </div>
-  );
+  return <ProgressAnalytics />;
 };
 
 // Profile Page Placeholder
@@ -200,7 +178,7 @@ function App() {
             </ProtectedRoute>
           } />
           
-          {/* Activity Page Route */}
+          {/* Progress Analytics Page Route */}
           <Route path="/activity" element={
             <ProtectedRoute>
               <ActivityPage />

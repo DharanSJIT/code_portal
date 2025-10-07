@@ -27,56 +27,35 @@ const SignIn = ({ isOpen, onClose }) => {
       if (user) {
         console.log('Google Sign-in successful. User UID:', user.uid);
         
-        // Try to verify with backend first
-        try {
-          const backendResponse = await authService.loginAndVerifyAdmin(user);
-          
-          // If backend says user is admin, redirect to admin
-          if (backendResponse.user.isAdmin) {
-            setAuthError("Admin users should use the Admin Sign In page.");
-            setAuthLoading(false);
-            return;
-          }
-          
-          // Backend verification successful, user is a student
-          if (onClose && typeof onClose === 'function') {
-            onClose();
-          }
-          navigate('/home');
+        // Use Firestore lookup directly
+        const { user: userDoc, error: userError } = await getUserById(user.uid);
+        
+        if (userError) {
+          console.error('Firestore lookup error:', userError);
+          setAuthError(`Error: ${userError}. Please contact administrator.`);
+          setAuthLoading(false);
           return;
-        } catch (backendError) {
-          console.log('Backend verification failed, trying Firestore lookup:', backendError.message);
-          
-          // Fallback: Try Firestore lookup
-          const { user: userDoc, error: userError } = await getUserById(user.uid);
-          
-          if (userError) {
-            console.error('Firestore lookup error:', userError);
-            setAuthError(`Error: ${userError}. Please contact administrator.`);
-            setAuthLoading(false);
-            return;
-          }
-          
-          if (!userDoc) {
-            console.error('User document not found in Firestore for UID:', user.uid);
-            setAuthError("User profile not found. Please contact administrator to create your profile.");
-            setAuthLoading(false);
-            return;
-          }
-          
-          // Check if user is a student (not admin)
-          if (userDoc.role === 'admin') {
-            setAuthError("Admin users should use the Admin Sign In page.");
-            setAuthLoading(false);
-            return;
-          }
-          
-          // Firestore says user is a student, proceed
-          if (onClose && typeof onClose === 'function') {
-            onClose();
-          }
-          navigate('/home');
         }
+        
+        if (!userDoc) {
+          console.error('User document not found in Firestore for UID:', user.uid);
+          setAuthError("User profile not found. Please contact administrator to create your profile.");
+          setAuthLoading(false);
+          return;
+        }
+        
+        // Check if user is a student (not admin)
+        if (userDoc.role === 'admin') {
+          setAuthError("Admin users should use the Admin Sign In page.");
+          setAuthLoading(false);
+          return;
+        }
+        
+        // User is a student, proceed
+        if (onClose && typeof onClose === 'function') {
+          onClose();
+        }
+        navigate('/home');
       }
     } catch (error) {
       console.error('Google sign-in error:', error);
@@ -109,58 +88,37 @@ const SignIn = ({ isOpen, onClose }) => {
         console.log('Email sign-in successful. User UID:', user.uid);
         console.log('User email:', user.email);
         
-        // Try to verify with backend first
-        try {
-          const backendResponse = await authService.loginAndVerifyAdmin(user);
-          
-          // If backend says user is admin, redirect to admin
-          if (backendResponse.user.isAdmin) {
-            setAuthError("Admin users should use the Admin Sign In page.");
-            setAuthLoading(false);
-            return;
-          }
-          
-          // Backend verification successful, user is a student
-          if (onClose && typeof onClose === 'function') {
-            onClose();
-          }
-          navigate('/home');
+        // Use Firestore lookup directly
+        const { user: userDoc, error: userError } = await getUserById(user.uid);
+        
+        if (userError) {
+          console.error('Firestore lookup error:', userError);
+          console.error('Attempted to find document with UID:', user.uid);
+          setAuthError(`Error: ${userError}. Please contact administrator.`);
+          setAuthLoading(false);
           return;
-        } catch (backendError) {
-          console.log('Backend verification failed, trying Firestore lookup:', backendError.message);
-          
-          // Fallback: Try Firestore lookup
-          const { user: userDoc, error: userError } = await getUserById(user.uid);
-          
-          if (userError) {
-            console.error('Firestore lookup error:', userError);
-            console.error('Attempted to find document with UID:', user.uid);
-            setAuthError(`Error: ${userError}. Please contact administrator.`);
-            setAuthLoading(false);
-            return;
-          }
-          
-          if (!userDoc) {
-            console.error('User document not found in Firestore for UID:', user.uid);
-            console.error('Available user email:', user.email);
-            setAuthError("User profile not found. Please contact administrator to create your profile.");
-            setAuthLoading(false);
-            return;
-          }
-          
-          // Check if user is a student (not admin)
-          if (userDoc.role === 'admin') {
-            setAuthError("Admin users should use the Admin Sign In page.");
-            setAuthLoading(false);
-            return;
-          }
-          
-          // Firestore says user is a student, proceed
-          if (onClose && typeof onClose === 'function') {
-            onClose();
-          }
-          navigate('/home');
         }
+        
+        if (!userDoc) {
+          console.error('User document not found in Firestore for UID:', user.uid);
+          console.error('Available user email:', user.email);
+          setAuthError("User profile not found. Please contact administrator to create your profile.");
+          setAuthLoading(false);
+          return;
+        }
+        
+        // Check if user is a student (not admin)
+        if (userDoc.role === 'admin') {
+          setAuthError("Admin users should use the Admin Sign In page.");
+          setAuthLoading(false);
+          return;
+        }
+        
+        // User is a student, proceed
+        if (onClose && typeof onClose === 'function') {
+          onClose();
+        }
+        navigate('/home');
       }
     } catch (error) {
       console.error('Email sign-in error:', error);
