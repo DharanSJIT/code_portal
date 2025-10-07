@@ -77,7 +77,8 @@ const HomePage = () => {
             github: {
               repositories: data.platformData?.github?.repositories || 0,
               totalStars: data.platformData?.github?.totalStars || 0,
-              followers: data.platformData?.github?.followers || 0
+              followers: data.platformData?.github?.followers || 0,
+              following: data.platformData?.github?.following || 0
             },
             department: data.department || 'Not Specified',
             college: data.college || 'Engineering',
@@ -164,7 +165,7 @@ const HomePage = () => {
         { label: 'Repositories', value: userData.github.repositories },
         { label: 'Stars', value: userData.github.totalStars },
         { label: 'Followers', value: userData.github.followers },
-        { label: 'Projects', value: userData.github.repositories }
+        { label: 'Following', value: userData.github.following }
       ],
       color: 'gray'
     }
