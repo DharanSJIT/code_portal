@@ -249,12 +249,19 @@ const ProgressAnalytics = () => {
              
               <button
                 onClick={() => {
-                  const csvData = platformStats.map(p => `${p.name},${p.count}`).join('\n');
-                  const blob = new Blob([`Platform,Problems\n${csvData}`], { type: 'text/csv' });
+                  const today = new Date().toISOString().split('T')[0];
+                  const csvData = [
+                    `Date,${today}`,
+                    `Total Problems,${totalProblems}`,
+                    `Platforms Connected,${platformStats.length}`,
+                    '',
+                    'Platform,Problems'
+                  ].concat(platformStats.map(p => `${p.name},${p.count}`)).join('\n');
+                  const blob = new Blob([csvData], { type: 'text/csv' });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = `platform-stats-${new Date().toISOString().split('T')[0]}.csv`;
+                  a.download = `coding-progress-${today}.csv`;
                   a.click();
                 }}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
