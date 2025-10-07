@@ -420,12 +420,12 @@ const StudentChatPage = () => {
     domain: userData?.domain || 'other'
   }
 
-  // Domain configurations
+  // Domain configurations - using consistent blue theme
   const domains = {
-    fullstack: { name: 'Full Stack', color: 'from-purple-400 to-pink-600', badge: 'domain-badge-fullstack', bg: 'bg-domain-fullstack' },
-    aml: { name: 'AML', color: 'from-blue-400 to-cyan-500', badge: 'domain-badge-aml', bg: 'bg-domain-aml' },
-    aws: { name: 'AWS', color: 'from-green-400 to-teal-500', badge: 'domain-badge-aws', bg: 'bg-domain-aws' },
-    other: { name: 'Other', color: 'from-orange-200 to-orange-400', badge: 'domain-badge-other', bg: 'bg-domain-other' }
+    fullstack: { name: 'Full Stack', color: 'from-blue-400 to-blue-600', badge: 'bg-blue-500', bg: 'bg-blue-500' },
+    aml: { name: 'AML', color: 'from-blue-400 to-blue-600', badge: 'bg-blue-500', bg: 'bg-blue-500' },
+    aws: { name: 'AWS', color: 'from-blue-400 to-blue-600', badge: 'bg-blue-500', bg: 'bg-blue-500' },
+    other: { name: 'Other', color: 'from-blue-400 to-blue-600', badge: 'bg-blue-500', bg: 'bg-blue-500' }
   }
 
   // Enhanced emoji list
@@ -1280,7 +1280,7 @@ const StudentChatPage = () => {
   const getDomainBadge = (domain) => {
     const config = domains[domain] || domains.other
     return (
-      <span className={`group-badge ${config.badge} text-xs font-medium px-2 py-1 rounded-full`}>
+      <span className={`${config.badge} text-white text-xs font-medium px-2 py-1 rounded-full`}>
         {config.name}
       </span>
     )
@@ -1341,11 +1341,7 @@ const StudentChatPage = () => {
                 <ArrowLeft className="w-5 h-5 text-gray-600" />
               </button>
               <div className="relative">
-                <div className={`w-10 h-10 ${
-                  chatInfo?.type === 'group' 
-                    ? `bg-gradient-to-r ${chatInfo.domainConfig.color}`
-                    : 'bg-blue-500'
-                } rounded-full flex items-center justify-center shadow-sm ${isOnline ? 'animate-avatar-bounce' : ''}`}>
+                <div className={`w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-sm ${isOnline ? 'animate-avatar-bounce' : ''}`}>
                   <span className="text-white font-semibold text-sm">
                     {chatInfo?.avatar}
                   </span>
@@ -1477,7 +1473,7 @@ const StudentChatPage = () => {
                         className="group-item p-3 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200"
                       >
                         <div className="flex items-center space-x-3">
-                          <div className={`w-12 h-12 bg-gradient-to-r ${domainConfig.color} rounded-full flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                          <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
                             <span className="text-white font-semibold text-sm">
                               {group.name.charAt(0).toUpperCase()}
                             </span>
@@ -1637,8 +1633,6 @@ const StudentChatPage = () => {
                               <div className={`w-8 h-8 ${
                                 activeTab === 'groups' && msg.sender_role === 'admin'
                                   ? 'bg-green-500'
-                                  : activeTab === 'groups'
-                                  ? `bg-gradient-to-r ${domains[activeGroup?.domain]?.color || domains.other.color}`
                                   : 'bg-blue-500'
                               } rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0 animate-scale-in`}>
                                 <span className="text-white font-semibold text-xs">
@@ -1745,11 +1739,7 @@ const StudentChatPage = () => {
               {isTyping && (
                 <div className="flex justify-start animate-fade-in">
                   <div className="flex items-end max-w-xs lg:max-w-md mt-1 px-2 py-1">
-                    <div className={`w-8 h-8 ${
-                      activeTab === 'groups' 
-                        ? `bg-gradient-to-r ${chatInfo?.domainConfig?.color || domains.other.color}`
-                        : 'bg-blue-500'
-                    } rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0 animate-pulse`}>
+                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shadow-sm mr-2 mb-1 flex-shrink-0 animate-pulse">
                       <span className="text-white font-semibold text-xs">
                         {activeTab === 'groups' ? chatInfo?.avatar : 'S'}
                       </span>
