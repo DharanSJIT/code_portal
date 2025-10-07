@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import ActivityFeed from './ActivityFeed';
+
 
 const ProgressAnalytics = () => {
   const { currentUser } = useAuth();
@@ -141,87 +141,6 @@ const ProgressAnalytics = () => {
           </div>
         </div>
         
-        {/* Progress Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Platform Distribution */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Platform Activity</h3>
-            <div className="h-64 p-4 bg-gray-50 rounded-lg">
-              {platformStats.length > 0 ? (
-                <div className="space-y-4">
-                  {platformStats.map((platform, i) => (
-                    <div key={i} className="flex items-center space-x-3">
-                      <div className={`w-4 h-4 rounded ${platform.color}`}></div>
-                      <span className="text-sm font-medium text-gray-700 w-20">{platform.name}</span>
-                      <div className="flex-1 bg-gray-200 rounded-full h-3">
-                        <div 
-                          className={`h-3 rounded-full ${platform.color} transition-all duration-1000 ease-out`}
-                          style={{ width: `${platform.value}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm text-gray-500 w-12">{platform.count}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-500">
-                  <p>No platform data available</p>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {/* LeetCode Difficulty Breakdown */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">LeetCode Difficulty Breakdown</h3>
-            <div className="h-64 p-4 bg-gray-50 rounded-lg flex items-center justify-center">
-              {leetcode.totalSolved > 0 ? (
-                <div className="grid grid-cols-3 gap-8 w-full max-w-md">
-                  {[
-                    { 
-                      label: 'Easy', 
-                      count: leetcode.easySolved || 0, 
-                      color: 'text-green-600', 
-                      bg: 'bg-green-100', 
-                      ring: 'ring-green-500' 
-                    },
-                    { 
-                      label: 'Medium', 
-                      count: leetcode.mediumSolved || 0, 
-                      color: 'text-yellow-600', 
-                      bg: 'bg-yellow-100', 
-                      ring: 'ring-yellow-500' 
-                    },
-                    { 
-                      label: 'Hard', 
-                      count: leetcode.hardSolved || 0, 
-                      color: 'text-red-600', 
-                      bg: 'bg-red-100', 
-                      ring: 'ring-red-500' 
-                    }
-                  ].map((diff, i) => {
-                    const percentage = leetcode.totalSolved > 0 ? (diff.count / leetcode.totalSolved) * 100 : 0;
-                    return (
-                      <div key={i} className="text-center">
-                        <div className={`relative w-20 h-20 mx-auto mb-3 ${diff.bg} rounded-full flex items-center justify-center ring-4 ${diff.ring}`}>
-                          <span className={`text-lg font-bold ${diff.color}`}>{diff.count}</span>
-                        </div>
-                        <p className="text-sm font-medium text-gray-700">{diff.label}</p>
-                        <p className="text-xs text-gray-500">{percentage.toFixed(0)}%</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center text-gray-500">
-                  <p>No LeetCode data available</p>
-                  <p className="text-sm mt-2">Connect your LeetCode profile to see difficulty breakdown</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        
         {/* Profile & Export Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Profile Completion */}
@@ -297,7 +216,48 @@ const ProgressAnalytics = () => {
         {/* Recent Activity Summary */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h3 className="text-xl font-semibold text-gray-800 mb-4">Recent Highlights</h3>
-          <ActivityFeed studentId={currentUser?.uid} expanded={false} />
+          <div className="space-y-4">
+            {platformStats.map((platform, index) => {
+              const getPlatformColor = (name) => {
+                const colors = {
+                  'LeetCode': 'bg-yellow-500',
+                  'Codeforces': 'bg-blue-500', 
+                  'AtCoder': 'bg-green-500',
+                  'GitHub': 'bg-gray-800'
+                };
+                return colors[name] || 'bg-blue-500';
+              };
+              
+              return (
+                <div key={index} className="flex items-start space-x-3 pb-4 border-b border-gray-100 last:border-0">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${getPlatformColor(platform.name)}`}>
+                    {platform.name.charAt(0)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex justify-between">
+                      <p className="font-medium text-gray-800">{platform.name}</p>
+                      <p className="text-xs text-gray-500">Current</p>
+                    </div>
+                    <p className="text-gray-600 text-sm">
+                      {platform.name === 'GitHub' ? `Created ${platform.count} repositories` : `Solved ${platform.count} problems`}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+            
+            {platformStats.length === 0 && (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <p className="text-gray-500 font-medium">No platform data available</p>
+                <p className="text-xs text-gray-400 mt-1">Connect your coding platforms to see activity</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

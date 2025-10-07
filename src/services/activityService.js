@@ -3,21 +3,23 @@ import { collection, addDoc, query, where, orderBy, limit, getDocs, serverTimest
 
 class ActivityService {
   // Log a new activity with duplicate prevention
-  async logActivity(studentId, platform, action, details = {}) {
+  async logActivity(studentId, platform, action, details = {}, forceCreate = false) {
     try {
-      // Check for recent duplicate activities (within last 5 minutes)
-      const recentActivities = await this.getStudentActivities(studentId, 10);
-      if (recentActivities.success) {
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-        const isDuplicate = recentActivities.activities.some(activity => {
-          const activityTime = activity.timestamp?.toDate?.() || new Date(activity.createdAt || 0);
-          return activityTime > fiveMinutesAgo && 
-                 activity.platform === platform.toLowerCase() && 
-                 activity.action === action;
-        });
-        
-        if (isDuplicate) {
-          return { success: true, message: 'Duplicate activity prevented' };
+      // Skip duplicate check if forceCreate is true
+      if (!forceCreate) {
+        const recentActivities = await this.getStudentActivities(studentId, 10);
+        if (recentActivities.success) {
+          const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+          const isDuplicate = recentActivities.activities.some(activity => {
+            const activityTime = activity.timestamp?.toDate?.() || new Date(activity.createdAt || 0);
+            return activityTime > fiveMinutesAgo && 
+                   activity.platform === platform.toLowerCase() && 
+                   activity.action === action;
+          });
+          
+          if (isDuplicate) {
+            return { success: true, message: 'Duplicate activity prevented' };
+          }
         }
       }
 
