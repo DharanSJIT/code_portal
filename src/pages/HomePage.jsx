@@ -127,10 +127,10 @@ const HomePage = () => {
         </svg>
       ),
       stats: [
+        { label: 'Solved', value: userData.codeforces.problemsSolved },
         { label: 'Rating', value: userData.codeforces.rating },
         { label: 'Max Rating', value: userData.codeforces.maxRating },
-        { label: 'Rank', value: userData.codeforces.rank },
-        { label: 'Solved', value: userData.codeforces.problemsSolved }
+        { label: 'Rank', value: userData.codeforces.rank }
       ],
       color: 'blue'
     },
@@ -145,10 +145,10 @@ const HomePage = () => {
         </svg>
       ),
       stats: [
+        { label: 'Solved', value: userData.atcoder.problemsSolved },
         { label: 'Rating', value: userData.atcoder.rating },
         { label: 'Highest', value: userData.atcoder.highestRating },
-        { label: 'Rank', value: userData.atcoder.rank },
-        { label: 'Solved', value: userData.atcoder.problemsSolved }
+        { label: 'Rank', value: userData.atcoder.rank }
       ],
       color: 'gray'
     },
