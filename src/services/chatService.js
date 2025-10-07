@@ -83,7 +83,7 @@ export const chatService = {
         throw error
       }
 
-      console.log('✅ Conversation ID:', conversationId)
+      // console.log('✅ Conversation ID:', conversationId)
 
       const { data: conversation, error: fetchError } = await supabase
         .from('conversations')
@@ -96,7 +96,7 @@ export const chatService = {
         throw fetchError
       }
 
-      console.log('✅ Conversation data:', conversation)
+      // console.log('✅ Conversation data:', conversation)
       return conversation
 
     } catch (error) {
@@ -150,7 +150,7 @@ export const chatService = {
   // Get messages for a conversation
   async getMessages(conversationId) {
     try {
-      console.log('📨 Getting messages for:', conversationId)
+      // console.log('📨 Getting messages for:', conversationId)
 
       const { data, error } = await supabase
         .from('messages')
@@ -159,11 +159,11 @@ export const chatService = {
         .order('created_at', { ascending: true })
 
       if (error) {
-        console.error('❌ Error getting messages:', error)
+        // console.error('❌ Error getting messages:', error)
         return { data: null, error }
       }
 
-      console.log(`✅ Retrieved ${data?.length || 0} messages`)
+      // console.log(`✅ Retrieved ${data?.length || 0} messages`)
       return { data, error: null }
 
     } catch (error) {
@@ -174,7 +174,7 @@ export const chatService = {
 
   // Listen for new messages (real-time)
   subscribeToMessages(conversationId, callback) {
-    console.log('🔔 Subscribing to messages for:', conversationId)
+    // console.log('🔔 Subscribing to messages for:', conversationId)
 
     return supabase
       .channel(`messages:${conversationId}`)
@@ -243,7 +243,7 @@ export const chatService = {
 
   // Listen for new conversations (admin real-time)
   subscribeToConversations(callback) {
-    console.log('🔔 Subscribing to conversations')
+    // console.log('🔔 Subscribing to conversations')
 
     return supabase
       .channel('conversations-channel')
@@ -255,7 +255,7 @@ export const chatService = {
           table: 'conversations'
         },
         (payload) => {
-          console.log('🔄 Conversation update:', payload)
+          // console.log('🔄 Conversation update:', payload)
           callback(payload)
         }
       )
@@ -417,7 +417,7 @@ export const chatService = {
         return { data: null, error }
       }
       
-      console.log(`✅ Retrieved ${data?.length || 0} conversations for student`)
+      // console.log(`✅ Retrieved ${data?.length || 0} conversations for student`)
       return { data, error: null }
       
     } catch (error) {
@@ -474,7 +474,7 @@ export const chatService = {
   // Get all groups for admin
   async getAdminGroups() {
     try {
-      console.log('🔍 Getting all groups for admin')
+      // console.log('🔍 Getting all groups for admin')
 
       const { data, error } = await supabase
         .from('groups')
@@ -487,7 +487,7 @@ export const chatService = {
         return { data: null, error }
       }
 
-      console.log(`✅ Retrieved ${data?.length || 0} groups`)
+      // console.log(`✅ Retrieved ${data?.length || 0} groups`)
       return { data, error: null }
 
     } catch (error) {
@@ -513,7 +513,8 @@ export const chatService = {
         return { data: null, error }
       }
 
-      console.log(`✅ Retrieved ${data?.length || 0} groups for domain ${studentDomain}`)
+      // console.log(`✅ Retrieved ${data?.length || 0} groups for domain ${studentDomain}`)
+
       return { data, error: null }
 
     } catch (error) {
@@ -550,7 +551,7 @@ export const chatService = {
   // Get messages for a group
   async getGroupMessages(groupId) {
     try {
-      console.log('📨 Getting group messages for:', groupId)
+      // console.log('📨 Getting group messages for:', groupId)
 
       const { data, error } = await supabase
         .from('group_messages')
@@ -563,7 +564,7 @@ export const chatService = {
         return { data: null, error }
       }
 
-      console.log(`✅ Retrieved ${data?.length || 0} group messages`)
+      // console.log(`✅ Retrieved ${data?.length || 0} group messages`)
       return { data, error: null }
 
     } catch (error) {
@@ -628,7 +629,7 @@ export const chatService = {
         return { data, error: null }
       }
 
-      console.log('🔍 Getting group members for:', groupId)
+      // console.log('🔍 Getting group members for:', groupId)
 
       const { data, error } = await supabase
         .from('group_members')
@@ -640,7 +641,7 @@ export const chatService = {
         return { data: null, error }
       }
 
-      console.log(`✅ Retrieved ${data?.length || 0} group members`)
+      // console.log(`✅ Retrieved ${data?.length || 0} group members`)
       return { data, error: null }
 
     } catch (error) {
@@ -739,7 +740,7 @@ export const chatService = {
 
   // Listen for group messages (real-time)
   subscribeToGroupMessages(groupId, callback) {
-    console.log('🔔 Subscribing to group messages for:', groupId)
+    // console.log('🔔 Subscribing to group messages for:', groupId)
 
     return supabase
       .channel(`group_messages:${groupId}`)
@@ -761,7 +762,7 @@ export const chatService = {
 
   // Listen for group updates (real-time)
   subscribeToGroups(callback) {
-    console.log('🔔 Subscribing to groups')
+    // console.log('🔔 Subscribing to groups')
 
     return supabase
       .channel('groups-channel')

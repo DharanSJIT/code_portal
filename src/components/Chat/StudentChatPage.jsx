@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { 
   Send, Paperclip, Smile, Loader, MessageCircle, User, RefreshCw, Clock, 
-  CheckCircle, XCircle, ChevronDown, Shield, Trash2, MoreVertical, X, Trash, ArrowLeft,
+  CheckCircle, XCircle, ChevronDown, Shield, Trash2, MoreVertical, X, Trash, ArrowRight,
   Reply, Forward, Star, Info, Archive, Phone, Video, Users, Hash, Settings
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
@@ -305,7 +305,7 @@ const scrollbarStyles = `
   .domain-badge-fullstack { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
   .domain-badge-aml { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
   .domain-badge-aws { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
-  .domain-badge-other { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #333; }
+  // .domain-badge-other { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #333; }
 
   .chat-type-indicator {
     position: absolute;
@@ -356,7 +356,7 @@ const scrollbarStyles = `
   .bg-domain-fullstack { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
   .bg-domain-aml { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
   .bg-domain-aws { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
-  .bg-domain-other { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); }
+  // .bg-domain-other { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); }
 
   /* Group list styles */
   .group-item {
@@ -417,7 +417,7 @@ const StudentChatPage = () => {
     id: currentUser?.uid,
     name: userData?.name || userData?.displayName || currentUser?.displayName || 'Student',
     email: currentUser?.email || 'student@example.com',
-    domain: userData?.domain || 'other'
+    // domain: userData?.domain || 'other'
   }
 
   // Domain configurations - using consistent blue theme
@@ -486,7 +486,7 @@ const StudentChatPage = () => {
       if (!studentUser.id) return
       
       try {
-        console.log('Loading groups for student:', studentUser.id)
+        // console.log('Loading groups for student:', studentUser.id)
         
         // Get all group members
         const { data: memberData, error: memberError } = await chatService.getGroupMembers()
@@ -496,24 +496,24 @@ const StudentChatPage = () => {
           return
         }
         
-        console.log('All group members:', memberData)
+        // console.log('All group members:', memberData)
         
         // Filter to get groups where current student is a member
         const studentMemberships = memberData?.filter(m => m.user_id === studentUser.id) || []
-        console.log('Student memberships:', studentMemberships)
+        // console.log('Student memberships:', studentMemberships)
         
         const groupIds = studentMemberships.map(m => m.group_id)
-        console.log('Group IDs:', groupIds)
+        // console.log('Group IDs:', groupIds)
         
         if (groupIds.length > 0) {
           // Get all groups
           const { data: allGroups, error: groupsError } = await chatService.getAdminGroups()
           
           if (!groupsError && allGroups) {
-            console.log('All groups:', allGroups)
+            // console.log('All groups:', allGroups)
             // Filter to only groups where student is a member
             const studentGroups = allGroups.filter(g => groupIds.includes(g.id))
-            console.log('Student groups:', studentGroups)
+            // console.log('Student groups:', studentGroups)
             setGroups(studentGroups)
           }
         } else {
@@ -654,21 +654,21 @@ const StudentChatPage = () => {
         groupMessagesSubscriptionRef.current.unsubscribe()
       }
 
-      console.log('🔔 Setting up group message subscription for:', groupId)
+      // console.log('🔔 Setting up group message subscription for:', groupId)
 
       groupMessagesSubscriptionRef.current = chatService.subscribeToGroupMessages(groupId, (payload) => {
         setIsOnline(true)
         console.log('📨 Group message event:', payload)
         
         if (payload.eventType === 'INSERT' && payload.new) {
-          console.log('✅ New group message:', payload.new)
+          // console.log('✅ New group message:', payload.new)
           handleNewGroupMessage(payload.new)
         } else if (payload.eventType === 'DELETE' && payload.old) {
           handleDeletedGroupMessage(payload.old)
         }
       })
 
-      console.log('✅ Group subscription active')
+      // console.log('✅ Group subscription active')
     } catch (error) {
       console.error('❌ Group subscription error:', error)
       setIsOnline(false)
@@ -1203,7 +1203,7 @@ const StudentChatPage = () => {
       if (isSelectionMode) exitSelectionMode()
       if (replyingTo) setReplyingTo(null)
       
-      console.log('👥 Selecting group:', group.name, group.id)
+      // console.log('👥 Selecting group:', group.name, group.id)
       
       // Unsubscribe from previous subscriptions
       if (subscriptionRef.current) {
@@ -1228,7 +1228,7 @@ const StudentChatPage = () => {
         setMessages([])
       } else {
         const msgs = groupMessagesData || []
-        console.log(`📬 Loaded ${msgs.length} messages for group`)
+        // console.log(`📬 Loaded ${msgs.length} messages for group`)
         setGroupMessages(prev => ({
           ...prev,
           [group.id]: msgs
@@ -1303,7 +1303,7 @@ const StudentChatPage = () => {
         avatar: activeGroup.name.charAt(0).toUpperCase(),
         status: `${groupMembers[activeGroup.id]?.length || 0} members`,
         subtitle: activeGroup.description,
-        domain: activeGroup.domain,
+        // domain: activeGroup.domain,
         domainConfig: domainConfig
       }
     }
@@ -1338,7 +1338,7 @@ const StudentChatPage = () => {
                 onClick={goBack}
                 className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200 btn-hover"
               >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
+                <ArrowRight className="w-5 h-5 text-gray-600" />
               </button>
               <div className="relative">
                 <div className={`w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-sm ${isOnline ? 'animate-avatar-bounce' : ''}`}>
@@ -1491,7 +1491,7 @@ const StudentChatPage = () => {
                               {group.description || 'Group chat'}
                             </p>
                             <div className="flex items-center space-x-2 mt-1">
-                              {getDomainBadge(group.domain)}
+                              {/* {getDomainBadge(group.domain)} */}
                               <span className="text-xs text-gray-400 flex items-center">
                                 <Users className="w-3 h-3 mr-1" />
                                 {group.member_count || 0}

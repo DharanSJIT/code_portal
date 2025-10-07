@@ -80,13 +80,13 @@ const Header = () => {
         const currentUser = getCurrentUser();
         
         if (currentUser) {
-          console.log('Firebase Auth User:', currentUser);
+          // console.log('Firebase Auth User:', currentUser);
           
           try {
             const { user: userDoc, error } = await getUserById(currentUser.uid);
             
             if (userDoc && !error) {
-              console.log('Firestore User Document:', userDoc);
+              // console.log('Firestore User Document:', userDoc);
               setUser({
                 uid: currentUser.uid,
                 name: userDoc.name || currentUser.displayName || 'User',
