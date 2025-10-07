@@ -1343,7 +1343,6 @@ const StudentChatPage = () => {
               <div className="flex-1 min-w-0">
                 <h2 className="font-bold text-white text-sm md:text-base flex items-center gap-2">
                   <span className="truncate">{chatInfo?.name}</span>
-                  {chatInfo?.type === 'group' && <span className="flex-shrink-0">{getDomainBadge(chatInfo.domain)}</span>}
                 </h2>
                 <p className="text-xs text-blue-100 truncate hidden sm:block">
                   {chatInfo?.status} • {chatInfo?.subtitle}

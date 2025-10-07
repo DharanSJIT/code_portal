@@ -2192,7 +2192,6 @@ const AdminChatPage = () => {
                         <h2 className="font-semibold text-gray-800 text-sm">
                           {chatInfo.name}
                         </h2>
-                        {chatInfo.type === 'group' && getDomainBadge(chatInfo.domain)}
                       </div>
                       <p className="text-xs text-gray-500">
                         {chatInfo.status} • {chatInfo.subtitle}
