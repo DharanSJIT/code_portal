@@ -267,22 +267,14 @@ const scrollbarStyles = `
   .chat-layout {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 10vh);
+    height: calc(100vh - 8vh);
     position: fixed;
-    top: 9vh;
+    top: 8vh;
     right: 0;
     bottom: 0;
     left: 0;
     overflow: hidden;
     background: #f9fafb;
-  }
-
-  /* Mobile responsive */
-  @media (max-width: 768px) {
-    .chat-layout {
-      height: 100vh;
-      top: 0;
-    }
   }
 
   /* Stagger animation for initial message load */
@@ -1190,7 +1182,7 @@ const StudentChatPage = () => {
     if (window.history.length > 1) {
       window.history.back()
     } else {
-      window.location.href = '/dashboard'
+      window.location.href = '/chat'
     }
   }
 
