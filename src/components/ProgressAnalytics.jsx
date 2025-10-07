@@ -245,29 +245,51 @@ const ProgressAnalytics = () => {
           {/* Export Data */}
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Export Your Data</h3>
-            <div className="flex gap-4">
-             
-              <button
-                onClick={() => {
-                  const today = new Date().toISOString().split('T')[0];
-                  const csvData = [
-                    `Date,${today}`,
-                    `Total Problems,${totalProblems}`,
-                    `Platforms Connected,${platformStats.length}`,
-                    '',
-                    'Platform,Problems'
-                  ].concat(platformStats.map(p => `${p.name},${p.count}`)).join('\n');
-                  const blob = new Blob([csvData], { type: 'text/csv' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `coding-progress-${today}.csv`;
-                  a.click();
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                📈 Export CSV
-              </button>
+            <div className="space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    {/* <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                      📈
+                    </div> */}
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">Progress Report</p>
+                      <p className="text-xs text-gray-500">Complete coding statistics</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-500">Format: CSV</p>
+                    <p className="text-xs text-gray-400">{new Date().toLocaleDateString()}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    const today = new Date().toISOString().split('T')[0];
+                    const csvData = [
+                      `Date,${today}`,
+                      `Total Problems,${totalProblems}`,
+                      `Platforms Connected,${platformStats.length}`,
+                      '',
+                      'Platform,Problems'
+                    ].concat(platformStats.map(p => `${p.name},${p.count}`)).join('\n');
+                    const blob = new Blob([csvData], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `coding-progress-${today}.csv`;
+                    a.click();
+                  }}
+                  className="w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Download CSV Report
+                </button>
+              </div>
+              {/* <div className="text-xs text-gray-500 bg-blue-50 p-3 rounded-lg">
+                ℹ️ Includes: Date, total problems, platform breakdown, and progress metrics
+              </div> */}
             </div>
           </div>
         </div>
