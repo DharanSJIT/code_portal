@@ -1280,7 +1280,7 @@ const StudentChatPage = () => {
   const getDomainBadge = (domain) => {
     const config = domains[domain] || domains.other
     return (
-      <span className={`${config.badge} text-white text-xs font-medium px-2 py-1 rounded-full`}>
+      <span className="bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1 rounded-full border border-white/30">
         {config.name}
       </span>
     )
@@ -1331,29 +1331,29 @@ const StudentChatPage = () => {
       <style>{scrollbarStyles}</style>
       <div className={`chat-layout ${chatLoaded ? 'animate-chat-open' : ''}`}>
         {/* Chat Header with animation */}
-        <div className={`bg-white border-b border-gray-200 px-4 py-3 shadow-sm flex-shrink-0 ${chatLoaded ? 'animate-header-slide' : ''}`}>
+        <div className={`bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-4 shadow-md flex-shrink-0 ${chatLoaded ? 'animate-header-slide' : ''}`}>
           <div className="flex items-center justify-between max-w-3xl mx-auto">
             <div className="flex items-center space-x-3">
               <button
                 onClick={goBack}
-                className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200 btn-hover"
+                className="p-2 rounded-full hover:bg-white/20 transition-all duration-200 btn-hover"
               >
-                <ArrowRight className="w-5 h-5 text-gray-600" />
+                <ArrowRight className="w-5 h-5 text-white" />
               </button>
               <div className="relative">
-                <div className={`w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-sm ${isOnline ? 'animate-avatar-bounce' : ''}`}>
-                  <span className="text-white font-semibold text-sm">
+                <div className={`w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg ${isOnline ? 'animate-avatar-bounce' : ''}`}>
+                  <span className="text-blue-600 font-bold text-lg">
                     {chatInfo?.avatar}
                   </span>
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse"></div>
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white shadow-sm animate-pulse"></div>
               </div>
               <div className="flex-1">
-                <h2 className="font-semibold text-gray-800 text-sm">
+                <h2 className="font-bold text-white text-base flex items-center gap-2">
                   {chatInfo?.name}
                   {chatInfo?.type === 'group' && getDomainBadge(chatInfo.domain)}
                 </h2>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-blue-100">
                   {chatInfo?.status} • {chatInfo?.subtitle}
                 </p>
               </div>
@@ -1385,9 +1385,9 @@ const StudentChatPage = () => {
                 <div className="relative" ref={optionsMenuRef}>
                   <button
                     onClick={() => setShowOptions(!showOptions)}
-                    className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200 btn-hover"
+                    className="p-2 rounded-full hover:bg-white/20 transition-all duration-200 btn-hover"
                   >
-                    <MoreVertical className="w-5 h-5 text-gray-600" />
+                    <MoreVertical className="w-5 h-5 text-white" />
                   </button>
                   
                   {showOptions && (
@@ -1418,30 +1418,30 @@ const StudentChatPage = () => {
                   )}
                 </div>
               )}
+              
+              {/* Tab switcher in header */}
+              {activeTab === 'groups' && (
+                <button
+                  onClick={() => {
+                    setActiveTab('support')
+                    selectSupportChat()
+                  }}
+                  className="p-2 rounded-full hover:bg-white/20 transition-all duration-200 btn-hover"
+                  title="Switch to Support"
+                >
+                  <MessageCircle className="w-5 h-5 text-white" />
+                </button>
+              )}
+              {activeTab === 'support' && groups.length > 0 && (
+                <button
+                  onClick={() => setActiveTab('groups')}
+                  className="p-2 rounded-full hover:bg-white/20 transition-all duration-200 btn-hover"
+                  title="Switch to Groups"
+                >
+                  <Users className="w-5 h-5 text-white" />
+                </button>
+              )}
             </div>
-          </div>
-
-          {/* Tab Navigation */}
-          <div className="flex space-x-1 mt-3 bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => {
-                setActiveTab('support')
-                selectSupportChat()
-              }}
-              className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-all ${
-                activeTab === 'support' ? 'tab-active' : 'tab-inactive'
-              }`}
-            >
-              Support
-            </button>
-            <button
-              onClick={() => setActiveTab('groups')}
-              className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-all ${
-                activeTab === 'groups' ? 'tab-active' : 'tab-inactive'
-              }`}
-            >
-              Group Chats
-            </button>
           </div>
         </div>
 
