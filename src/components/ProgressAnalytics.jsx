@@ -8,6 +8,7 @@ const ProgressAnalytics = () => {
   const { currentUser } = useAuth();
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isTestingActivity, setIsTestingActivity] = useState(false);
 
   useEffect(() => {
     fetchUserData();
@@ -101,10 +102,43 @@ const ProgressAnalytics = () => {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Progress Analytics</h1>
-          <p className="text-gray-600">
-            Track your coding journey with detailed insights and trends
-          </p>
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">Progress Analytics</h1>
+              <p className="text-gray-600">
+                Track your coding journey with detailed insights and trends
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                setIsTestingActivity(true);
+                try {
+                  const activityService = (await import('../services/activityService')).default;
+                  await activityService.logActivity(currentUser?.uid, 'system', `Manual activity test at ${new Date().toLocaleTimeString()}`);
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 1500);
+                } catch (error) {
+                  setIsTestingActivity(false);
+                }
+              }}
+              disabled={isTestingActivity}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                isTestingActivity 
+                  ? 'bg-green-400 text-white cursor-not-allowed' 
+                  : 'bg-green-600 text-white hover:bg-green-700'
+              }`}
+            >
+              {isTestingActivity ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Testing...
+                </>
+              ) : (
+                'Test Activity'
+              )}
+            </button>
+          </div>
         </div>
         
         {/* Progress Charts Grid */}
@@ -188,6 +222,49 @@ const ProgressAnalytics = () => {
           </div>
         </div>
         
+        {/* Profile & Export Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Profile Completion */}
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Profile Completion</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Platform Links</span>
+                <span className="text-sm font-medium">{platformStats.length}/4</span>
+              </div>
+              <div className="bg-gray-200 rounded-full h-2">
+                <div className="bg-blue-500 h-2 rounded-full transition-all duration-1000" 
+                  style={{ width: `${(platformStats.length / 4) * 100}%` }}></div>
+              </div>
+              <div className="text-xs text-gray-500">
+                {platformStats.length === 4 ? '✅ All platforms connected!' : `Connect ${4 - platformStats.length} more platform${4 - platformStats.length > 1 ? 's' : ''}`}
+              </div>
+            </div>
+          </div>
+
+          {/* Export Data */}
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Export Your Data</h3>
+            <div className="flex gap-4">
+             
+              <button
+                onClick={() => {
+                  const csvData = platformStats.map(p => `${p.name},${p.count}`).join('\n');
+                  const blob = new Blob([`Platform,Problems\n${csvData}`], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `platform-stats-${new Date().toISOString().split('T')[0]}.csv`;
+                  a.click();
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                📈 Export CSV
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Recent Activity Summary */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h3 className="text-xl font-semibold text-gray-800 mb-4">Recent Highlights</h3>

@@ -1041,8 +1041,17 @@ const StudentViewDetails = ({ student, onClose }) => {
               <div className="flex gap-2">
                 <button
                   onClick={async () => {
-                    await activityService.logActivity(currentStudent.id, 'system', `Manual activity test at ${new Date().toLocaleTimeString()}`);
-                    window.location.reload();
+                    try {
+                      await activityService.logActivity(currentStudent.id, 'system', `Manual activity test at ${new Date().toLocaleTimeString()}`);
+                      // Close and reopen the modal to refresh the activity feed
+                      onClose();
+                      setTimeout(() => {
+                        // Trigger a page refresh or state update
+                        window.location.reload();
+                      }, 100);
+                    } catch (error) {
+                      console.error('Error creating test activity:', error);
+                    }
                   }}
                   className="px-3 py-2 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition-all duration-200"
                 >
