@@ -7,7 +7,7 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
 const AuthContext = createContext();
@@ -24,6 +24,7 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [userGroups, setUserGroups] = useState([]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -34,16 +35,47 @@ export const AuthProvider = ({ children }) => {
         try {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
-            setUserData(userDoc.data());
+            const userData = userDoc.data();
+            setUserData(userData);
+            
+            // Fetch user's groups if they're a student
+            if (userData.role === 'student' && userData.domain) {
+              const groupsQuery = query(
+                collection(db, 'groups'),
+                where('domain', '==', userData.domain),
+                where('isActive', '==', true)
+              );
+              const groupsSnapshot = await getDocs(groupsQuery);
+              const groups = groupsSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+              }));
+              setUserGroups(groups);
+            } else if (userData.role === 'admin') {
+              // Admins can access all groups
+              const groupsQuery = query(
+                collection(db, 'groups'),
+                where('isActive', '==', true)
+              );
+              const groupsSnapshot = await getDocs(groupsQuery);
+              const groups = groupsSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+              }));
+              setUserGroups(groups);
+            }
           } else {
             setUserData(null);
+            setUserGroups([]);
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
           setUserData(null);
+          setUserGroups([]);
         }
       } else {
         setUserData(null);
+        setUserGroups([]);
       }
       
       setLoading(false);
@@ -100,6 +132,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     currentUser,
     userData,
+    userGroups,
     logout,
     changePassword,
     loading

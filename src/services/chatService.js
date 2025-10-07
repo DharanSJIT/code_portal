@@ -2,56 +2,102 @@
 import { supabase } from '../config/supabase'
 
 export const chatService = {
+  // ================================
+  // EXISTING ONE-ON-ONE CHAT METHODS
+  // ================================
+
+  // Ensure admin exists in Supabase
+  async ensureAdminExists() {
+    try {
+      const { data: existing } = await supabase
+        .from('admin_users')
+        .select('id')
+        .eq('id', 'admin_1')
+        .maybeSingle()
+
+      if (existing) return { data: existing, error: null }
+
+      const { data, error } = await supabase
+        .from('admin_users')
+        .insert([{
+          id: 'admin_1',
+          name: 'Support Admin',
+          email: 'admin@support.com',
+          created_at: new Date().toISOString()
+        }])
+        .select()
+        .single()
+
+      if (error && error.code === '23505') return { data: { id: 'admin_1' }, error: null }
+      return { data, error }
+    } catch (error) {
+      return { data: null, error }
+    }
+  },
+
+  // Ensure student exists in Supabase
+  async ensureStudentExists(studentId, studentName, studentEmail) {
+    try {
+      const { data: existing } = await supabase
+        .from('student_users')
+        .select('id')
+        .eq('id', studentId)
+        .maybeSingle()
+
+      if (existing) return { data: existing, error: null }
+
+      const { data, error } = await supabase
+        .from('student_users')
+        .insert([{
+          id: studentId,
+          name: studentName,
+          email: studentEmail,
+          created_at: new Date().toISOString()
+        }])
+        .select()
+        .single()
+
+      if (error && error.code === '23505') return { data: { id: studentId }, error: null }
+      return { data, error }
+    } catch (error) {
+      return { data: null, error }
+    }
+  },
+
   // Create or get conversation between student and admin
   async getOrCreateConversation(studentId, studentName, studentEmail) {
     try {
-      const conversationId = `conv_${studentId}_admin`
-      console.log('🔄 Getting or creating conversation:', conversationId)
+      await this.ensureAdminExists()
+      await this.ensureStudentExists(studentId, studentName, studentEmail)
 
-      // First, try to get existing conversation
-      const { data: existingConv, error: fetchError } = await supabase
+      const { data: conversationId, error } = await supabase
+        .rpc('create_or_get_conversation', {
+          p_student_id: studentId,
+          p_student_name: studentName,
+          p_student_email: studentEmail,
+          p_admin_id: 'admin_1'
+        })
+
+      if (error) {
+        console.error('❌ Error creating/getting conversation:', error)
+        throw error
+      }
+
+      console.log('✅ Conversation ID:', conversationId)
+
+      const { data: conversation, error: fetchError } = await supabase
         .from('conversations')
         .select('*')
         .eq('id', conversationId)
         .single()
 
-      // If no conversation exists (PGRST116 = no rows), create one
-      if (fetchError && fetchError.code === 'PGRST116') {
-        console.log('📝 Creating new conversation...')
-        
-        const { data: newConv, error: createError } = await supabase
-          .from('conversations')
-          .insert([
-            {
-              id: conversationId,
-              student_id: studentId,
-              student_name: studentName,
-              student_email: studentEmail,
-              admin_id: 'admin_1',
-              created_at: new Date().toISOString(),
-              last_message: 'Chat started',
-              last_message_at: new Date().toISOString()
-            }
-          ])
-          .select()
-          .single()
-
-        if (createError) {
-          console.error('❌ Error creating conversation:', createError)
-          throw createError
-        }
-
-        console.log('✅ New conversation created:', newConv)
-        return newConv
-        
-      } else if (fetchError) {
-        // Some other error occurred
+      if (fetchError) {
         console.error('❌ Error fetching conversation:', fetchError)
         throw fetchError
       }
 
-      console.log('✅ Found existing conversation:', existingConv)
-      return existingConv
+      console.log('✅ Conversation data:', conversation)
+      return conversation
 
     } catch (error) {
       console.error('💥 Error in getOrCreateConversation:', error)
@@ -60,14 +106,15 @@ export const chatService = {
   },
 
   // Send message
-  async sendMessage(conversationId, senderId, message, senderName, senderRole) {
+  async sendMessage(conversationId, senderId, message, senderName, senderRole, replyTo = null) {
     try {
       console.log('📤 Sending message...', {
         conversationId,
         senderId,
         message: message.substring(0, 50),
         senderName,
-        senderRole
+        senderRole,
+        replyTo
       })
 
       // Insert the message
@@ -80,6 +127,7 @@ export const chatService = {
             sender_name: senderName,
             sender_role: senderRole,
             message: message,
+            reply_to: replyTo,
             created_at: new Date().toISOString()
           }
         ])
@@ -91,21 +139,6 @@ export const chatService = {
       }
 
       console.log('✅ Message inserted successfully:', data[0])
-
-      // Update conversation last message
-      const { error: updateError } = await supabase
-        .from('conversations')
-        .update({
-          last_message: message.length > 50 ? message.substring(0, 50) + '...' : message,
-          last_message_at: new Date().toISOString()
-        })
-        .eq('id', conversationId)
-
-      if (updateError) {
-        console.warn('⚠️ Could not update conversation last message:', updateError)
-        // Don't throw here - message was sent successfully
-      }
-
       return { data: data[0], error: null }
 
     } catch (error) {
@@ -229,6 +262,42 @@ export const chatService = {
       .subscribe()
   },
 
+  // Listen to all messages (for admin to detect new student conversations)
+  subscribeToAllMessages(callback) {
+    console.log('🔔 Subscribing to all messages')
+
+    return supabase
+      .channel('all-messages-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages'
+        },
+        (payload) => {
+          console.log('🔄 All messages update:', payload)
+          callback(payload)
+        }
+      )
+      .subscribe()
+  },
+
+  // Get specific conversation
+  async getConversation(conversationId) {
+    try {
+      const { data, error } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('id', conversationId)
+        .single()
+
+      return { data, error }
+    } catch (error) {
+      return { data: null, error }
+    }
+  },
+
   // Delete entire conversation and all its messages
   async deleteConversation(conversationId) {
     try {
@@ -287,10 +356,6 @@ export const chatService = {
       }
 
       console.log(`✅ ${messageIds.length} messages deleted successfully`)
-
-      // Update the conversation's last message
-      await this.updateConversationLastMessage(conversationId)
-
       return { data: { success: true }, error: null }
 
     } catch (error) {
@@ -336,111 +401,6 @@ export const chatService = {
     }
   },
 
-  // Helper method to update conversation's last message
-  async updateConversationLastMessage(conversationId) {
-    try {
-      console.log('🔄 Updating last message for conversation:', conversationId)
-
-      // Get the most recent message in the conversation
-      const { data: messages, error: messagesError } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-
-      if (messagesError) {
-        console.error('❌ Error getting last message:', messagesError)
-        return
-      }
-
-      let lastMessage = 'No messages yet'
-      let lastMessageAt = new Date().toISOString()
-
-      if (messages && messages.length > 0) {
-        lastMessage = messages[0].message.length > 50 
-          ? messages[0].message.substring(0, 50) + '...' 
-          : messages[0].message
-        lastMessageAt = messages[0].created_at
-      }
-
-      // Update the conversation
-      const { error: updateError } = await supabase
-        .from('conversations')
-        .update({
-          last_message: lastMessage,
-          last_message_at: lastMessageAt
-        })
-        .eq('id', conversationId)
-
-      if (updateError) {
-        console.warn('⚠️ Could not update conversation last message:', updateError)
-      } else {
-        console.log('✅ Conversation last message updated')
-      }
-
-    } catch (error) {
-      console.error('💥 Error in updateConversationLastMessage:', error)
-    }
-  },
-
-  // Mark messages as read
-  async markMessagesAsRead(messageIds, readerId = 'admin_1') {
-    try {
-      console.log('👀 Marking messages as read:', messageIds)
-
-      if (!messageIds || messageIds.length === 0) {
-        return { data: { success: true }, error: null }
-      }
-
-      const { error } = await supabase
-        .from('messages')
-        .update({
-          read_at: new Date().toISOString(),
-          read_by: readerId
-        })
-        .in('id', messageIds)
-
-      if (error) {
-        console.error('❌ Error marking messages as read:', error)
-        throw error
-      }
-
-      console.log(`✅ ${messageIds.length} messages marked as read`)
-      return { data: { success: true }, error: null }
-
-    } catch (error) {
-      console.error('💥 Error in markMessagesAsRead:', error)
-      return { data: null, error }
-    }
-  },
-
-  // Get unread message count for admin
-  async getUnreadMessageCount(adminId = 'admin_1') {
-    try {
-      console.log('📊 Getting unread message count for admin')
-
-      const { data, error } = await supabase
-        .from('messages')
-        .select('id', { count: 'exact' })
-        .neq('sender_id', adminId) // Messages not sent by admin
-        .is('read_at', null) // Not read yet
-
-      if (error) {
-        console.error('❌ Error getting unread message count:', error)
-        return { data: 0, error: null }
-      }
-
-      const count = data?.length || 0
-      console.log(`✅ Unread messages: ${count}`)
-      return { data: count, error: null }
-
-    } catch (error) {
-      console.error('💥 Error in getUnreadMessageCount:', error)
-      return { data: 0, error: null }
-    }
-  },
-  
   // Get conversations for a specific student
   async getStudentConversations(studentId) {
     try {
@@ -465,61 +425,429 @@ export const chatService = {
       return { data: null, error }
     }
   },
-  
-  // Pin/unpin important conversations
-  async togglePinnedConversation(conversationId, isPinned) {
+
+  // ================================
+  // NEW GROUP CHAT METHODS
+  // ================================
+
+  // Create a new group
+  async createGroup(groupData) {
     try {
-      console.log(`${isPinned ? '📌' : '🔄'} ${isPinned ? 'Pinning' : 'Unpinning'} conversation:`, conversationId)
-      
-      const { error } = await supabase
-        .from('conversations')
-        .update({
-          is_pinned: isPinned,
-          pinned_at: isPinned ? new Date().toISOString() : null
+      console.log('👥 Creating new group:', groupData)
+
+      // Use the database function to create group with proper ID generation
+      const { data: groupId, error } = await supabase
+        .rpc('create_group', {
+          p_name: groupData.name,
+          p_description: groupData.description,
+          p_domain: groupData.domain,
+          p_created_by: groupData.createdBy
         })
-        .eq('id', conversationId)
-        
+
       if (error) {
-        console.error(`❌ Error ${isPinned ? 'pinning' : 'unpinning'} conversation:`, error)
+        console.error('❌ Error creating group:', error)
         throw error
       }
+
+      console.log('✅ Group created successfully with ID:', groupId)
       
-      console.log(`✅ Conversation successfully ${isPinned ? 'pinned' : 'unpinned'}`)
-      return { data: { success: true }, error: null }
-      
+      // Fetch the created group to return complete data
+      const { data: group, error: fetchError } = await supabase
+        .from('groups')
+        .select('*')
+        .eq('id', groupId)
+        .single()
+
+      if (fetchError) {
+        console.error('❌ Error fetching created group:', fetchError)
+        throw fetchError
+      }
+
+      return { data: group, error: null }
+
     } catch (error) {
-      console.error('💥 Error in togglePinnedConversation:', error)
+      console.error('💥 Error in createGroup:', error)
       return { data: null, error }
     }
   },
-  
-  // Add support for message archiving
-  async archiveMessages(messageIds, isArchived = true) {
+
+  // Get all groups for admin
+  async getAdminGroups() {
     try {
-      console.log(`${isArchived ? '📦' : '🔄'} ${isArchived ? 'Archiving' : 'Unarchiving'} messages:`, messageIds)
-      
+      console.log('🔍 Getting all groups for admin')
+
+      const { data, error } = await supabase
+        .from('groups')
+        .select('*')
+        .eq('is_active', true)
+        .order('last_activity', { ascending: false })
+
+      if (error) {
+        console.error('❌ Error getting groups:', error)
+        return { data: null, error }
+      }
+
+      console.log(`✅ Retrieved ${data?.length || 0} groups`)
+      return { data, error: null }
+
+    } catch (error) {
+      console.error('💥 Error in getAdminGroups:', error)
+      return { data: null, error }
+    }
+  },
+
+  // Get groups for a specific student based on their domain
+  async getStudentGroups(studentDomain) {
+    try {
+      console.log('🔍 Getting groups for student domain:', studentDomain)
+
+      const { data, error } = await supabase
+        .from('groups')
+        .select('*')
+        .eq('domain', studentDomain)
+        .eq('is_active', true)
+        .order('last_activity', { ascending: false })
+
+      if (error) {
+        console.error('❌ Error getting student groups:', error)
+        return { data: null, error }
+      }
+
+      console.log(`✅ Retrieved ${data?.length || 0} groups for domain ${studentDomain}`)
+      return { data, error: null }
+
+    } catch (error) {
+      console.error('💥 Error in getStudentGroups:', error)
+      return { data: null, error }
+    }
+  },
+
+  // Get specific group
+  async getGroup(groupId) {
+    try {
+      console.log('🔍 Getting group:', groupId)
+
+      const { data, error } = await supabase
+        .from('groups')
+        .select('*')
+        .eq('id', groupId)
+        .single()
+
+      if (error) {
+        console.error('❌ Error getting group:', error)
+        return { data: null, error }
+      }
+
+      console.log('✅ Group retrieved:', data)
+      return { data, error: null }
+
+    } catch (error) {
+      console.error('💥 Error in getGroup:', error)
+      return { data: null, error }
+    }
+  },
+
+  // Get messages for a group
+  async getGroupMessages(groupId) {
+    try {
+      console.log('📨 Getting group messages for:', groupId)
+
+      const { data, error } = await supabase
+        .from('group_messages')
+        .select('*')
+        .eq('group_id', groupId)
+        .order('created_at', { ascending: true })
+
+      if (error) {
+        console.error('❌ Error getting group messages:', error)
+        return { data: null, error }
+      }
+
+      console.log(`✅ Retrieved ${data?.length || 0} group messages`)
+      return { data, error: null }
+
+    } catch (error) {
+      console.error('💥 Error in getGroupMessages:', error)
+      return { data: null, error }
+    }
+  },
+
+  // Send message to group
+  async sendGroupMessage(groupId, senderId, message, senderName, replyTo = null) {
+    try {
+      console.log('📤 Sending group message...', {
+        groupId,
+        senderId,
+        message: message.substring(0, 50),
+        senderName,
+        replyTo
+      })
+
+      const { data, error } = await supabase
+        .from('group_messages')
+        .insert([
+          {
+            group_id: groupId,
+            sender_id: senderId,
+            sender_name: senderName,
+            message: message,
+            reply_to: replyTo,
+            created_at: new Date().toISOString()
+          }
+        ])
+        .select()
+
+      if (error) {
+        console.error('❌ Error inserting group message:', error)
+        throw error
+      }
+
+      console.log('✅ Group message inserted successfully:', data[0])
+      return { data: data[0], error: null }
+
+    } catch (error) {
+      console.error('💥 Error in sendGroupMessage:', error)
+      return { data: null, error }
+    }
+  },
+
+  // Get group members
+  async getGroupMembers(groupId) {
+    try {
+      if (!groupId) {
+        // If no groupId provided, get all group members
+        const { data, error } = await supabase
+          .from('group_members')
+          .select('*')
+
+        if (error) {
+          console.error('❌ Error getting all group members:', error)
+          return { data: null, error }
+        }
+
+        return { data, error: null }
+      }
+
+      console.log('🔍 Getting group members for:', groupId)
+
+      const { data, error } = await supabase
+        .from('group_members')
+        .select('*')
+        .eq('group_id', groupId)
+
+      if (error) {
+        console.error('❌ Error getting group members:', error)
+        return { data: null, error }
+      }
+
+      console.log(`✅ Retrieved ${data?.length || 0} group members`)
+      return { data, error: null }
+
+    } catch (error) {
+      console.error('💥 Error in getGroupMembers:', error)
+      return { data: null, error }
+    }
+  },
+
+  // Delete group
+  async deleteGroup(groupId) {
+    try {
+      console.log('🗑️ Deleting group:', groupId)
+
+      // First delete all group messages
+      const { error: messagesError } = await supabase
+        .from('group_messages')
+        .delete()
+        .eq('group_id', groupId)
+
+      if (messagesError) {
+        console.error('❌ Error deleting group messages:', messagesError)
+        throw messagesError
+      }
+
+      // Then delete all group members
+      const { error: membersError } = await supabase
+        .from('group_members')
+        .delete()
+        .eq('group_id', groupId)
+
+      if (membersError) {
+        console.error('❌ Error deleting group members:', membersError)
+        throw membersError
+      }
+
+      // Finally delete the group
+      const { error: groupError } = await supabase
+        .from('groups')
+        .delete()
+        .eq('id', groupId)
+
+      if (groupError) {
+        console.error('❌ Error deleting group:', groupError)
+        throw groupError
+      }
+
+      console.log('✅ Group deleted successfully')
+      return { data: { success: true }, error: null }
+
+    } catch (error) {
+      console.error('💥 Error in deleteGroup:', error)
+      return { data: null, error }
+    }
+  },
+
+  // Clear all messages in a group
+  async clearGroupMessages(groupId) {
+    try {
+      console.log('🧹 Clearing group messages for:', groupId)
+
+      const { error } = await supabase
+        .from('group_messages')
+        .delete()
+        .eq('group_id', groupId)
+
+      if (error) {
+        console.error('❌ Error clearing group messages:', error)
+        throw error
+      }
+
+      // Update group to show it's empty
+      const { error: updateError } = await supabase
+        .from('groups')
+        .update({
+          last_message: 'Group chat cleared',
+          last_activity: new Date().toISOString()
+        })
+        .eq('id', groupId)
+
+      if (updateError) {
+        console.warn('⚠️ Could not update group after clearing:', updateError)
+      }
+
+      console.log('✅ Group messages cleared successfully')
+      return { data: { success: true }, error: null }
+
+    } catch (error) {
+      console.error('💥 Error in clearGroupMessages:', error)
+      return { data: null, error }
+    }
+  },
+
+  // ================================
+  // REAL-TIME SUBSCRIPTIONS FOR GROUPS
+  // ================================
+
+  // Listen for group messages (real-time)
+  subscribeToGroupMessages(groupId, callback) {
+    console.log('🔔 Subscribing to group messages for:', groupId)
+
+    return supabase
+      .channel(`group_messages:${groupId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'group_messages',
+          filter: `group_id=eq.${groupId}`
+        },
+        (payload) => {
+          console.log('🆕 Real-time group message received:', payload.new)
+          callback({ eventType: 'INSERT', new: payload.new })
+        }
+      )
+      .subscribe()
+  },
+
+  // Listen for group updates (real-time)
+  subscribeToGroups(callback) {
+    console.log('🔔 Subscribing to groups')
+
+    return supabase
+      .channel('groups-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'groups'
+        },
+        (payload) => {
+          console.log('🔄 Group update:', payload)
+          callback(payload)
+        }
+      )
+      .subscribe()
+  },
+
+  // Delete group messages
+  async deleteGroupMessages(groupId, messageIds) {
+    try {
       if (!messageIds || messageIds.length === 0) {
         return { data: { success: true }, error: null }
       }
-      
+
       const { error } = await supabase
-        .from('messages')
-        .update({
-          is_archived: isArchived,
-          archived_at: isArchived ? new Date().toISOString() : null
-        })
+        .from('group_messages')
+        .delete()
         .in('id', messageIds)
-        
-      if (error) {
-        console.error(`❌ Error ${isArchived ? 'archiving' : 'unarchiving'} messages:`, error)
-        throw error
-      }
-      
-      console.log(`✅ ${messageIds.length} messages ${isArchived ? 'archived' : 'unarchived'} successfully`)
+
+      if (error) throw error
+
       return { data: { success: true }, error: null }
-      
     } catch (error) {
-      console.error('💥 Error in archiveMessages:', error)
+      return { data: null, error }
+    }
+  },
+
+  // Get all students from Firebase (for admin to add to groups)
+  async getAllStudentsFromFirebase() {
+    try {
+      // This will be called from the component with Firebase access
+      // Return empty here, actual implementation in component
+      return { data: [], error: null }
+    } catch (error) {
+      return { data: null, error }
+    }
+  },
+
+  // Add member to group
+  async addGroupMember(groupId, userId, role = 'member') {
+    try {
+      const { data: existing } = await supabase
+        .from('group_members')
+        .select('*')
+        .eq('group_id', groupId)
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      if (existing) return { data: existing, error: null }
+
+      const { data, error } = await supabase
+        .from('group_members')
+        .insert([{ group_id: groupId, user_id: userId, role }])
+        .select()
+        .single()
+
+      if (error) throw error
+      return { data, error: null }
+    } catch (error) {
+      return { data: null, error }
+    }
+  },
+
+  // Remove member from group
+  async removeGroupMember(groupId, userId) {
+    try {
+      const { error } = await supabase
+        .from('group_members')
+        .delete()
+        .eq('group_id', groupId)
+        .eq('user_id', userId)
+
+      if (error) throw error
+      return { data: { success: true }, error: null }
+    } catch (error) {
       return { data: null, error }
     }
   }
