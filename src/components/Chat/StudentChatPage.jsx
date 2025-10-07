@@ -1287,7 +1287,7 @@ const StudentChatPage = () => {
   }
 
   const getCurrentChatInfo = () => {
-    if (activeTab === 'support') {
+    if (activeTab === 'support' || !activeGroup) {
       return {
         type: 'support',
         name: 'Support Team',
@@ -1303,7 +1303,7 @@ const StudentChatPage = () => {
         avatar: activeGroup.name.charAt(0).toUpperCase(),
         status: `${groupMembers[activeGroup.id]?.length || 0} members`,
         subtitle: activeGroup.description,
-        // domain: activeGroup.domain,
+        domain: activeGroup.domain,
         domainConfig: domainConfig
       }
     }
