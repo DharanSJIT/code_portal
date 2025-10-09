@@ -2,42 +2,10 @@ import { db } from '../firebase';
 import { collection, addDoc, query, where, orderBy, limit, getDocs, serverTimestamp } from 'firebase/firestore';
 
 class ActivityService {
-  // Log a new activity with duplicate prevention
+  // Log a new activity with duplicate prevention - DISABLED TO SAVE STORAGE
   async logActivity(studentId, platform, action, details = {}, forceCreate = false) {
-    try {
-      // Skip duplicate check if forceCreate is true
-      if (!forceCreate) {
-        const recentActivities = await this.getStudentActivities(studentId, 10);
-        if (recentActivities.success) {
-          const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-          const isDuplicate = recentActivities.activities.some(activity => {
-            const activityTime = activity.timestamp?.toDate?.() || new Date(activity.createdAt || 0);
-            return activityTime > fiveMinutesAgo && 
-                   activity.platform === platform.toLowerCase() && 
-                   activity.action === action;
-          });
-          
-          if (isDuplicate) {
-            return { success: true, message: 'Duplicate activity prevented' };
-          }
-        }
-      }
-
-      const activityData = {
-        studentId,
-        platform: platform.toLowerCase(),
-        action,
-        details,
-        timestamp: serverTimestamp(),
-        createdAt: new Date().toISOString()
-      };
-
-      const docRef = await addDoc(collection(db, 'activities'), activityData);
-      return { success: true, id: docRef.id };
-    } catch (error) {
-      console.error('Error logging activity:', error);
-      return { success: false, error: error.message };
-    }
+    // Activity logging disabled to save Firebase storage
+    return { success: true, message: 'Activity logging disabled' };
   }
 
   // Get activities for a student
@@ -74,14 +42,9 @@ class ActivityService {
     }
   }
 
-  // Log platform data update
+  // Log platform data update - DISABLED TO SAVE STORAGE
   async logPlatformUpdate(studentId, platform, oldData, newData) {
-    const changes = this.calculateChanges(oldData, newData);
-    if (changes.length > 0 && !changes.includes('Initial data fetch')) {
-      const action = `Updated ${platform} data: ${changes.join(', ')}`;
-      return await this.logActivity(studentId, platform, action, { changes, oldData, newData });
-    }
-    return { success: true, message: 'No changes detected' };
+    return { success: true, message: 'Platform update logging disabled' };
   }
 
   // Calculate what changed between old and new data
@@ -113,41 +76,19 @@ class ActivityService {
     return changes;
   }
 
-  // Log problem solving activity
+  // Log problem solving activity - DISABLED TO SAVE STORAGE
   async logProblemSolved(studentId, platform, problemTitle, difficulty = null) {
-    const action = difficulty 
-      ? `Solved ${difficulty} problem: ${problemTitle}`
-      : `Solved problem: ${problemTitle}`;
-    
-    return await this.logActivity(studentId, platform, action, {
-      problemTitle,
-      difficulty,
-      type: 'problem_solved'
-    });
+    return { success: true, message: 'Problem solving logging disabled' };
   }
 
-  // Log contest participation
+  // Log contest participation - DISABLED TO SAVE STORAGE
   async logContestParticipation(studentId, platform, contestName, rank = null) {
-    const action = rank 
-      ? `Participated in ${contestName} (Rank: ${rank})`
-      : `Participated in ${contestName}`;
-    
-    return await this.logActivity(studentId, platform, action, {
-      contestName,
-      rank,
-      type: 'contest_participation'
-    });
+    return { success: true, message: 'Contest participation logging disabled' };
   }
 
-  // Log repository creation/update
+  // Log repository creation/update - DISABLED TO SAVE STORAGE
   async logRepositoryActivity(studentId, repoName, action = 'created') {
-    const actionText = `${action.charAt(0).toUpperCase() + action.slice(1)} repository: ${repoName}`;
-    
-    return await this.logActivity(studentId, 'github', actionText, {
-      repoName,
-      type: 'repository_activity',
-      action
-    });
+    return { success: true, message: 'Repository activity logging disabled' };
   }
 }
 

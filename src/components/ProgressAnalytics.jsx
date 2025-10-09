@@ -8,7 +8,6 @@ const ProgressAnalytics = () => {
   const { currentUser } = useAuth();
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isTestingActivity, setIsTestingActivity] = useState(false);
 
   useEffect(() => {
     fetchUserData();
@@ -49,95 +48,17 @@ const ProgressAnalytics = () => {
     );
   }
 
-  const platformData = userData?.platformData || {};
-  const leetcode = platformData.leetcode || {};
-  const codeforces = platformData.codeforces || {};
-  const github = platformData.github || {};
-  const atcoder = platformData.atcoder || {};
 
-  // Calculate platform activity percentages
-  const totalProblems = (leetcode.totalSolved || 0) + (codeforces.problemsSolved || 0) + (atcoder.problemsSolved || 0);
-  const platformStats = [
-    { 
-      name: 'LeetCode', 
-      value: totalProblems > 0 ? Math.round(((leetcode.totalSolved || 0) / totalProblems) * 100) : 0,
-      count: leetcode.totalSolved || 0,
-      color: 'bg-yellow-500' 
-    },
-    { 
-      name: 'Codeforces', 
-      value: totalProblems > 0 ? Math.round(((codeforces.problemsSolved || 0) / totalProblems) * 100) : 0,
-      count: codeforces.problemsSolved || 0,
-      color: 'bg-blue-500' 
-    },
-    { 
-      name: 'AtCoder', 
-      value: totalProblems > 0 ? Math.round(((atcoder.problemsSolved || 0) / totalProblems) * 100) : 0,
-      count: atcoder.problemsSolved || 0,
-      color: 'bg-green-500' 
-    },
-    { 
-      name: 'GitHub', 
-      value: github.repositories ? Math.min(github.repositories * 2, 100) : 0,
-      count: github.repositories || 0,
-      color: 'bg-gray-700' 
-    }
-  ].filter(platform => platform.count > 0);
-
-  // Generate weekly progress (mock data based on total problems)
-  const weeklyData = Array.from({ length: 12 }, (_, i) => {
-    const base = Math.floor(totalProblems / 12);
-    const variation = Math.floor(Math.random() * (base * 0.5));
-    return Math.max(1, base + variation);
-  });
-
-  // Generate daily trend (last 7 days)
-  const dailyTrend = Array.from({ length: 7 }, (_, i) => {
-    const base = Math.floor(totalProblems / 30); // Daily average
-    const variation = Math.floor(Math.random() * base);
-    return Math.max(0, base + variation);
-  });
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
         <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">Progress Analytics</h1>
-              <p className="text-gray-600">
-                Track your coding journey with detailed insights and trends
-              </p>
-            </div>
-            <button
-              onClick={async () => {
-                setIsTestingActivity(true);
-                try {
-                  const activityService = (await import('../services/activityService')).default;
-                  await activityService.logActivity(currentUser?.uid, 'system', `Manual activity test at ${new Date().toLocaleTimeString()}`);
-                  setTimeout(() => {
-                    window.location.reload();
-                  }, 1500);
-                } catch (error) {
-                  setIsTestingActivity(false);
-                }
-              }}
-              disabled={isTestingActivity}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${
-                isTestingActivity 
-                  ? 'bg-green-400 text-white cursor-not-allowed' 
-                  : 'bg-green-600 text-white hover:bg-green-700'
-              }`}
-            >
-              {isTestingActivity ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Testing...
-                </>
-              ) : (
-                'Test Activity'
-              )}
-            </button>
+          <div className="mb-4">
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">Progress Analytics</h1>
+            <p className="text-gray-600">
+              Track your coding journey with detailed insights and trends
+            </p>
           </div>
         </div>
         
@@ -148,15 +69,15 @@ const ProgressAnalytics = () => {
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Profile Completion</h3>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Platform Links</span>
-                <span className="text-sm font-medium">{platformStats.length}/4</span>
+                <span className="text-sm text-gray-600">Profile Status</span>
+                <span className="text-sm font-medium">Active</span>
               </div>
               <div className="bg-gray-200 rounded-full h-2">
                 <div className="bg-blue-500 h-2 rounded-full transition-all duration-1000" 
-                  style={{ width: `${(platformStats.length / 4) * 100}%` }}></div>
+                  style={{ width: '100%' }}></div>
               </div>
               <div className="text-xs text-gray-500">
-                {platformStats.length === 4 ? '✅ All platforms connected!' : `Connect ${4 - platformStats.length} more platform${4 - platformStats.length > 1 ? 's' : ''}`}
+                ✅ Profile is active and ready!
               </div>
             </div>
           </div>
@@ -186,16 +107,14 @@ const ProgressAnalytics = () => {
                     const today = new Date().toISOString().split('T')[0];
                     const csvData = [
                       `Date,${today}`,
-                      `Total Problems,${totalProblems}`,
-                      `Platforms Connected,${platformStats.length}`,
-                      '',
-                      'Platform,Problems'
-                    ].concat(platformStats.map(p => `${p.name},${p.count}`)).join('\n');
+                      `Export Type,Progress Report`,
+                      `Status,Active`
+                    ].join('\n');
                     const blob = new Blob([csvData], { type: 'text/csv' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `coding-progress-${today}.csv`;
+                    a.download = `progress-report-${today}.csv`;
                     a.click();
                   }}
                   className="w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
@@ -213,52 +132,7 @@ const ProgressAnalytics = () => {
           </div>
         </div>
 
-        {/* Recent Activity Summary */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Recent Highlights</h3>
-          <div className="space-y-4">
-            {platformStats.map((platform, index) => {
-              const getPlatformColor = (name) => {
-                const colors = {
-                  'LeetCode': 'bg-yellow-500',
-                  'Codeforces': 'bg-blue-500', 
-                  'AtCoder': 'bg-green-500',
-                  'GitHub': 'bg-gray-800'
-                };
-                return colors[name] || 'bg-blue-500';
-              };
-              
-              return (
-                <div key={index} className="flex items-start space-x-3 pb-4 border-b border-gray-100 last:border-0">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${getPlatformColor(platform.name)}`}>
-                    {platform.name.charAt(0)}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between">
-                      <p className="font-medium text-gray-800">{platform.name}</p>
-                      <p className="text-xs text-gray-500">Current</p>
-                    </div>
-                    <p className="text-gray-600 text-sm">
-                      {platform.name === 'GitHub' ? `Created ${platform.count} repositories` : `Solved ${platform.count} problems`}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-            
-            {platformStats.length === 0 && (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <p className="text-gray-500 font-medium">No platform data available</p>
-                <p className="text-xs text-gray-400 mt-1">Connect your coding platforms to see activity</p>
-              </div>
-            )}
-          </div>
-        </div>
+
       </div>
     </div>
   );
