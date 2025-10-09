@@ -80,10 +80,8 @@ class EmailService {
       </head>
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; margin-bottom: 30px;">
-          <div style="display: inline-block; width: 60px; height: 60px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 12px; color: white; font-weight: bold; font-size: 24px; line-height: 60px; margin-bottom: 16px;">
-            CT
-          </div>
-          <h1 style="margin: 0; color: #1f2937;">CodeTrack Pro</h1>
+         
+          <h1 style="margin: 0; color: #1f2937;">Hope Portal</h1>
           <p style="margin: 8px 0 0 0; color: #6b7280;">Upcoming Contest Notifications</p>
         </div>
 
@@ -107,7 +105,7 @@ class EmailService {
           </div>
 
           <div style="text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
-            <p style="color: #6b7280; margin-bottom: 16px;">Track your progress on CodeTrack Pro</p>
+            <p style="color: #6b7280; margin-bottom: 16px;">Track your progress on Hope Portal</p>
             <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" 
                style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 500;">
               View Dashboard
@@ -116,7 +114,7 @@ class EmailService {
         </div>
 
         <div style="text-align: center; margin-top: 24px; color: #9ca3af; font-size: 12px;">
-          <p>© 2025 CodeTrack Pro. All rights reserved.</p>
+          <p>© 2025 Hope Portal. All rights reserved.</p>
           <p>You're receiving this because you're registered for contest notifications.</p>
         </div>
       </body>
@@ -166,7 +164,7 @@ class EmailService {
         const student = students[i];
         
         const mailOptions = {
-          from: `"CodeTrack Pro" <${process.env.EMAIL_USER}>`,
+          from: `"St Joseph's Hope Portal" <${process.env.EMAIL_USER}>`,
           to: student.email,
           subject: `🚀 ${contests.length} Upcoming Coding Contest${contests.length > 1 ? 's' : ''} - Don't Miss Out!`,
           html: this.generateContestEmailHTML(contests, student.name)
