@@ -106,9 +106,9 @@ class EmailService {
 
           <div style="text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
             <p style="color: #6b7280; margin-bottom: 16px;">Track your progress on Hope Portal</p>
-            <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" 
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" 
                style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 500;">
-              View Dashboard
+              Visit Hope Portal
             </a>
           </div>
         </div>
