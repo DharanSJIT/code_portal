@@ -35,7 +35,8 @@ const Profile = () => {
     department: '', 
     year: '', 
     college: '', 
-    phone: ''
+    phone: '',
+    resumeUrl: ''
   });
 
   useEffect(() => {
@@ -46,6 +47,7 @@ const Profile = () => {
         year: userData.year || '',
         college: userData.college || '',
         phone: userData.phone || '',
+        resumeUrl: userData.platformUrls?.resume || ''
       });
     }
   }, [userData]);
@@ -65,10 +67,20 @@ const Profile = () => {
     setMessage({ type: '', text: '' });
     
     try {
-      await updateDoc(doc(db, 'users', currentUser.uid), { 
-        ...formData, 
-        updatedAt: new Date() 
-      });
+      const updateData = {
+        name: formData.name,
+        department: formData.department,
+        year: formData.year,
+        college: formData.college,
+        phone: formData.phone,
+        platformUrls: {
+          ...userData.platformUrls,
+          resume: formData.resumeUrl
+        },
+        updatedAt: new Date()
+      };
+      
+      await updateDoc(doc(db, 'users', currentUser.uid), updateData);
       
       if (refreshUserData) await refreshUserData();
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
@@ -279,6 +291,22 @@ const Profile = () => {
                             placeholder="Enter your phone number"
                           />
                         </div>
+                      </div>
+                      
+                      {/* Resume URL */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Resume Drive URL
+                        </label>
+                        <input 
+                          type="url" 
+                          name="resumeUrl" 
+                          value={formData.resumeUrl} 
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          placeholder="https://drive.google.com/file/d/..."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Share your Google Drive resume link here</p>
                       </div>
                       
                       <div className="pt-6 border-t border-gray-200 flex justify-end gap-3">

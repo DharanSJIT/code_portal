@@ -18,13 +18,16 @@ const AdminUserCreation = () => {
     department: '',
     year: '',
     college: '',
+    tenthPercentage: '',
+    twelfthPercentage: '',
     platformUrls: {
       github: '',
       leetcode: '',
       codeforces: '',
       atcoder: '',
       hackerrank: '',
-      linkedin: ''
+      linkedin: '',
+      resume: ''
     }
   });
 
@@ -174,6 +177,8 @@ const AdminUserCreation = () => {
         department: studentData.department || '',
         year: studentData.year || '',
         college: studentData.college || '',
+        tenthPercentage: studentData.tenthPercentage || '',
+        twelfthPercentage: studentData.twelfthPercentage || '',
         role: 'student',
         isAdmin: false,
         createdAt: new Date().toISOString(),
@@ -323,13 +328,16 @@ const AdminUserCreation = () => {
       department: '',
       year: '',
       college: '',
+      tenthPercentage: '',
+      twelfthPercentage: '',
       platformUrls: {
         github: '',
         leetcode: '',
         codeforces: '',
         atcoder: '',
         hackerrank: '',
-        linkedin: ''
+        linkedin: '',
+        resume: ''
       }
     });
     setFormErrors({});
@@ -593,6 +601,42 @@ const AdminUserCreation = () => {
                       placeholder="ROLL123"
                     />
                   </div>
+                  
+                  <div>
+                    <label htmlFor="tenthPercentage" className="block text-sm font-medium text-slate-700 mb-2">
+                      10th Percentage
+                    </label>
+                    <input
+                      type="number"
+                      id="tenthPercentage"
+                      name="tenthPercentage"
+                      value={studentData.tenthPercentage}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                      placeholder="85.5"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="twelfthPercentage" className="block text-sm font-medium text-slate-700 mb-2">
+                      12th Percentage
+                    </label>
+                    <input
+                      type="number"
+                      id="twelfthPercentage"
+                      name="twelfthPercentage"
+                      value={studentData.twelfthPercentage}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                      placeholder="90.2"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                    />
+                  </div>
                 </div>
                 
                 <div className="flex flex-col sm:flex-row justify-between gap-3 mt-8">
@@ -768,6 +812,31 @@ const AdminUserCreation = () => {
                         onChange={handleInputChange}
                         className="w-full pl-10 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
                         placeholder="linkedin.com/in/username"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="resume" className="flex items-center text-sm font-medium text-slate-700 mb-2">
+                      <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span className="ml-2">Resume Drive URL</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                      </div>
+                      <input
+                        type="url"
+                        id="resume"
+                        name="platformUrls.resume"
+                        value={studentData.platformUrls.resume}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                        placeholder="drive.google.com/file/d/..."
                       />
                     </div>
                   </div>
