@@ -5,14 +5,13 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "cross-env PORT=5001 node server.js",
+    "start": "node server.js",
     "dev": "cross-env PORT=5001 nodemon -r dotenv/config server.js",
     "dev:debug": "cross-env PORT=5001 nodemon --inspect -r dotenv/config server.js",
     "dev:emulator": "cross-env PORT=5001 FIREBASE_AUTH_EMULATOR_HOST=localhost:9099 FIRESTORE_EMULATOR_HOST=localhost:8080 nodemon -r dotenv/config server.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "prepare": "husky install"
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
     "compression": "^1.8.1",
