@@ -39,6 +39,7 @@ import QueryBot from './components/QueryBot';
 
 // Auth Context
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import ContestNotifications from './components/ContestNotifications';
 
 // Debug utilities (remove after fixing the issue)
 import { debugUserProfile, createMissingUserProfile } from './utils/debugAuth';
@@ -233,6 +234,7 @@ function App() {
             <Route path="passwords" element={<StudentPasswordManager />} />
             <Route path="chat" element={<AdminChatPage />} />
             <Route path="querybot" element={<QueryBot />} />
+            <Route path="notifications" element={<ContestNotifications />} />
           </Route>
           
           {/* Legacy Routes with Authentication Guard */}

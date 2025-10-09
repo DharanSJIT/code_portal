@@ -9,6 +9,7 @@ import compression from "compression";
 import authRoutes from "./routes/authRoutes.js";
 import scrapingRoutes from "./routes/scrapingRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import emailRoutes from "./routes/emailRoutes.js";
 
 import errorHandler from "./middleware/errorHandler.js";
 import logger from "./utils/logger.js";
@@ -29,6 +30,7 @@ app.use(morgan("dev")); // HTTP request logger
 app.use("/api/auth", authRoutes);
 app.use("/api/scrape", scrapingRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/email", emailRoutes);
 
 // Health check route
 app.get("/health", (req, res) => {
