@@ -7,7 +7,6 @@ import helmet from "helmet";
 import compression from "compression";
 
 import authRoutes from "./routes/authRoutes.js";
-import scrapingRoutes from "./routes/scrapingRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import emailRoutes from "./routes/emailRoutes.js";
 import schedulerService from "./services/schedulerService.js";
@@ -29,7 +28,6 @@ app.use(morgan("dev")); // HTTP request logger
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/scrape", scrapingRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/email", emailRoutes);
 

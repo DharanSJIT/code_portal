@@ -24,11 +24,7 @@
     "helmet": "^7.2.0",
     "morgan": "^1.10.1",
     "node-cron": "^4.2.1",
-    "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.9",
-    "puppeteer": "^22.15.0",
-    "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1",
     "winston": "^3.18.1"
   },
   "devDependencies": {
@@ -60,7 +56,7 @@
     "github",
     "atcoder",
     "hackerrank",
-    "scraping"
+    "email-notifications"
   ],
   "author": "",
   "license": "MIT"

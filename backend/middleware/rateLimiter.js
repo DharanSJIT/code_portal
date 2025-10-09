@@ -16,19 +16,5 @@ export const apiLimiter = rateLimit({
   }
 });
 
-// More strict rate limiter for scraping endpoints
-export const scrapingLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // Limit each IP to 10 scraping requests per hour
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    logger.warn(`Scraping rate limit exceeded for IP: ${req.ip}`);
-    res.status(429).json({
-      error: 'Too many scraping requests, please try again later.'
-    });
-  }
-});
-
-// Default export (you're exporting scrapingLimiter as default)
-export default scrapingLimiter;
+// Default export
+export default apiLimiter;
