@@ -10,6 +10,7 @@ import authRoutes from "./routes/authRoutes.js";
 import scrapingRoutes from "./routes/scrapingRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import emailRoutes from "./routes/emailRoutes.js";
+import schedulerService from "./services/schedulerService.js";
 
 import errorHandler from "./middleware/errorHandler.js";
 import logger from "./utils/logger.js";
@@ -48,6 +49,11 @@ app.use((req, res) => {
 // Start server
 app.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`);
+  
+  // Start the weekly email scheduler
+  setTimeout(() => {
+    schedulerService.startScheduler();
+  }, 2000); // Wait 2 seconds for server to fully start
 });
 
 // Handle unhandled promise rejections

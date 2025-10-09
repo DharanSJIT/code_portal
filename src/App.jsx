@@ -40,6 +40,8 @@ import QueryBot from './components/QueryBot';
 // Auth Context
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ContestNotifications from './components/ContestNotifications';
+import WeeklyScheduler from './components/WeeklyScheduler';
+// import WeeklyScheduler from './components/WeeklyScheduler';
 
 // Debug utilities (remove after fixing the issue)
 import { debugUserProfile, createMissingUserProfile } from './utils/debugAuth';
@@ -235,6 +237,8 @@ function App() {
             <Route path="chat" element={<AdminChatPage />} />
             <Route path="querybot" element={<QueryBot />} />
             <Route path="notifications" element={<ContestNotifications />} />
+            <Route path="scheduler" element={<WeeklyScheduler />} />
+            {/* <Route path="scheduler" element={<WeeklyScheduler />} /> */}
           </Route>
           
           {/* Legacy Routes with Authentication Guard */}

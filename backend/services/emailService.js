@@ -124,6 +124,32 @@ class EmailService {
     `;
   }
 
+  // Helper function to delay execution
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // Send email with retry logic
+  async sendEmailWithRetry(mailOptions, maxRetries = 2) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await this.transporter.sendMail(mailOptions);
+        return { status: 'sent' };
+      } catch (error) {
+        console.log(`Attempt ${attempt} failed for ${mailOptions.to}: ${error.message}`);
+        
+        // If it's a rate limit error and we have retries left, wait and retry
+        if (error.responseCode === 421 && attempt < maxRetries) {
+          console.log(`Waiting 5 seconds before retry ${attempt + 1}...`);
+          await this.delay(5000); // Wait 5 seconds
+          continue;
+        }
+        
+        return { status: 'failed', error: error.message };
+      }
+    }
+  }
+
   async sendContestNotifications(contests) {
     try {
       const students = await this.getAllStudentEmails();
@@ -132,7 +158,13 @@ class EmailService {
         return { success: false, message: 'No students found' };
       }
 
-      const emailPromises = students.map(async (student) => {
+      console.log(`📧 Sending emails to ${students.length} students with throttling...`);
+      const results = [];
+      
+      // Send emails one by one with delay to avoid rate limits
+      for (let i = 0; i < students.length; i++) {
+        const student = students[i];
+        
         const mailOptions = {
           from: `"CodeTrack Pro" <${process.env.EMAIL_USER}>`,
           to: student.email,
@@ -140,16 +172,20 @@ class EmailService {
           html: this.generateContestEmailHTML(contests, student.name)
         };
 
-        try {
-          await this.transporter.sendMail(mailOptions);
-          return { email: student.email, status: 'sent' };
-        } catch (error) {
-          console.error(`Failed to send email to ${student.email}:`, error);
-          return { email: student.email, status: 'failed', error: error.message };
+        console.log(`📤 Sending to ${student.email} (${i + 1}/${students.length})`);
+        
+        const result = await this.sendEmailWithRetry(mailOptions);
+        results.push({ 
+          email: student.email, 
+          ...result 
+        });
+        
+        // Add delay between emails to avoid rate limiting (except for last email)
+        if (i < students.length - 1) {
+          await this.delay(2000); // Wait 2 seconds between emails
         }
-      });
+      }
 
-      const results = await Promise.all(emailPromises);
       const successful = results.filter(r => r.status === 'sent').length;
       const failed = results.filter(r => r.status === 'failed').length;
 

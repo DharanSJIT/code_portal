@@ -1,5 +1,6 @@
 import express from 'express';
 import emailService from '../services/emailService.js';
+import schedulerService from '../services/schedulerService.js';
 
 const router = express.Router();
 
@@ -162,6 +163,92 @@ router.get('/upcoming-contests', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch contests',
+      error: error.message
+    });
+  }
+});
+
+// Get weekly contests (for scheduler)
+router.get('/weekly-contests', async (req, res) => {
+  try {
+    const contests = await schedulerService.getWeeklyContests();
+    res.json({
+      success: true,
+      contests,
+      count: contests.length
+    });
+  } catch (error) {
+    console.error('Error fetching weekly contests:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch weekly contests',
+      error: error.message
+    });
+  }
+});
+
+// Get scheduler status
+router.get('/scheduler/status', (req, res) => {
+  try {
+    const status = schedulerService.getStatus();
+    res.json({
+      success: true,
+      ...status
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get scheduler status',
+      error: error.message
+    });
+  }
+});
+
+// Start scheduler
+router.post('/scheduler/start', (req, res) => {
+  try {
+    schedulerService.startScheduler();
+    res.json({
+      success: true,
+      message: 'Weekly email scheduler started',
+      status: schedulerService.getStatus()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to start scheduler',
+      error: error.message
+    });
+  }
+});
+
+// Stop scheduler
+router.post('/scheduler/stop', (req, res) => {
+  try {
+    schedulerService.stopScheduler();
+    res.json({
+      success: true,
+      message: 'Weekly email scheduler stopped',
+      status: schedulerService.getStatus()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to stop scheduler',
+      error: error.message
+    });
+  }
+});
+
+// Manual trigger for testing
+router.post('/scheduler/trigger', async (req, res) => {
+  try {
+    const result = await schedulerService.triggerManualEmail();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to trigger manual email',
       error: error.message
     });
   }

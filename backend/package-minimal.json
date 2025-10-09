@@ -1,0 +1,37 @@
+{
+  "name": "hope-portal-backend-minimal",
+  "version": "1.0.0",
+  "description": "Minimal backend for Hope Portal email notifications",
+  "main": "server-minimal.js",
+  "type": "module",
+  "scripts": {
+    "start": "cross-env PORT=5001 node server-minimal.js",
+    "dev": "cross-env PORT=5001 nodemon server-minimal.js"
+  },
+  "dependencies": {
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "firebase-admin": "^12.7.0",
+    "helmet": "^7.2.0",
+    "morgan": "^1.10.1",
+    "nodemailer": "^6.9.8",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "nodemon": "^3.1.10"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "email",
+    "notifications",
+    "contests",
+    "coding"
+  ],
+  "author": "",
+  "license": "MIT"
+}
