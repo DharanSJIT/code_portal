@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api.js';
 import { motion } from 'framer-motion';
 
 const WeeklyScheduler = () => {
@@ -14,7 +15,7 @@ const WeeklyScheduler = () => {
 
   const fetchStatus = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/email/scheduler/status');
+      const response = await fetch(`${API_BASE_URL}/api/email/scheduler/status`);
       const data = await response.json();
       if (data.success) {
         setStatus(data);
@@ -27,7 +28,7 @@ const WeeklyScheduler = () => {
   const fetchWeeklyContests = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/email/weekly-contests');
+      const response = await fetch(`${API_BASE_URL}/api/email/weekly-contests`);
       const data = await response.json();
       if (data.success) {
         setWeeklyContests(data.contests);
@@ -42,7 +43,7 @@ const WeeklyScheduler = () => {
   const toggleScheduler = async () => {
     try {
       const action = status?.isRunning ? 'stop' : 'start';
-      const response = await fetch(`http://localhost:5001/api/email/scheduler/${action}`, {
+      const response = await fetch(`${API_BASE_URL}/api/email/scheduler/${action}`, {
         method: 'POST'
       });
       const data = await response.json();
@@ -57,7 +58,7 @@ const WeeklyScheduler = () => {
   const triggerManualEmail = async () => {
     setTriggering(true);
     try {
-      const response = await fetch('http://localhost:5001/api/email/scheduler/trigger', {
+      const response = await fetch(`${API_BASE_URL}/api/email/scheduler/trigger`, {
         method: 'POST'
       });
       const data = await response.json();

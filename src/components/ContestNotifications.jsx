@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api.js';
 import { motion } from 'framer-motion';
 
 const ContestNotifications = () => {
@@ -14,7 +15,7 @@ const ContestNotifications = () => {
   const fetchContests = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/email/upcoming-contests');
+      const response = await fetch(`${API_BASE_URL}/api/email/upcoming-contests`);
       const data = await response.json();
       
       if (data.success) {
@@ -32,7 +33,7 @@ const ContestNotifications = () => {
     setResult(null);
     
     try {
-      const response = await fetch('http://localhost:5001/api/email/send-contest-notifications', {
+      const response = await fetch(`${API_BASE_URL}/api/email/send-contest-notifications`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
