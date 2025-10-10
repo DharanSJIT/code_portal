@@ -15,7 +15,7 @@ const BackButton = ({ to, className = "" }) => {
   return (
     <motion.button
       onClick={handleBack}
-      className={`fixed top-2 left-2 md:top-4 md:left-4 z-50 p-10 md:p-3 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full shadow-md bg-white border border-gray-200 transition-colors duration-200 ${className}`}
+      className={`fixed top-2 left-2 md:top-4 md:left-4 z-50 p-2 md:p-3 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full shadow-md bg-white border border-gray-200 transition-colors duration-200 ${className}`}
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.9 }}
       title="Go back"
