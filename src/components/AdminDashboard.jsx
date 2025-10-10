@@ -303,14 +303,23 @@ const AdminDashboard = () => {
   const handleLogout = async () => {
     try {
       console.log("AdminDashboard: Logging out...");
-      await logOutEnhanced();
+      
+      // Clear localStorage first
       localStorage.removeItem("adminUser");
       localStorage.removeItem("isAdmin");
       localStorage.removeItem("userEmail");
       localStorage.removeItem("userId");
+      
+      // Then logout from Firebase
+      await logOutEnhanced();
+      
+      console.log("AdminDashboard: Logout successful, navigating to signin...");
       navigate("/admin/signin");
     } catch (error) {
       console.error("Logout failed:", error);
+      // Even if Firebase logout fails, clear localStorage and redirect
+      localStorage.clear();
+      navigate("/admin/signin");
     }
   };
 
