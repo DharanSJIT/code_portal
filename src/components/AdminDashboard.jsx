@@ -698,12 +698,12 @@ const AdminDashboard = () => {
 
       {/* Side Navigation - With toggle functionality */}
       <motion.nav
-        className="fixed left-0 top-0 h-screen bg-white shadow-md pt-8 z-40 w-72 overflow-auto"
+        className="fixed left-0 top-0 h-screen bg-white shadow-md z-40 w-72 flex flex-col"
         initial="closed"
         animate={sidebarOpen ? "open" : "closed"}
         variants={sidebarVariants}
       >
-        <div className="px-6 mb-8 flex justify-between items-center">
+        <div className="px-6 py-8 flex justify-between items-center flex-shrink-0">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Portal</h1>
             <p className="text-slate-500 text-sm mt-1">
@@ -716,26 +716,15 @@ const AdminDashboard = () => {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
           >
-            {/* Left arrow when sidebar is open */}
-            {/* <motion.svg 
-              className="w-6 h-6" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2"
-              animate={{ x: [-2, 2, -2], opacity: [0.8, 1, 0.8] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </motion.svg> */}
           </motion.button>
         </div>
 
-        <div className="mb-8 px-6">
-          <p className="text-xs text-slate-400 uppercase tracking-wider mb-3">
-            Main Menu
-          </p>
-          <ul className="space-y-1">
+        <div className="flex-1 overflow-y-auto px-6">
+          <div className="mb-8">
+            <p className="text-xs text-slate-400 uppercase tracking-wider mb-3">
+              Main Menu
+            </p>
+            <ul className="space-y-1">
             <li>
               <motion.a
                 href="#"
@@ -1004,43 +993,43 @@ const AdminDashboard = () => {
                 Weekly Scheduler
               </motion.a>
             </li>
-          </ul>
-        </div>
+            </ul>
+          </div>
 
-        <div className="px-6">
-          <p className="text-xs text-slate-400 uppercase tracking-wider mb-3">
-            Account
-          </p>
-          <ul className="space-y-1">
-            
-            <li>
-              <motion.button
-                onClick={handleLogout}
-                className="w-full flex items-center px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg font-medium"
-                whileHover={{ x: 5, backgroundColor: "#FEF2F2" }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: "spring", stiffness: 300, damping: 10 }}
-              >
-                <svg
-                  className="w-5 h-5 mr-3"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
+          <div className="mb-8">
+            <p className="text-xs text-slate-400 uppercase tracking-wider mb-3">
+              Account
+            </p>
+            <ul className="space-y-1">
+              <li>
+                <motion.button
+                  onClick={handleLogout}
+                  className="w-full flex items-center px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg font-medium"
+                  whileHover={{ x: 5, backgroundColor: "#FEF2F2" }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 10 }}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                  />
-                </svg>
-                Logout
-              </motion.button>
-            </li>
-          </ul>
+                  <svg
+                    className="w-5 h-5 mr-3"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                    />
+                  </svg>
+                  Logout
+                </motion.button>
+              </li>
+            </ul>
+          </div>
         </div>
 
-        <div className="mt-auto px-6 pb-8 pt-20 absolute bottom-0 w-full">
+        <div className="px-6 pb-6 flex-shrink-0 border-t border-slate-100 pt-4">
           {adminInfo && (
             <motion.div
               className="flex items-center p-4 bg-slate-50 rounded-xl"
@@ -1061,11 +1050,11 @@ const AdminDashboard = () => {
               <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg">
                 {adminInfo.name.charAt(0).toUpperCase()}
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-semibold text-slate-800 truncate max-w-[120px]">
+              <div className="ml-3 min-w-0 flex-1">
+                <p className="text-sm font-semibold text-slate-800 truncate">
                   {adminInfo.name}
                 </p>
-                <p className="text-xs text-slate-500 truncate max-w-[120px]">
+                <p className="text-xs text-slate-500 truncate">
                   {adminInfo.email}
                 </p>
               </div>
