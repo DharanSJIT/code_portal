@@ -450,16 +450,18 @@ const AdminDashboard = () => {
     {
       title: "View Students",
       description: "Browse all student profiles",
-      // icon: (
-      //   <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      //     <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-      //   </svg>
-      // ),
-      // color: "text-blue-600",
       bgColor: "bg-white-100/50",
       borderColor: "border-blue-200",
       hoverColor: "hover:bg-blue-100",
       action: () => navigate("/admin/students"),
+    },
+    {
+      title: "Manage Students",
+      description: "Edit and delete student accounts",
+      bgColor: "bg-white-100/50",
+      borderColor: "border-red-200",
+      hoverColor: "hover:bg-red-100",
+      action: () => navigate("/admin/manage-students"),
     },
 
     {
@@ -784,7 +786,30 @@ const AdminDashboard = () => {
                     d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
                   />
                 </svg>
-                Students
+                View Students
+              </motion.a>
+            </li>
+            <li>
+              <motion.a
+                onClick={() => navigate("/admin/manage-students")}
+                className="flex items-center px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-lg font-medium cursor-pointer"
+                whileHover={{ x: 5, backgroundColor: "#F8FAFC" }}
+                transition={{ type: "spring", stiffness: 300, damping: 10 }}
+              >
+                <svg
+                  className="w-5 h-5 mr-3"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"
+                  />
+                </svg>
+                Manage Students
               </motion.a>
             </li>
             <li>
@@ -1273,7 +1298,7 @@ const AdminDashboard = () => {
               </p>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 {quickActions.map((action, index) => (
                   <motion.button
                     key={action.title}

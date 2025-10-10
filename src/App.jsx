@@ -25,6 +25,7 @@ import AdminLayout from './components/AdminLayout';
 import AdminDashboard from './components/AdminDashboard';
 import AdminUserCreation from './components/AdminUserCreation';
 import StudentList from './components/StudentList';
+import AdminStudentsList from './components/AdminStudentsList';
 import StudentDetails from './components/StudentDetails';
 import ScrapingStatus from './components/ScrapingStatus';
 import AdminLeaderboard from './components/AdminLeaderboard';
@@ -229,6 +230,7 @@ function App() {
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="students" element={<StudentList />} />
+            <Route path="manage-students" element={<AdminStudentsList />} />
             <Route path="students/:id" element={<StudentDetails />} />
             <Route path="add-student" element={<AdminUserCreation />} />
             <Route path="scraping-status" element={<ScrapingStatus />} />
