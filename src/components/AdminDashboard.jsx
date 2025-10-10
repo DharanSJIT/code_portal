@@ -150,6 +150,7 @@ const AdminDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [hoveredPlatform, setHoveredPlatform] = useState(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [studentsDropdownOpen, setStudentsDropdownOpen] = useState(false);
 
   useEffect(() => {
     verifyAdminAndFetchData();
@@ -448,20 +449,12 @@ const AdminDashboard = () => {
       action: () => navigate("/admin/add-student"),
     },
     {
-      title: "View Students",
-      description: "Browse all student profiles",
+      title: "Student Management",
+      description: "View, add, and manage students",
       bgColor: "bg-white-100/50",
       borderColor: "border-blue-200",
       hoverColor: "hover:bg-blue-100",
       action: () => navigate("/admin/students"),
-    },
-    {
-      title: "Manage Students",
-      description: "Edit and delete student accounts",
-      bgColor: "bg-white-100/50",
-      borderColor: "border-red-200",
-      hoverColor: "hover:bg-red-100",
-      action: () => navigate("/admin/manage-students"),
     },
 
     {
@@ -767,50 +760,91 @@ const AdminDashboard = () => {
               </motion.a>
             </li>
             <li>
-              <motion.a
-                onClick={() => navigate("/admin/students")}
-                className="flex items-center px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-lg font-medium cursor-pointer"
-                whileHover={{ x: 5, backgroundColor: "#F8FAFC" }}
-                transition={{ type: "spring", stiffness: 300, damping: 10 }}
-              >
-                <svg
-                  className="w-5 h-5 mr-3"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
+              <div>
+                <motion.button
+                  onClick={() => setStudentsDropdownOpen(!studentsDropdownOpen)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-lg font-medium cursor-pointer"
+                  whileHover={{ x: 5, backgroundColor: "#F8FAFC" }}
+                  transition={{ type: "spring", stiffness: 300, damping: 10 }}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-                  />
-                </svg>
-                View Students
-              </motion.a>
-            </li>
-            <li>
-              <motion.a
-                onClick={() => navigate("/admin/manage-students")}
-                className="flex items-center px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-lg font-medium cursor-pointer"
-                whileHover={{ x: 5, backgroundColor: "#F8FAFC" }}
-                transition={{ type: "spring", stiffness: 300, damping: 10 }}
-              >
-                <svg
-                  className="w-5 h-5 mr-3"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"
-                  />
-                </svg>
-                Manage Students
-              </motion.a>
+                  <div className="flex items-center">
+                    <svg
+                      className="w-5 h-5 mr-3"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                      />
+                    </svg>
+                    Students
+                  </div>
+                  <motion.svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    animate={{ rotate: studentsDropdownOpen ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </motion.svg>
+                </motion.button>
+                
+                <AnimatePresence>
+                  {studentsDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="ml-8 mt-1 space-y-1 overflow-hidden"
+                    >
+                      <motion.a
+                        onClick={() => navigate("/admin/students")}
+                        className="flex items-center px-4 py-2 text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg cursor-pointer transition-colors"
+                        whileHover={{ x: 3 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                      >
+                        <svg className="w-4 h-4 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        View Students
+                      </motion.a>
+                      
+                      <motion.a
+                        onClick={() => navigate("/admin/manage-students")}
+                        className="flex items-center px-4 py-2 text-sm text-slate-600 hover:bg-amber-50 hover:text-amber-600 rounded-lg cursor-pointer transition-colors"
+                        whileHover={{ x: 3 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                      >
+                        <svg className="w-4 h-4 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                        </svg>
+                        Manage Students
+                      </motion.a>
+                      
+                      <motion.a
+                        onClick={() => navigate("/admin/add-student")}
+                        className="flex items-center px-4 py-2 text-sm text-slate-600 hover:bg-green-50 hover:text-green-600 rounded-lg cursor-pointer transition-colors"
+                        whileHover={{ x: 3 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                      >
+                        <svg className="w-4 h-4 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Add Students
+                      </motion.a>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </li>
             <li>
               <motion.a
@@ -978,34 +1012,7 @@ const AdminDashboard = () => {
             Account
           </p>
           <ul className="space-y-1">
-            <li>
-              <motion.a
-               onClick={() => navigate("/admin/setting")}
-                className="flex items-center px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-lg font-medium cursor-pointer"
-                whileHover={{ x: 5, backgroundColor: "#F8FAFC" }}
-                transition={{ type: "spring", stiffness: 300, damping: 10 }}
-              >
-                <svg
-                  className="w-5 h-5 mr-3"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-                Settings
-              </motion.a>
-            </li>
+            
             <li>
               <motion.button
                 onClick={handleLogout}
@@ -1298,7 +1305,7 @@ const AdminDashboard = () => {
               </p>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {quickActions.map((action, index) => (
                   <motion.button
                     key={action.title}
