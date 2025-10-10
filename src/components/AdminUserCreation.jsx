@@ -17,6 +17,7 @@ const AdminUserCreation = () => {
   const [bulkData, setBulkData] = useState([]);
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [bulkResults, setBulkResults] = useState({ success: [], failed: [] });
+  const [processingProgress, setProcessingProgress] = useState({ current: 0, total: 0, currentStudent: '' });
   const [studentData, setStudentData] = useState({
     name: '',
     email: '',
@@ -259,9 +260,17 @@ ${JSON.stringify(excelData, null, 2)}
     
     setBulkProcessing(true);
     const results = { success: [], failed: [] };
+    setProcessingProgress({ current: 0, total: bulkData.length, currentStudent: '' });
     
     for (let i = 0; i < bulkData.length; i++) {
       const student = bulkData[i];
+      
+      // Update progress
+      setProcessingProgress({ 
+        current: i + 1, 
+        total: bulkData.length, 
+        currentStudent: student.name || 'Unknown Student' 
+      });
       
       try {
         // Validate required fields
@@ -375,6 +384,7 @@ ${JSON.stringify(excelData, null, 2)}
     
     setBulkResults(results);
     setBulkProcessing(false);
+    setProcessingProgress({ current: 0, total: 0, currentStudent: '' });
     
     // Show results
     if (results.success.length > 0) {
@@ -426,7 +436,7 @@ ${JSON.stringify(excelData, null, 2)}
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
     modal.innerHTML = `
-      <div class="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+      <div class="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl mx-4">
         <div class="p-6 border-b border-gray-200">
           <h3 class="text-xl font-bold text-gray-900">Bulk Upload Results</h3>
           <p class="text-sm text-gray-600 mt-1">
@@ -498,44 +508,66 @@ ${JSON.stringify(excelData, null, 2)}
           ${results.success.length > 0 ? `
             <div class="mb-4">
               <h5 class="font-medium text-gray-900 mb-3">Export Password List:</h5>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div class="flex flex-col sm:flex-row gap-3">
                 <button onclick="
-                  const data = ${JSON.stringify(results.success.map(s => ({
+                  const data = ${JSON.stringify(results.success.map((s, index) => ({
+                    'S.No': index + 1,
                     'Student Name': s.name,
                     'Email': s.email,
-                    'Roll Number': s.rollNumber || 'N/A',
-                    'Department': s.department || 'N/A',
-                    'College': s.college || 'N/A',
+                    'Roll Number': s.rollNumber || '',
+                    'Register Number': s.registerNumber || '',
+                    'Department': s.department || '',
+                    'Year': s.year || '',
+                    'College': s.college || '',
+                    'Phone Number': s.phoneNumber || '',
                     'Temporary Password': s.tempPassword,
                     'Instructions': 'Must change password on first login'
                   })))};
-                  const ws = XLSX.utils.json_to_sheet(data);
-                  const wb = XLSX.utils.book_new();
-                  XLSX.utils.book_append_sheet(wb, ws, 'Student Passwords');
-                  XLSX.writeFile(wb, 'Student_Passwords_' + new Date().toISOString().split('T')[0] + '.xlsx');
-                " class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm">
+                  
+                  const ws = window.XLSX.utils.json_to_sheet(data);
+                  
+                  // Set column widths
+                  const colWidths = [
+                    { wch: 6 }, { wch: 25 }, { wch: 30 }, { wch: 15 }, { wch: 15 },
+                    { wch: 12 }, { wch: 8 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 35 }
+                  ];
+                  ws['!cols'] = colWidths;
+                  
+                  const wb = window.XLSX.utils.book_new();
+                  window.XLSX.utils.book_append_sheet(wb, ws, 'Student Passwords');
+                  window.XLSX.writeFile(wb, 'Hope_Portal_Students_' + new Date().toISOString().split('T')[0] + '.xlsx');
+                " class="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm">
                   📄 Download Excel
                 </button>
                 <button onclick="
+                  const csvData = ${JSON.stringify(results.success)};
                   const csvContent = [
-                    'Student Name,Email,Roll Number,Department,College,Temporary Password,Instructions',
-                    ${results.success.map(s => `'"${s.name}","${s.email}","${s.rollNumber || 'N/A'}","${s.department || 'N/A'}","${s.college || 'N/A'}","${s.tempPassword}","Must change password on first login"'`).join(',\n                    ')}
+                    'S.No,Student Name,Email,Roll Number,Register Number,Department,Year,College,Phone Number,Temporary Password,Instructions',
+                    ...csvData.map((s, index) => 
+                      (index + 1) + ',\"' + (s.name || '') + '\",\"' + (s.email || '') + '\",\"' + (s.rollNumber || '') + '\",\"' + (s.registerNumber || '') + '\",\"' + (s.department || '') + '\",\"' + (s.year || '') + '\",\"' + (s.college || '') + '\",\"' + (s.phoneNumber || '') + '\",\"' + (s.tempPassword || '') + '\",\"Must change password on first login\"'
+                    )
                   ].join('\\n');
-                  const blob = new Blob([csvContent], { type: 'text/csv' });
+                  
+                  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                   const url = window.URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = 'Student_Passwords_' + new Date().toISOString().split('T')[0] + '.csv';
+                  a.download = 'Hope_Portal_Students_' + new Date().toISOString().split('T')[0] + '.csv';
+                  document.body.appendChild(a);
                   a.click();
+                  document.body.removeChild(a);
                   window.URL.revokeObjectURL(url);
-                " class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
+                " class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
                   📈 Download CSV
                 </button>
                 <button onclick="
-                  const passwords = ${JSON.stringify(results.success.map(s => `${s.name}\t${s.email}\t${s.rollNumber || 'N/A'}\t${s.department || 'N/A'}\t${s.college || 'N/A'}\t${s.tempPassword}`).join('\n'))};
-                  navigator.clipboard.writeText('Name\tEmail\tRoll Number\tDepartment\tCollege\tPassword\n' + passwords);
-                  alert('All passwords copied to clipboard (tab-separated)!');
-                " class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm">
+                  const copyData = ${JSON.stringify(results.success)};
+                  const passwords = copyData.map((s, index) => 
+                    (index + 1) + '\t' + (s.name || '') + '\t' + (s.email || '') + '\t' + (s.rollNumber || '') + '\t' + (s.department || '') + '\t' + (s.college || '') + '\t' + (s.tempPassword || '')
+                  ).join('\n');
+                  navigator.clipboard.writeText('S.No\tName\tEmail\tRoll Number\tDepartment\tCollege\tPassword\n' + passwords);
+                  alert('All passwords copied to clipboard!');
+                " class="w-full sm:w-auto px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm">
                   📋 Copy All
                 </button>
               </div>
@@ -1569,15 +1601,34 @@ ${JSON.stringify(excelData, null, 2)}
               
               {bulkProcessing && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center">
+                  <div className="flex items-center mb-3">
                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <div>
-                      <p className="font-medium text-blue-900">Processing students...</p>
-                      <p className="text-sm text-blue-700">This may take a few minutes for large files</p>
+                    <div className="flex-1">
+                      <p className="font-medium text-blue-900">
+                        Processing {processingProgress.current}/{processingProgress.total} students
+                      </p>
+                      <p className="text-sm text-blue-700">
+                        Current: {processingProgress.currentStudent}
+                      </p>
                     </div>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="w-full bg-blue-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                      style={{ 
+                        width: `${processingProgress.total > 0 ? (processingProgress.current / processingProgress.total) * 100 : 0}%` 
+                      }}
+                    ></div>
+                  </div>
+                  
+                  <div className="flex justify-between text-xs text-blue-600 mt-1">
+                    <span>{Math.round((processingProgress.current / processingProgress.total) * 100)}% Complete</span>
+                    <span>ETA: ~{Math.max(1, Math.ceil((processingProgress.total - processingProgress.current) * 2))}s</span>
                   </div>
                 </div>
               )}
