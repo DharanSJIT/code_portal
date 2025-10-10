@@ -3,6 +3,7 @@ import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/fire
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { db, auth } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
+import BackButton from './BackButton';
 
 const StudentPasswordManager = () => {
   const [students, setStudents] = useState([]);
@@ -252,6 +253,7 @@ const StudentPasswordManager = () => {
 
   return (
     <>
+      <BackButton />
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

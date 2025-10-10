@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { exportToExcel, formatDataForExcel } from '../utils/excelExport'
 import { queryAPI } from '../services/apii'
+import BackButton from './BackButton'
 
 // Data Table Component
 const DataTable = ({ data }) => {
@@ -258,7 +259,9 @@ const QueryBot = () => {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+      <BackButton />
+      <div className="min-h-screen bg-gray-50">
       {/* Page Top Reference */}
       <div ref={pageTopRef} className="absolute top-0" />
       
@@ -444,7 +447,8 @@ const QueryBot = () => {
           animation: fadeIn 0.3s ease-out;
         }
       `}</style>
-    </div>
+      </div>
+    </>
   )
 }
 

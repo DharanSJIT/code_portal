@@ -8,6 +8,7 @@ import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/fire
 import { toast } from 'react-toastify';
 import StudentViewDetails from './StudentViewDetails';
 import { motion, AnimatePresence } from 'framer-motion';
+import BackButton from './BackButton';
 import { 
   scrapeAtCoder, 
   // scrapeHackerRank, 
@@ -280,6 +281,7 @@ const handleViewDetails = async (student) => {
       transition={{ duration: 0.3 }}
     >
       <div className="max-w-7xl mx-auto">
+        <BackButton />
         <motion.div 
           className="mb-8"
           initial={{ y: -20, opacity: 0 }}

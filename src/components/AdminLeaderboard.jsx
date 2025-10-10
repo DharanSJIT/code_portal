@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import StudentViewDetails from './StudentViewDetails';
 import { motion, AnimatePresence } from 'framer-motion';
 import { scrapeAllPlatforms, formatScrapedData } from '../utils/scrapers';
+import BackButton from './BackButton';
 
 const AdminLeaderboard = () => {
   const [students, setStudents] = useState([]);
@@ -375,7 +376,9 @@ const AdminLeaderboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
+    <>
+      <BackButton />
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
       <div className="max-w-7xl mx-auto" ref={containerRef}>
         {/* Header Section */}
         <motion.div
@@ -1118,7 +1121,8 @@ const AdminLeaderboard = () => {
           />
         )}
       </AnimatePresence>
-    </div>
+      </div>
+    </>
   );
 };
 

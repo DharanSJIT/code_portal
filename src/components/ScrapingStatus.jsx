@@ -4,6 +4,7 @@ import { db } from '../firebase.js';
 // import { collection, getDocs, updateDoc, doc, query, where } from 'firebase/firestore';
 import { collection, getDocs, updateDoc, doc, query, where, getDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
+import BackButton from './BackButton';
 import { 
   scrapeLeetCode, 
   scrapeGitHub, 
@@ -407,6 +408,7 @@ const ScrapingStatus = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <BackButton />
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
