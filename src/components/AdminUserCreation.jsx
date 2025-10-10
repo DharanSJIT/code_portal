@@ -965,9 +965,10 @@ ${JSON.stringify(excelData, null, 2)}
   );
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-5xl mt-[6vh]">
-      <BackButton to="/admin/students" />
-      <div className="bg-white rounded-xl overflow-hidden shadow-md border border-slate-200">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+      <div className="container mx-auto max-w-5xl h-full flex flex-col">
+        <BackButton to="/admin/students" />
+        <div className="bg-white rounded-xl overflow-hidden shadow-md border border-slate-200 flex-1 flex flex-col max-h-[calc(100vh-2rem)]">
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-slate-200 bg-slate-50">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -999,7 +1000,7 @@ ${JSON.stringify(excelData, null, 2)}
           </div>
         </div>
         
-        <div className="p-5 sm:p-6">
+        <div className="p-5 sm:p-6 flex-1 overflow-y-auto">
           {uploadMode === 'single' ? (
             <>
               <StepIndicator />
@@ -1651,21 +1652,22 @@ ${JSON.stringify(excelData, null, 2)}
             </div>
           )}
         </div>
+        
+        <div className="p-4 text-center text-sm text-slate-500 border-t border-slate-200 bg-slate-50">
+          <p>After adding a student, a temporary password will be generated and stored securely.</p>
+        </div>
+        </div>
+        
+        <style>{`
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+          }
+        `}</style>
       </div>
-      
-      <div className="mt-6 text-center text-sm text-slate-500">
-        <p>After adding a student, a temporary password will be generated and stored securely.</p>
-      </div>
-      
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-          animation: fadeIn 0.3s ease-out forwards;
-        }
-      `}</style>
     </div>
   );
 };
