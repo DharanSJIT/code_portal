@@ -1054,7 +1054,7 @@ const StudentViewDetails = ({ student, onClose, onStudentUpdate, isAdminView = f
                 Overall Snapshot
               </h3>
               <div className="flex gap-2">
-                <button
+                {/* <button
                   onClick={async () => {
                     try {
                       await activityService.logActivity(currentStudent.id, 'system', `Manual activity test at ${new Date().toLocaleTimeString()}`);
@@ -1071,7 +1071,7 @@ const StudentViewDetails = ({ student, onClose, onStudentUpdate, isAdminView = f
                   className="px-3 py-2 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition-all duration-200"
                 >
                   Test Activity
-                </button>
+                </button> */}
                 <button
                   onClick={handleManualRefresh}
                   disabled={isAutoScraping}
