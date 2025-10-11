@@ -4,6 +4,7 @@ import { db } from '../firebase.js';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import activityService from '../services/activityService';
 import { validatePlatformData, sanitizeStudentData, calculateTotalProblems, formatLastUpdated } from '../utils/dataValidation';
+import EditStudentModal from './EditStudentModal';
 
 // --- Animation & Utility Hooks ---
 
@@ -674,11 +675,12 @@ const scrapeAtCoder = async (atcoderUrl) => {
 
 // --- Main Component ---
 
-const StudentViewDetails = ({ student, onClose }) => {
+const StudentViewDetails = ({ student, onClose, onStudentUpdate, isAdminView = false }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [currentStudent, setCurrentStudent] = useState(student);
   const [scrapingStatus, setScrapingStatus] = useState({});
   const [isAutoScraping, setIsAutoScraping] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [platformData, setPlatformData] = useState({
     leetcode: { loading: false, data: null, error: null },
     github: { loading: false, data: null, error: null },
@@ -996,14 +998,27 @@ const StudentViewDetails = ({ student, onClose }) => {
                 )}
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="text-slate-400 hover:bg-slate-200 hover:text-slate-600 rounded-full p-2 transition-all duration-300 hover:rotate-90"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2">
+              {isAdminView && (
+                <button
+                  onClick={() => setShowEditModal(true)}
+                  className="text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-full p-2 transition-all duration-300 hover:scale-110"
+                  title="Edit Student"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="text-slate-400 hover:bg-slate-200 hover:text-slate-600 rounded-full p-2 transition-all duration-300 hover:rotate-90"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
           <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2 text-sm text-slate-600">
             <div className="flex gap-2 hover:translate-x-1 transition-transform duration-200">
@@ -1239,18 +1254,35 @@ const StudentViewDetails = ({ student, onClose }) => {
             >
               Close
             </button>
-            {/* <Link
-              to={`/admin/students/${currentStudent.id}`}
-              className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm hover:shadow-lg hover:-translate-y-0.5 transform focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 duration-200 flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-              Edit Student Profile
-            </Link> */}
+            {isAdminView && (
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm hover:shadow-lg hover:-translate-y-0.5 transform focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 duration-200 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit Student
+              </button>
+            )}
           </div>
         </footer>
       </div>
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <EditStudentModal
+          student={currentStudent}
+          onClose={() => setShowEditModal(false)}
+          onUpdate={(updatedStudent) => {
+            setCurrentStudent(updatedStudent);
+            if (onStudentUpdate) {
+              onStudentUpdate(updatedStudent);
+            }
+            setShowEditModal(false);
+          }}
+        />
+      )}
     </div>
   );
 };
